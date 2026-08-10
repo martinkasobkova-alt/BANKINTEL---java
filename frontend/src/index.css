@@ -1,0 +1,2361 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600;8..60,700&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+html {
+    /* Subtle global type-size bump: 1rem → 16.5px instead of 16px */
+    font-size: 103.125%;
+}
+
+html,
+body,
+#root {
+    height: 100%;
+    max-width: 100%;
+    width: 100%;
+}
+
+html {
+    overflow-x: hidden;
+}
+
+#root {
+    overflow-x: hidden;
+    min-width: 0;
+}
+
+@media (max-width: 767px) {
+    html,
+    body {
+        overflow-x: hidden;
+        overscroll-behavior-x: none;
+        width: 100%;
+        max-width: 100%;
+    }
+
+    #root {
+        overflow-x: hidden;
+        max-width: 100%;
+    }
+}
+
+body {
+    margin: 0;
+    overflow-x: hidden;
+    font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
+    font-weight: 450; /* Inter variable — slightly bolder than regular 400 */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    letter-spacing: -0.003em;
+    font-feature-settings: "ss01" on, "cv11" on;
+    /* Výchozí běžné zalamování — ne „anywhere“ / break-all (ničí slovní řádky v úzkém flexu). */
+    word-break: normal;
+    overflow-wrap: break-word;
+}
+
+code,
+.font-mono,
+.mono {
+    font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-variant-numeric: tabular-nums;
+    font-weight: 400;
+}
+
+/* Section / page titles — bold confident Manrope in a rich mid-blue that's
+ * intentionally different from the deep navy of the Bankovnictví logo so
+ * titles feel like part of the palette without echoing the brand mark. */
+.font-serif,
+.serif,
+.font-display {
+    font-family: "Manrope", "Inter", ui-sans-serif, system-ui, sans-serif;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    color: hsl(var(--title));
+}
+
+@layer base {
+    :root {
+        /* Canvas — deeper pastel blue so white panels stand out clearly */
+        --background: 205 70% 90%;
+        --foreground: 218 55% 16%;
+
+        /* Cards are pure white so they pop against the pastel canvas */
+        --card: 0 0% 100%;
+        --card-foreground: 218 55% 16%;
+        --popover: 205 45% 98%;
+        --popover-foreground: 218 55% 16%;
+
+        /* Primary — vivid cheerful cyan-blue (the infographic bar colour) */
+        --primary: 202 90% 52%;
+        --primary-foreground: 0 0% 100%;
+
+        /* Deep navy — reserved for the logo echo, not for titles */
+        --primary-deep: 218 65% 18%;
+
+        /* Page / section title colour — a confident mid-blue that sits
+         * between the bright cyan primary and the navy logo, so titles
+         * clearly belong to the palette without mimicking the logo. */
+        --title: 208 80% 38%;
+
+        /* Extra-soft primary for hover / selection */
+        --primary-soft: 205 78% 88%;
+
+        /* Secondary — medium steel blue (used in infographic charts) */
+        --secondary: 208 75% 62%;
+        --secondary-foreground: 0 0% 100%;
+
+        /* Muted — still pastel blue but a touch cooler */
+        --muted: 205 48% 86%;
+        --muted-foreground: 218 32% 28%; /* was 38% lightness — darker for better readability */
+
+        /* Warm accent to keep the palette from being mono-blue */
+        --accent: 36 85% 90%;
+        --accent-foreground: 28 55% 28%;
+
+        --destructive: 354 70% 58%;
+        --destructive-foreground: 0 0% 100%;
+
+        /* Darker blue borders so cards are visibly separated from canvas */
+        --border: 205 44% 66%;
+        --input: 205 44% 66%;
+        --ring: 202 90% 52%;
+        --radius: 0.5rem;
+
+        --success: 165 70% 45%;
+        --success-foreground: 0 0% 100%;
+        --warning: 36 95% 58%;
+        --warning-foreground: 0 0% 100%;
+
+        /* Infographic-matched chart palette — boosted saturation & depth:
+         * 1 vivid cyan | 2 deep navy | 3 bold blue | 4 steel | 5 periwinkle | 6 teal */
+        --chart-1: 202 95% 42%;
+        --chart-2: 218 72% 22%;
+        --chart-3: 208 82% 40%;
+        --chart-4: 205 68% 58%;
+        --chart-5: 225 65% 50%;
+        --chart-6: 188 72% 38%;
+
+        /* Motivy (AppShell) — modal/drawer scrim, tabulky */
+        --overlay-backdrop: 218 30% 22%;
+        --table-header-bg: 205 76% 96%;
+        --table-header-fg: 218 65% 18%;
+        --table-body-text: 218 30% 24%;
+    }
+}
+
+@layer base {
+    * {
+        @apply border-border;
+    }
+    body {
+        @apply bg-background text-foreground;
+    }
+    ::selection {
+        background: hsl(var(--primary) / 0.35);
+        color: hsl(var(--primary-deep));
+    }
+    h1, h2, h3, h4, h5, h6 {
+        font-family: "Manrope", "Inter", sans-serif;
+        font-weight: 700;
+        letter-spacing: -0.025em;
+        color: hsl(var(--title));
+    }
+}
+
+/* Sidebar nav link */
+.nav-link {
+    @apply flex items-center gap-3 px-3 py-2 text-[13.5px] rounded-lg transition-all;
+    color: hsl(var(--foreground) / 0.84);
+    font-weight: 520;
+}
+.nav-link:hover {
+    background: hsl(var(--primary-soft));
+    color: hsl(var(--primary-deep));
+}
+.nav-link.active {
+    background: hsl(var(--primary));
+    color: white;
+    font-weight: 600;
+    box-shadow: 0 4px 10px hsl(var(--primary) / 0.35);
+}
+
+/* Data table — airy infographic look */
+.data-table {
+    @apply w-full text-sm;
+    border-collapse: separate;
+    border-spacing: 0;
+}
+/**
+ * Použít kolem `.data-table` pro vizuálně zaoblený blok (kulaté rohy včetně hlavičky):
+ * -- `<div class="data-table-shell"><div class="overflow-auto …">...</div></div>`
+ */
+.data-table-shell {
+    border-radius: 1rem;
+    border: 1px solid hsl(var(--border) / 0.55);
+    overflow: hidden;
+    background: hsl(var(--card));
+}
+
+.data-table thead th {
+    background: hsl(var(--table-header-bg));
+    border-bottom: 2px solid hsl(var(--primary) / 0.30);
+    @apply text-[11px] uppercase tracking-[0.10em] font-bold text-left px-4 py-3;
+    color: hsl(var(--table-header-fg, var(--primary-deep)));
+    position: relative;
+    z-index: 1;
+}
+@media (max-width: 768px) {
+    .data-table thead th {
+        letter-spacing: 0.05em !important;
+    }
+}
+.data-table tbody td {
+    border-bottom: 1px solid hsl(var(--border) / 0.68);
+    @apply px-4 py-3;
+    color: hsl(var(--table-body-text));
+    font-weight: 400;
+    background-color: hsl(var(--card));
+}
+.data-table tbody tr:nth-child(even) td {
+    background-color: hsl(var(--muted) / 0.22);
+}
+.data-table tbody tr:hover td {
+    background-color: hsl(var(--primary-soft) / 0.55);
+}
+.data-table tbody tr:last-child td {
+    border-bottom: 0;
+}
+/* Pravidlo: sloupce vždy oddělené svislou linkou — přehlednější (platí všude přes .data-table). */
+.data-table thead th:not(:last-child),
+.data-table tbody td:not(:last-child) {
+    border-right: 1px solid hsl(var(--border) / 0.45);
+}
+.data-table td.num,
+.data-table th.num {
+    @apply text-right font-mono tabular-nums;
+}
+[data-bankoapp-canvas="dark"] .data-table-shell {
+    border-color: rgb(255 255 255 / 0.12);
+    background: #171d25;
+}
+[data-bankoapp-canvas="dark"] .data-table thead th {
+    background: #1f2833;
+    border-bottom-color: rgb(255 255 255 / 0.12);
+    color: #c7d0dc;
+}
+[data-bankoapp-canvas="dark"] .data-table tbody td {
+    background: #151b23;
+    color: #f3f4f6;
+    border-bottom-color: rgb(255 255 255 / 0.12);
+}
+[data-bankoapp-canvas="dark"] .data-table thead th:not(:last-child),
+[data-bankoapp-canvas="dark"] .data-table tbody td:not(:last-child) {
+    border-right-color: rgb(255 255 255 / 0.10);
+}
+[data-bankoapp-canvas="dark"] .data-table tbody tr:nth-child(even) td {
+    background: #171d25;
+}
+[data-bankoapp-canvas="dark"] .data-table tbody tr:hover td {
+    background: #222b36;
+}
+
+/* Dashboard widget canvas — CSS Grid 12 cols desktop/laptop.
+ * Pod 1024px: max. dva flexibilní sloupce přes data-mobile-span;
+ * pod 421px výhradně jeden sloupec (bez „useknutých“ KPI vedle grafů).
+ * eighth:col 3 row 1 …; spacing jen přes grid-gap */
+.widget-canvas-grid {
+    display: grid;
+    gap: 8px;
+    grid-template-columns: 1fr;
+    grid-auto-rows: minmax(200px, auto);
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+}
+@media (min-width: 1024px) {
+    .widget-canvas-grid {
+        grid-template-columns: repeat(12, 1fr);
+        /* Safari/macOS při užší šířce viewportu často vykreslí karty opticky „vysoké“.
+         * Držíme proto konzervativnější základní řádek a výšku postupně zvětšujeme
+         * až na velkých monitorech. */
+        grid-auto-rows: clamp(132px, 10.8vw, 166px);
+    }
+    .widget-canvas-cell {
+        grid-column: span var(--widget-cs, 12);
+        grid-row: span var(--widget-rs, 2);
+        min-height: 0;
+        min-width: 0;
+        max-width: 100%;
+        box-sizing: border-box;
+        padding: 6px;
+    }
+    .widget-canvas-cell[data-has-grid="1"] {
+        grid-column: var(--grid-cs) / var(--grid-ce);
+        grid-row: var(--grid-rs) / var(--grid-re);
+    }
+}
+@media (min-width: 1200px) and (max-width: 1399px) {
+    .widget-canvas-grid {
+        grid-auto-rows: clamp(138px, 9.8vw, 168px);
+    }
+}
+@media (min-width: 1400px) {
+    .widget-canvas-grid {
+        /* Large desktop (esp. 15" Mac) must not overshoot card height. */
+        grid-auto-rows: clamp(144px, 8.6vw, 172px);
+    }
+}
+@media (max-width: 1023px) {
+    .widget-canvas-cell {
+        box-sizing: border-box;
+        padding: 6px;
+        min-height: 0;
+        min-width: 0;
+        max-width: 100%;
+        width: 100%;
+    }
+}
+
+/* Mobil / tablet bez 12-sloupcového rozložení: 2 sloupce kde umožní data-mobile-span. */
+@media (max-width: 1023px) and (min-width: 421px) {
+    .widget-canvas-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .widget-canvas-cell[data-mobile-span="compact"] {
+        grid-column: auto / span 1;
+        grid-row: auto;
+    }
+    .widget-canvas-cell:not([data-mobile-span="compact"]) {
+        grid-column: 1 / -1;
+        grid-row: auto;
+    }
+}
+@media (max-width: 420px) {
+    .widget-canvas-grid {
+        grid-template-columns: 1fr;
+    }
+    .widget-canvas-cell {
+        grid-column: 1 / -1 !important;
+        grid-row: auto !important;
+    }
+}
+
+/* Long labels v Recharts — legendy mohou způsobit horizontální roztahání karty */
+.recharts-legend-wrapper {
+    max-width: 100%;
+    overflow-x: auto;
+}
+
+/* Velké grafy (AradView / katalog): ostřejší SVG + stabilní kompozice u zaoblených karet (Chrome / HiDPI). */
+@media (min-width: 768px) {
+    .chart-body-slot .recharts-surface {
+        shape-rendering: geometricPrecision;
+        overflow: visible;
+    }
+    .chart-body-slot .recharts-wrapper {
+        overflow: visible !important;
+    }
+}
+@media (max-width: 767px) {
+    .chart-body-slot .recharts-surface {
+        shape-rendering: geometricPrecision;
+        overflow: hidden;
+    }
+    .chart-body-slot .recharts-wrapper {
+        overflow: hidden !important;
+        max-width: 100%;
+    }
+    .chart-bar-h-scroll .recharts-wrapper {
+        overflow: visible !important;
+    }
+}
+/* Geo mapa — vyplní výšku slotu (fullscreen i widget), SVG škáluje celou Evropu dovnitř */
+[data-chart-kind="geo_map"].chart-body-slot {
+    min-height: 0;
+    flex: 1 1 0;
+    display: flex;
+    flex-direction: column;
+}
+[data-chart-kind="geo_map"] .geo-map-chart-root {
+    flex: 1 1 0;
+    min-height: 0;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+[data-chart-kind="geo_map"] .geo-map-chart-root svg {
+    shape-rendering: geometricPrecision;
+    flex: 1 1 0;
+    min-height: 0;
+    max-height: 100%;
+}
+.geo-map-chart-root .geo-map-country:focus {
+    outline: none;
+}
+.geo-map-tooltip {
+    transform: translate(0, -100%);
+}
+.geo-map-legend {
+    backdrop-filter: blur(4px);
+}
+.geo-map-legend--vertical {
+    width: max-content;
+    max-width: 3.5rem;
+}
+/* Horizontální scroll bar chartu: Y popisky zůstanou vlevo (Recharts osa, ne HTML gutter). */
+.chart-bar-h-scroll {
+    scrollbar-gutter: stable;
+}
+.chart-bar-h-scroll .recharts-yAxis {
+    position: sticky;
+    left: 0;
+    z-index: 3;
+}
+.chart-bar-h-scroll .recharts-yAxis .recharts-cartesian-axis-line,
+.chart-bar-h-scroll .recharts-yAxis .recharts-cartesian-axis-tick text {
+    paint-order: stroke fill;
+}
+.chart-bar-h-scroll .recharts-surface {
+    overflow: visible;
+}
+
+/* Čtečka PDF — tažení (ručka) při zoomu */
+.archive-reader-pinch-surface {
+    touch-action: pan-x pan-y;
+    -webkit-user-select: none;
+    user-select: none;
+}
+/* overscroll-behavior: contain JEN ve fullscreenu, kde je kontejner sám scrollerem.
+   V ne-fullscreen je kontejner velký podle obsahu (nikdy nescrolluje vnitřně) a scrolluje
+   až vnější app-shell — contain by tam ukusoval kolečko myši nad čtečkou (scroll nešel,
+   dokud nebyl kurzor mimo čtečku). */
+.archive-reader-pinch-surface--contain {
+    overscroll-behavior: contain;
+}
+.archive-reader-scrollbars-hidden {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+.archive-reader-scrollbars-hidden::-webkit-scrollbar,
+.archive-reader-scrollbars-hidden *::-webkit-scrollbar {
+    width: 0 !important;
+    height: 0 !important;
+    display: none;
+}
+.archive-reader-pan {
+    cursor: grab;
+    touch-action: none;
+}
+.archive-reader-pan-active {
+    cursor: grabbing;
+    user-select: none;
+}
+.archive-reader-pan-active * {
+    user-select: none;
+}
+.archive-reader-mobile-viewport {
+    height: calc(100dvh - 11rem);
+    min-height: 58vh;
+    max-height: calc(100dvh - 6rem);
+}
+@supports not (height: 100dvh) {
+    .archive-reader-mobile-viewport {
+        height: calc(100vh - 11rem);
+        max-height: calc(100vh - 6rem);
+    }
+}
+.archive-reader-mobile-toolbar,
+.archive-reader-mobile-toolbar button {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+}
+
+[data-arad-card="1"] {
+    isolation: isolate;
+}
+
+/* Minigrafy: spodní Y popisek a osa X nesmí narazit na overflow karty. */
+[data-mini-chart="1"] .chart-body-slot {
+    padding-bottom: 0.25rem;
+}
+[data-mini-chart="1"] .mini-chart-frame {
+    box-sizing: border-box;
+}
+[data-mini-chart="1"] .chart-body-slot .recharts-wrapper,
+[data-mini-chart="1"] .chart-body-slot .recharts-surface {
+    overflow: visible !important;
+}
+[data-mini-chart="1"] .chart-body-slot .recharts-cartesian-axis-tick text {
+    overflow: visible;
+}
+
+/* Recharts na mobilu: jen spodní mez výšky — nesmí být pevná height (!important), jinak v flex
+ * kartě zůstane prázdný pás pod grafem (mini 1/8, 1/6 i širší widgety). */
+@media (max-width: 768px) {
+    .chart-body-slot {
+        min-height: clamp(190px, 46vmin, 380px);
+        height: auto;
+        max-height: none;
+    }
+    .simple-chart-slot:not(:empty) {
+        min-height: clamp(210px, 48vmin, 360px);
+    }
+}
+
+/* KPI cards — white on pastel, strong shadow so they "float" */
+.kpi-card {
+    @apply bg-card rounded-2xl p-6 flex flex-col gap-3;
+    border: 1px solid hsl(var(--border) / 0.9);
+    box-shadow:
+        0 12px 32px hsl(218 55% 25% / 0.18),
+        0 1px 0 hsl(205 75% 98% / 0.9) inset;
+    transition: transform .2s, box-shadow .2s;
+}
+@media (max-width: 768px) {
+    .kpi-card {
+        @apply p-4 gap-2 rounded-xl;
+    }
+}
+.kpi-card:hover {
+    transform: translateY(-2px);
+    box-shadow:
+        0 16px 34px hsl(218 55% 25% / 0.18),
+        0 1px 0 hsl(205 75% 98% / 0.9) inset;
+}
+.kpi-label {
+    @apply text-[10px] uppercase tracking-[0.14em] font-semibold;
+    color: hsl(var(--primary));
+}
+@media (max-width: 768px) {
+    .kpi-label {
+        letter-spacing: 0.04em !important;
+    }
+}
+.kpi-value {
+    @apply text-[40px] leading-none;
+    color: hsl(var(--primary-deep));
+    font-family: "Manrope", "Inter", sans-serif;
+    font-weight: 700;
+    letter-spacing: -0.035em;
+}
+.kpi-hint {
+    @apply text-xs font-mono;
+    color: hsl(var(--muted-foreground));
+    font-weight: 400;
+}
+
+/* Chip helpers — vibrant pill badges in the infographic style */
+.chip-mint,
+.chip-blue    { background: hsl(202 90% 90%); color: hsl(202 90% 30%); }
+.chip-navy    { background: hsl(218 55% 90%); color: hsl(218 65% 22%); }
+.chip-rose    { background: hsl(344 75% 92%); color: hsl(344 50% 38%); }
+.chip-cream   { background: hsl(36 85% 88%);  color: hsl(28 55% 30%); }
+.chip-lavender{ background: hsl(240 60% 92%); color: hsl(240 45% 32%); }
+
+[data-bankoapp-canvas="dark"] .chip-mint {
+    background: hsl(152 42% 14%);
+    color: hsl(152 72% 82%);
+    border-color: hsl(152 38% 24%) !important;
+}
+[data-bankoapp-canvas="dark"] .chip-blue {
+    background: hsl(210 40% 16%);
+    color: hsl(205 88% 82%);
+    border-color: hsl(210 32% 28%) !important;
+}
+[data-bankoapp-canvas="dark"] .chip-navy {
+    background: hsl(220 36% 16%);
+    color: hsl(210 40% 92%);
+    border-color: hsl(220 28% 30%) !important;
+}
+[data-bankoapp-canvas="dark"] .chip-rose {
+    background: hsl(344 46% 16%);
+    color: hsl(350 80% 88%);
+    border-color: hsl(344 36% 30%) !important;
+}
+[data-bankoapp-canvas="dark"] .chip-cream {
+    background: hsl(32 40% 14%);
+    color: hsl(42 88% 86%);
+    border-color: hsl(32 36% 26%) !important;
+}
+[data-bankoapp-canvas="dark"] .chip-lavender {
+    background: hsl(262 36% 18%);
+    color: hsl(270 70% 90%);
+    border-color: hsl(262 30% 30%) !important;
+}
+
+/* Button helpers — bright cyan primary with glow, ghost alternative, selected row */
+.btn-mint,
+.btn-primary {
+    background: linear-gradient(135deg, hsl(202 95% 58%), hsl(208 85% 45%));
+    color: white;
+    border-radius: 0.75rem;
+    font-weight: 600;
+    transition: transform .15s, box-shadow .15s, opacity .15s;
+    box-shadow: 0 6px 16px hsl(202 90% 45% / 0.35);
+}
+.btn-mint:hover,
+.btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 10px 22px hsl(202 90% 45% / 0.45);
+}
+.btn-mint:disabled,
+.btn-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+[data-bankoapp-canvas="dark"] .btn-mint,
+[data-bankoapp-canvas="dark"] .btn-primary {
+    background: linear-gradient(135deg, hsl(38 86% 62%), hsl(28 82% 52%));
+    color: hsl(218 34% 13%);
+    border: 1px solid hsl(34 78% 56% / 0.85);
+    box-shadow: 0 8px 20px hsl(26 88% 32% / 0.38);
+}
+[data-bankoapp-canvas="dark"] .btn-mint:hover,
+[data-bankoapp-canvas="dark"] .btn-primary:hover {
+    box-shadow: 0 10px 24px hsl(26 88% 32% / 0.5);
+}
+
+.btn-ghost {
+    background: hsl(205 45% 98%);
+    border: 1px solid hsl(var(--border) / 0.85);
+    border-radius: 0.75rem;
+    font-weight: 500;
+    transition: all .15s;
+}
+.btn-ghost:hover {
+    background: hsl(var(--primary-soft));
+    border-color: hsl(var(--primary) / 0.5);
+    color: hsl(var(--primary-deep));
+}
+[data-bankoapp-canvas="dark"] .btn-ghost {
+    background: hsl(var(--muted) / 0.5);
+    color: hsl(var(--foreground));
+    border-color: hsl(var(--border) / 0.85);
+}
+[data-bankoapp-canvas="dark"] .btn-ghost:hover {
+    background: hsl(var(--primary-soft) / 0.9);
+    color: hsl(var(--foreground));
+    border-color: hsl(var(--primary) / 0.45);
+}
+
+.row-selected {
+    background: hsl(var(--primary) / 0.14);
+    color: hsl(var(--primary-deep));
+    border-left: 3px solid hsl(var(--primary));
+}
+[data-bankoapp-canvas="dark"] .row-selected {
+    background: hsl(var(--primary) / 0.18);
+    color: hsl(var(--foreground));
+    border-left-color: hsl(var(--primary));
+}
+
+/* Reusable white "soft card" that floats over the pastel canvas */
+.soft-card {
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--border) / 0.92);
+    border-radius: 1rem;
+    box-shadow:
+        0 12px 32px hsl(218 55% 25% / 0.16),
+        0 1px 0 hsl(205 80% 98% / 0.9) inset;
+}
+[data-bankoapp-canvas="dark"] .soft-card {
+    box-shadow:
+        0 12px 32px hsl(0 0% 0% / 0.45),
+        0 1px 0 hsl(var(--border) / 0.35) inset;
+}
+
+/* Formulářové `.input` — barvy z design tokenů (čitelné v light i na tmavém canvasu). */
+.input,
+textarea.input,
+select.input {
+    color: hsl(var(--foreground));
+    background-color: hsl(var(--card));
+    border-color: hsl(var(--input));
+    border-radius: 0.625rem;
+}
+.input::placeholder,
+textarea.input::placeholder,
+select.input::placeholder {
+    color: hsl(var(--muted-foreground));
+}
+.input:disabled,
+textarea.input:disabled,
+select.input:disabled {
+    opacity: 0.72;
+    cursor: not-allowed;
+    background-color: hsl(var(--muted) / 0.55);
+    color: hsl(var(--muted-foreground));
+}
+[data-bankoapp-canvas="dark"] .input,
+[data-bankoapp-canvas="dark"] textarea.input,
+[data-bankoapp-canvas="dark"] select.input {
+    background-color: #111821;
+    color: #f3f4f6;
+    border-color: rgb(217 138 43 / 0.42);
+}
+[data-bankoapp-canvas="dark"] .input::placeholder,
+[data-bankoapp-canvas="dark"] textarea.input::placeholder,
+[data-bankoapp-canvas="dark"] select.input::placeholder {
+    color: #9aa8b8;
+}
+[data-bankoapp-canvas="dark"] .input:disabled,
+[data-bankoapp-canvas="dark"] textarea.input:disabled,
+[data-bankoapp-canvas="dark"] select.input:disabled {
+    background-color: #1a222d;
+    color: #9aa8b8;
+    opacity: 0.75;
+}
+
+/* Stabilizace čitelnosti katalogů pro preset Černá · měď (bez layout změn). */
+[data-bankoapp-canvas="dark"] .catalog-dark-scope {
+    color: #f3f4f6;
+}
+[data-bankoapp-canvas="dark"] .catalog-dark-scope .rounded-2xl {
+    border-radius: 18px;
+}
+[data-bankoapp-canvas="dark"] .catalog-dark-scope .rounded-xl {
+    border-radius: 12px;
+}
+[data-bankoapp-canvas="dark"] .catalog-dark-scope :is(p, span, label, small, div) {
+    opacity: 1;
+}
+[data-bankoapp-canvas="dark"] .catalog-dark-scope .text-muted-foreground {
+    color: #c7d0dc !important;
+}
+[data-bankoapp-canvas="dark"] .catalog-dark-scope .text-foreground\/90 {
+    color: #f3f4f6 !important;
+}
+[data-bankoapp-canvas="dark"] .catalog-dark-scope input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]),
+[data-bankoapp-canvas="dark"] .catalog-dark-scope select,
+[data-bankoapp-canvas="dark"] .catalog-dark-scope textarea {
+    background: #111821;
+    color: #f3f4f6;
+    border-color: rgb(217 138 43 / 0.42);
+}
+[data-bankoapp-canvas="dark"] .catalog-dark-scope input::placeholder,
+[data-bankoapp-canvas="dark"] .catalog-dark-scope textarea::placeholder {
+    color: #9aa8b8;
+}
+.catalog-browse-card select,
+.catalog-browse-card input[type="text"],
+.catalog-browse-card input[type="search"] {
+    max-width: 100%;
+    box-sizing: border-box;
+}
+[data-bankoapp-canvas="dark"] .catalog-search-card,
+[data-bankoapp-canvas="dark"] .catalog-browse-card {
+    background: #171d25;
+    border-color: rgb(217 138 43 / 0.42);
+}
+[data-bankoapp-canvas="dark"] .catalog-browse-card .border-t,
+[data-bankoapp-canvas="dark"] .catalog-browse-card .border-b {
+    border-color: rgb(255 255 255 / 0.12);
+}
+[data-bankoapp-canvas="dark"] .catalog-browse-card .hover\:bg-muted\/50:hover {
+    background: #222b36;
+}
+[data-bankoapp-canvas="dark"] .catalog-ai-mode-box {
+    background: #17251f;
+    border-color: rgb(52 211 153 / 0.45);
+    color: #e5fff5;
+}
+[data-bankoapp-canvas="dark"] .catalog-ai-mode-box .text-foreground,
+[data-bankoapp-canvas="dark"] .catalog-ai-mode-box .text-foreground\/90 {
+    color: #e5fff5 !important;
+}
+[data-bankoapp-canvas="dark"] .catalog-ai-mode-box .text-muted-foreground {
+    color: #b7d7ca !important;
+}
+[data-bankoapp-canvas="dark"] .catalog-ai-submit-btn {
+    color: #e5fff5 !important;
+}
+[data-bankoapp-canvas="dark"] .catalog-ai-status-box {
+    background: #1a2a27;
+    border-color: rgb(52 211 153 / 0.45);
+}
+[data-bankoapp-canvas="dark"] .catalog-ai-status-box .text-muted-foreground {
+    color: #b7d7ca !important;
+}
+
+.catalog-unified-search-hero input[type="search"] {
+    font-size: clamp(1rem, 2.5vw, 1.125rem);
+}
+
+.catalog-search-results-active .catalog-search-results-pane {
+    flex: 1 1 100%;
+    min-width: 0;
+    width: 100%;
+}
+
+.catalog-search-results-pane .rounded-2xl.border {
+    width: 100%;
+}
+
+@media (min-width: 1024px) {
+    .catalog-search-results-active {
+        align-items: flex-start;
+    }
+}
+
+/* AppShell hlavička musí být nad sticky katalogovým panelem (viz .catalog-unified-header). */
+[data-app-shell-header] {
+    position: relative;
+    z-index: 50;
+    isolation: isolate;
+}
+
+[data-app-shell-root] {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+    min-width: 0;
+}
+
+.app-content-viewport {
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: hidden;
+}
+
+/* Mobilní AppShell: scroll jen uvnitř obsahu, široké grafy nesmí roztáhnout stránku. */
+@media (max-width: 767px) {
+    [data-app-shell-root] {
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+        overscroll-behavior-x: none;
+    }
+
+    [data-app-shell-root] main,
+    [data-app-shell-root] #app-main-scroll {
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+        overflow-x: clip;
+    }
+
+    [data-app-shell-header] {
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+        overflow-x: clip;
+    }
+
+    [data-app-shell-root] .app-main-scroll-pane {
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+        overflow-x: clip;
+        overscroll-behavior-y: contain;
+        overscroll-behavior-x: none;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    [data-app-shell-root] .app-main-scroll-pane > *,
+    [data-app-shell-root] .app-content-viewport {
+        min-width: 0;
+        max-width: 100%;
+        overflow-x: clip;
+    }
+
+    [data-app-shell-root] .widget-canvas-cell,
+    [data-app-shell-root] .kpi-card,
+    [data-app-shell-root] [data-arad-card] {
+        min-width: 0;
+        max-width: 100%;
+        overflow-x: clip;
+    }
+
+    [data-app-shell-root] .chart-bar-h-scroll {
+        max-width: 100%;
+        overflow-x: auto;
+        overscroll-behavior-x: contain;
+        touch-action: pan-x pan-y;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    [data-app-shell-root] .app-shell-catalog-search {
+        max-width: 100%;
+        overflow: hidden;
+    }
+
+    .catalog-dark-scope,
+    .catalog-search-active-layout,
+    .catalog-search-results-scroll,
+    .catalog-unified-header,
+    .catalog-unified-header-sticky {
+        max-width: 100%;
+        min-width: 0;
+        overflow-x: hidden;
+    }
+
+    [data-testid="macro-comparison-table-scroll"],
+    .macro-extra-table-scroll {
+        width: 100%;
+        max-width: 100%;
+        overflow-x: auto;
+        overscroll-behavior-x: contain;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    [data-testid="macro-comparison-table-scroll"] thead th {
+        position: sticky;
+        top: 0;
+    }
+}
+
+[data-testid="app-desktop-sidebar-toggle"] {
+    z-index: 60;
+}
+
+.catalog-browse-toggle {
+    position: relative;
+    z-index: 10;
+    pointer-events: auto;
+}
+
+#app-main-scroll-pane,
+.app-main-scroll-pane {
+    position: relative;
+    z-index: 0;
+}
+
+/* Katalogové vyhledávání — search-first layout (redesign 2026) */
+.catalog-unified-header-sticky {
+    position: relative;
+    top: auto;
+    z-index: 20;
+    isolation: isolate;
+    padding-bottom: 0.75rem;
+    overflow: visible;
+}
+
+.catalog-unified-header-sticky + * {
+    padding-top: 0.125rem;
+}
+
+.catalog-unified-header {
+    position: relative;
+    z-index: 1;
+    overflow: visible;
+    min-height: 5rem;
+    background-color: hsl(var(--card));
+    background-image: linear-gradient(
+        180deg,
+        hsl(204 100% 97%) 0%,
+        hsl(var(--card)) 55%,
+        hsl(var(--card)) 100%
+    );
+    box-shadow:
+        0 1px 0 hsl(var(--border) / 0.65),
+        0 6px 20px hsl(var(--foreground) / 0.07);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+}
+
+.catalog-dark-scope .catalog-unified-header {
+    background-color: hsl(var(--card));
+    background-image: linear-gradient(
+        180deg,
+        hsl(var(--muted) / 0.85) 0%,
+        hsl(var(--card)) 55%,
+        hsl(var(--card)) 100%
+    );
+}
+
+/* Aktivní hledání — scrolluje celá stránka (app-main-scroll-pane), ne vnořený panel. */
+.catalog-search-active-layout {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    width: 100%;
+}
+
+.catalog-search-active-layout .catalog-unified-header-sticky {
+    position: relative;
+    flex-shrink: 0;
+    z-index: 2;
+    padding-bottom: 0;
+    overflow: visible;
+}
+
+.catalog-unified-header form,
+.catalog-unified-header-toolbar {
+    overflow: visible;
+    min-width: 0;
+}
+
+.catalog-unified-header-toolbar {
+    padding: 0.25rem;
+}
+
+.catalog-unified-header-toolbar > * {
+    min-width: 0;
+}
+
+.catalog-unified-header-input,
+.catalog-unified-header .rounded-xl.border {
+    box-sizing: border-box;
+}
+
+.catalog-search-results-scroll {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    width: 100%;
+}
+
+.catalog-search-active-layout .catalog-search-results-scroll > .catalog-responsive-layout {
+    width: 100%;
+}
+
+.catalog-search-hits-grid {
+    display: grid;
+    gap: 0.5rem;
+    grid-template-columns: minmax(0, 1fr);
+}
+
+@media (min-width: 768px) {
+    .catalog-search-hits-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (min-width: 1280px) {
+    .catalog-search-hits-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+.catalog-unified-header-input:focus {
+    outline: none;
+    box-shadow:
+        inset 0 0 0 2px hsl(199 89% 48% / 0.55),
+        0 1px 2px hsl(var(--foreground) / 0.05);
+}
+
+.catalog-unified-header-input {
+    border: none;
+    box-shadow:
+        inset 0 0 0 1px hsl(var(--border) / 0.72),
+        0 1px 2px hsl(var(--foreground) / 0.05);
+}
+
+.catalog-header-search-form {
+    padding: 0.375rem 0.25rem;
+}
+
+.catalog-header-search-input {
+    border: none;
+    box-shadow:
+        inset 0 0 0 1px hsl(var(--border) / 0.72),
+        0 1px 2px hsl(var(--foreground) / 0.05);
+}
+
+.catalog-header-search-input:focus {
+    outline: none;
+    box-shadow:
+        inset 0 0 0 2px hsl(var(--primary) / 0.62),
+        0 1px 2px hsl(var(--foreground) / 0.05);
+}
+
+[data-catalog-hub="1"] .page-header-inner {
+    padding-block: 0.25rem;
+}
+
+.catalog-responsive-layout {
+    display: grid;
+    gap: 1rem;
+    min-width: 0;
+    width: 100%;
+    align-items: start;
+}
+
+@media (min-width: 1024px) {
+    .catalog-layout-variant-a {
+        grid-template-columns: minmax(22rem, 1.05fr) minmax(0, 1.35fr);
+        grid-template-rows: auto auto;
+    }
+
+    .catalog-layout-variant-a .catalog-layout-explorer {
+        grid-column: 1;
+        grid-row: 1 / span 2;
+    }
+
+    .catalog-layout-variant-a .catalog-layout-results {
+        grid-column: 2;
+        grid-row: 1;
+    }
+
+    .catalog-layout-variant-a .catalog-layout-detail {
+        grid-column: 2;
+        grid-row: 2;
+    }
+
+    .catalog-layout-variant-b {
+        grid-template-columns: minmax(16rem, 0.85fr) minmax(0, 1.45fr);
+        grid-template-rows: auto auto;
+    }
+
+    .catalog-layout-variant-b .catalog-layout-explorer {
+        grid-column: 1;
+        grid-row: 1 / span 2;
+    }
+
+    .catalog-layout-variant-b .catalog-layout-results {
+        grid-column: 2;
+        grid-row: 1;
+    }
+
+    .catalog-layout-variant-b .catalog-layout-detail {
+        grid-column: 2;
+        grid-row: 2;
+    }
+
+    .catalog-layout-variant-c {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .catalog-layout-variant-c .catalog-layout-results {
+        grid-column: 1;
+    }
+
+    .catalog-layout-variant-c .catalog-layout-detail {
+        grid-column: 1;
+    }
+}
+
+.catalog-layout-explorer-wide {
+    min-width: 0;
+    max-width: 100%;
+}
+
+.catalog-layout-explorer-medium {
+    min-width: 0;
+    max-width: 100%;
+}
+
+.catalog-column-explorer-scroll {
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+    box-sizing: border-box;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 0.5rem 0.25rem 0.625rem;
+    flex: 1 1 0;
+    min-height: 0;
+}
+
+.catalog-column-explorer-scroll-inner {
+    box-sizing: border-box;
+    padding: 1rem 1rem 0.875rem;
+    height: 100%;
+    min-height: 0;
+    align-items: stretch;
+}
+
+.catalog-column-explorer-body {
+    overflow: hidden;
+    min-height: 0;
+}
+
+.catalog-explorer-column-scroll {
+    scroll-padding: 1rem;
+    padding: 1.125rem 1rem 1rem;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+    scrollbar-width: auto;
+    scrollbar-color: hsl(var(--muted-foreground) / 0.55) hsl(var(--muted) / 0.65);
+}
+
+.catalog-explorer-column-scroll::-webkit-scrollbar {
+    width: 12px;
+}
+
+.catalog-explorer-column-scroll::-webkit-scrollbar-track {
+    background: hsl(var(--muted) / 0.65);
+    border-radius: 999px;
+}
+
+.catalog-explorer-column-scroll::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted-foreground) / 0.55);
+    border-radius: 999px;
+    border: 2px solid hsl(var(--muted) / 0.65);
+}
+
+.catalog-explorer-column-scroll::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.72);
+}
+
+.catalog-explorer-column-inner {
+    padding: 0.25rem;
+}
+
+.catalog-explorer-item-list {
+    padding: 0.125rem;
+}
+
+.catalog-explorer-item-wrap {
+    padding: 0.25rem;
+}
+
+.catalog-explorer-item--idle {
+    box-shadow: inset 0 0 0 1px hsl(var(--border) / 0.5);
+}
+
+.catalog-explorer-item--selected {
+    box-shadow: inset 0 0 0 2px hsl(199 89% 48% / 0.68);
+}
+
+.catalog-explorer-item--series.catalog-explorer-item--selected {
+    box-shadow: inset 0 0 0 2px hsl(160 84% 39% / 0.62);
+}
+
+.catalog-column-explorer-scroll--with-hbar {
+    /* Nativní lištu skryjeme — uživatel vidí vždy vlastní posuvník pod sloupci. */
+    scrollbar-width: none;
+}
+
+.catalog-column-explorer-scroll--with-hbar::-webkit-scrollbar {
+    display: none;
+    height: 0;
+}
+
+.catalog-column-explorer-hscroll {
+    user-select: none;
+}
+
+.catalog-column-explorer-hscroll-track:active .catalog-explorer-hscroll-thumb {
+    background: hsl(199 89% 42%);
+}
+
+.catalog-explorer-hscroll-btn:focus-visible,
+.catalog-column-explorer-hscroll-track:focus-visible {
+    outline: 2px solid hsl(199 89% 48% / 0.45);
+    outline-offset: 1px;
+}
+
+.catalog-browse-view {
+    min-width: 0;
+    width: 100%;
+    padding-top: 0.75rem;
+    padding-inline: 0.125rem;
+    overflow: hidden;
+    min-height: 0;
+}
+
+.catalog-column-explorer-scroll:not(.catalog-column-explorer-scroll--with-hbar) {
+    scrollbar-gutter: stable;
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--muted-foreground) / 0.38) hsl(var(--muted) / 0.55);
+    padding-bottom: 0.375rem;
+}
+
+.catalog-column-explorer-scroll:not(.catalog-column-explorer-scroll--with-hbar)::-webkit-scrollbar {
+    height: 10px;
+}
+
+.catalog-column-explorer-scroll:not(.catalog-column-explorer-scroll--with-hbar)::-webkit-scrollbar-track {
+    background: hsl(var(--muted) / 0.55);
+    border-radius: 999px;
+}
+
+.catalog-column-explorer-scroll:not(.catalog-column-explorer-scroll--with-hbar)::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted-foreground) / 0.38);
+    border-radius: 999px;
+}
+
+.catalog-column-explorer-scroll:not(.catalog-column-explorer-scroll--with-hbar)::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.58);
+}
+
+.catalog-column-explorer-scroll .catalog-explorer-column {
+    flex: 0 0 auto;
+}
+
+.catalog-dark-scope {
+    position: relative;
+    z-index: 1;
+    isolation: isolate;
+    overflow: visible;
+}
+
+.catalog-dark-scope .catalog-search-results-scroll,
+.catalog-dark-scope > .min-w-0 {
+    overflow-x: visible;
+}
+
+.catalog-column-explorer,
+.catalog-column-explorer .catalog-explorer-column {
+    background-color: hsl(var(--card));
+    overflow: hidden;
+}
+
+.catalog-explorer-column {
+    background: hsl(var(--card));
+    min-height: 0;
+}
+
+.catalog-explorer-item {
+    pointer-events: auto;
+    box-sizing: border-box;
+}
+
+.catalog-explorer-item:focus-visible {
+    outline: none;
+    box-shadow: inset 0 0 0 2px hsl(199 89% 48% / 0.5);
+}
+
+.catalog-explorer-item--series:focus-visible {
+    box-shadow: inset 0 0 0 2px hsl(160 84% 39% / 0.5);
+}
+
+.catalog-result-card:focus-visible {
+    outline: 2px solid hsl(199 89% 48% / 0.45);
+    outline-offset: 2px;
+}
+
+.catalog-detail-preview-root {
+    min-width: 0;
+}
+
+.catalog-detail-split {
+    align-items: stretch;
+}
+
+@media (min-width: 768px) {
+    .catalog-detail-split {
+        min-height: min(52vh, 32rem);
+    }
+}
+
+.catalog-series-detail {
+    min-width: 0;
+}
+
+.catalog-layout-variant-browse-full,
+.catalog-layout-variant-detail-only {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+.catalog-layout-browse-full {
+    grid-column: 1 / -1;
+    width: 100%;
+    min-width: 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Browse režim: explorer přes celou šířku obsahu (bez 100vw breakoutu — ten ořezával okraje).
+   Platí na všech viewportech — browse bez hledání je full-width i na širokém desktopu. */
+.catalog-layout-variant-browse-full {
+    width: 100%;
+    max-width: 100%;
+    margin-left: 0;
+    margin-right: 0;
+    padding-top: 0.75rem;
+}
+
+.catalog-column-explorer.catalog-column-explorer--browse-full {
+    width: 100%;
+    max-width: 100%;
+    height: clamp(30rem, 66dvh, calc(100dvh - 10rem));
+    min-height: min(30rem, calc(100dvh - 12rem));
+}
+
+.catalog-column-explorer--browse-full .catalog-column-explorer-scroll {
+    width: 100%;
+}
+
+@media (max-width: 1023px) {
+    .catalog-column-explorer--browse-full {
+        border-radius: 0;
+        border-left-width: 0;
+        border-right-width: 0;
+        box-shadow: none;
+    }
+}
+
+
+.catalog-mobile-explorer-drawer {
+    border-left: 0;
+    border-right: 0;
+}
+
+@media (max-width: 639px) {
+    .catalog-browse-view {
+        min-height: calc(100dvh - 13rem);
+    }
+
+    .catalog-series-detail-fullscreen {
+        padding-bottom: env(safe-area-inset-bottom, 0);
+    }
+}
+
+.catalog-layout-detail-portal {
+    display: contents;
+}
+
+.catalog-series-detail-fullscreen {
+    max-height: 100vh;
+}
+
+.catalog-series-detail-overlay {
+    max-height: calc(100vh - 6rem);
+}
+
+@media (max-width: 1023px) {
+    .catalog-layout-variant-mobile {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+/* Tmavý canvas (data-bankoapp-canvas=dark): obsah admin editorů pod <main> používá bílé/světlé bloky
+ * bez explicitní barvy textu — vynutíme tmavý dědičný text (Tailwind text-slate-* zůstává platné). */
+/* Editor homepage: na tmavém canvasu dědit theme tokeny (čitelné i u tmavých widget panelů). */
+[data-bankoapp-canvas="dark"] main .homepage-editor-scope {
+    color: hsl(var(--foreground));
+}
+[data-bankoapp-canvas="dark"] main .homepage-editor-scope .font-serif,
+[data-bankoapp-canvas="dark"] main .homepage-editor-scope.serif,
+[data-bankoapp-canvas="dark"] main .homepage-editor-scope .font-display {
+    color: hsl(var(--title));
+}
+[data-bankoapp-canvas="dark"] main .homepage-editor-scope h1,
+[data-bankoapp-canvas="dark"] main .homepage-editor-scope h2,
+[data-bankoapp-canvas="dark"] main .homepage-editor-scope h3,
+[data-bankoapp-canvas="dark"] main .homepage-editor-scope h4,
+[data-bankoapp-canvas="dark"] main .homepage-editor-scope h5,
+[data-bankoapp-canvas="dark"] main .homepage-editor-scope h6 {
+    color: hsl(var(--title));
+}
+
+/* Bílé admin panely (modal výpočtu, formulář zdroje): globální .font-serif barví přes --title;
+ * u „Černá · měď“ je --title světlý pro tmavé pozadí → na bílém musí být titulky tmavé. */
+.computed-editor-modal-scope .font-serif,
+.computed-editor-modal-scope.serif,
+.computed-editor-modal-scope .font-display,
+.source-form-panel-scope .font-serif,
+.source-form-panel-scope.serif,
+.source-form-panel-scope .font-display {
+    color: hsl(208 40% 22%);
+}
+
+[data-bankoapp-canvas="dark"] .computed-editor-modal-scope,
+[data-bankoapp-canvas="dark"] .source-form-panel-scope {
+    color: hsl(218 26% 16%);
+    /* Bílé / světlé panely: přepíšeme tokeny, aby text-* založené na --foreground / --muted-foreground byl čitelný */
+    --foreground: 218 28% 14%;
+    --muted-foreground: 218 18% 40%;
+    --background: 210 35% 98%;
+    --card-foreground: 218 28% 14%;
+    --popover-foreground: 218 28% 14%;
+    --title: 208 40% 22%;
+}
+[data-bankoapp-canvas="dark"] .computed-editor-modal-scope h1,
+[data-bankoapp-canvas="dark"] .computed-editor-modal-scope h2,
+[data-bankoapp-canvas="dark"] .computed-editor-modal-scope h3,
+[data-bankoapp-canvas="dark"] .computed-editor-modal-scope h4,
+[data-bankoapp-canvas="dark"] .computed-editor-modal-scope h5,
+[data-bankoapp-canvas="dark"] .computed-editor-modal-scope h6,
+[data-bankoapp-canvas="dark"] .source-form-panel-scope h1,
+[data-bankoapp-canvas="dark"] .source-form-panel-scope h2,
+[data-bankoapp-canvas="dark"] .source-form-panel-scope h3,
+[data-bankoapp-canvas="dark"] .source-form-panel-scope h4,
+[data-bankoapp-canvas="dark"] .source-form-panel-scope h5,
+[data-bankoapp-canvas="dark"] .source-form-panel-scope h6 {
+    color: hsl(208 44% 20%);
+}
+
+/* Katalog (/search/catalog), bug report modal, admin bug list — bílé/světlé bloky na tmavém canvasu */
+.bankoapp-white-panels-scope .font-serif,
+.bankoapp-white-panels-scope.serif,
+.bankoapp-white-panels-scope .font-display {
+    color: hsl(208 40% 22%);
+}
+[data-bankoapp-canvas="dark"] .bankoapp-white-panels-scope {
+    color: hsl(218 26% 16%);
+    --foreground: 218 28% 14%;
+    --muted-foreground: 218 18% 38%;
+    --background: 210 35% 98%;
+    --card-foreground: 218 28% 14%;
+    --popover-foreground: 218 28% 14%;
+    --title: 208 40% 22%;
+}
+[data-bankoapp-canvas="dark"] .bankoapp-white-panels-scope h1,
+[data-bankoapp-canvas="dark"] .bankoapp-white-panels-scope h2,
+[data-bankoapp-canvas="dark"] .bankoapp-white-panels-scope h3,
+[data-bankoapp-canvas="dark"] .bankoapp-white-panels-scope h4,
+[data-bankoapp-canvas="dark"] .bankoapp-white-panels-scope h5,
+[data-bankoapp-canvas="dark"] .bankoapp-white-panels-scope h6 {
+    color: hsl(208 44% 20%);
+}
+[data-bankoapp-canvas="dark"] .bankoapp-white-panels-scope input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]),
+[data-bankoapp-canvas="dark"] .bankoapp-white-panels-scope select,
+[data-bankoapp-canvas="dark"] .bankoapp-white-panels-scope textarea {
+    color: hsl(218 28% 14%);
+}
+[data-bankoapp-canvas="dark"] .bankoapp-white-panels-scope input::placeholder,
+[data-bankoapp-canvas="dark"] .bankoapp-white-panels-scope textarea::placeholder {
+    color: hsl(218 16% 42%);
+}
+
+/* Černá · měď: opravná vrstva pro stránky s mixem světlých formulářových prvků
+ * (RSS, Widgety, reklamní sloty, datové zdroje, osobní dashboard). */
+[data-bankoapp-canvas="dark"] .copper-text-fix-scope .text-slate-500 {
+    color: hsl(218 14% 42%) !important;
+}
+[data-bankoapp-canvas="dark"] .copper-text-fix-scope .text-slate-600 {
+    color: hsl(218 20% 33%) !important;
+}
+[data-bankoapp-canvas="dark"] .copper-text-fix-scope .text-slate-700,
+[data-bankoapp-canvas="dark"] .copper-text-fix-scope .text-slate-800 {
+    color: hsl(218 30% 16%) !important;
+}
+[data-bankoapp-canvas="dark"] .copper-text-fix-scope input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]),
+[data-bankoapp-canvas="dark"] .copper-text-fix-scope select,
+[data-bankoapp-canvas="dark"] .copper-text-fix-scope textarea {
+    color: #f3f4f6;
+    background: #111821;
+    border-color: rgb(217 138 43 / 0.42);
+}
+[data-bankoapp-canvas="dark"] .copper-text-fix-scope input::placeholder,
+[data-bankoapp-canvas="dark"] .copper-text-fix-scope textarea::placeholder {
+    color: #9aa8b8;
+}
+[data-bankoapp-canvas="dark"] .copper-text-fix-scope .bg-white,
+[data-bankoapp-canvas="dark"] .copper-text-fix-scope .bg-white\/50,
+[data-bankoapp-canvas="dark"] .copper-text-fix-scope .bg-white\/60,
+[data-bankoapp-canvas="dark"] .copper-text-fix-scope .bg-white\/70,
+[data-bankoapp-canvas="dark"] .copper-text-fix-scope .bg-white\/80,
+[data-bankoapp-canvas="dark"] .copper-text-fix-scope .bg-white\/90,
+[data-bankoapp-canvas="dark"] .copper-text-fix-scope .bg-white\/98,
+[data-bankoapp-canvas="dark"] .copper-text-fix-scope .from-white {
+    color: hsl(218 30% 16%) !important;
+}
+
+/* Homepage / section widget panels — admin picks preset in Widgety */
+.widget-panel-white {
+    background: #ffffff;
+    border: 1px solid hsl(var(--border) / 0.86);
+    border-radius: 1rem;
+    box-shadow:
+        0 10px 28px hsl(218 55% 25% / 0.12),
+        0 1px 0 hsl(205 80% 98% / 0.9) inset;
+}
+[data-bankoapp-canvas="dark"] .homepage-editor-scope .widget-panel-white {
+    background: hsl(var(--card));
+    box-shadow:
+        0 10px 28px hsl(0 0% 0% / 0.4),
+        0 1px 0 hsl(var(--border) / 0.25) inset;
+}
+.widget-panel-muted {
+    background: hsl(208 30% 94%);
+    border: 1px solid hsl(var(--border) / 0.82);
+    border-radius: 1rem;
+    box-shadow: 0 10px 26px hsl(218 55% 25% / 0.11);
+}
+[data-bankoapp-canvas="dark"] .homepage-editor-scope .widget-panel-muted {
+    background: hsl(var(--muted) / 0.55);
+    box-shadow: 0 10px 26px hsl(0 0% 0% / 0.35);
+}
+.widget-panel-slate {
+    background: hsl(213 26% 88%);
+    border: 1px solid hsl(var(--border) / 0.9);
+    border-radius: 1rem;
+    box-shadow: 0 10px 26px hsl(218 55% 25% / 0.14);
+}
+[data-bankoapp-canvas="dark"] .homepage-editor-scope .widget-panel-slate {
+    background: hsl(220 14% 14%);
+    box-shadow: 0 10px 26px hsl(0 0% 0% / 0.38);
+}
+.widget-panel-mint {
+    background: hsl(198 48% 94%);
+    border: 1px solid hsl(200 35% 74%);
+    border-radius: 1rem;
+    box-shadow: 0 10px 26px hsl(200 50% 35% / 0.12);
+}
+[data-bankoapp-canvas="dark"] .homepage-editor-scope .widget-panel-mint {
+    background: hsl(198 30% 14%);
+    border-color: hsl(200 28% 28%);
+    box-shadow: 0 10px 26px hsl(0 0% 0% / 0.35);
+}
+.widget-panel-cream {
+    background: hsl(42 48% 96%);
+    border: 1px solid hsl(38 35% 76%);
+    border-radius: 1rem;
+    box-shadow: 0 10px 26px hsl(28 40% 35% / 0.11);
+}
+[data-bankoapp-canvas="dark"] .homepage-editor-scope .widget-panel-cream {
+    background: hsl(32 26% 14%);
+    border-color: hsl(38 28% 28%);
+    box-shadow: 0 10px 26px hsl(0 0% 0% / 0.32);
+}
+.widget-panel-none {
+    background: transparent;
+    border: 1px dashed hsl(var(--border) / 0.9);
+    border-radius: 1rem;
+    box-shadow: none;
+}
+
+/* Světlé „infographic“ widgety na tmavém motivu: globální --foreground / --title
+ * jsou světlé (kvůli shellu), ale panely zůstávají fyzicky světlé — bez přepisu
+ * by tabulky a .font-serif dědily nečitelný světlý text. */
+.widget-infographic-light {
+    --foreground: 218 30% 18%;
+    --muted-foreground: 218 22% 38%;
+    --title: 208 55% 28%;
+    --primary-deep: 218 65% 22%;
+    --table-body-text: 218 30% 22%;
+    --table-header-bg: 205 76% 96%;
+    color: hsl(var(--foreground));
+}
+.widget-infographic-light .font-serif,
+.widget-infographic-light.font-serif {
+    color: hsl(var(--title));
+}
+.widget-infographic-light h1,
+.widget-infographic-light h2,
+.widget-infographic-light h3,
+.widget-infographic-light h4,
+.widget-infographic-light h5,
+.widget-infographic-light h6 {
+    color: hsl(var(--title));
+}
+
+/* Decorative watermark — faded giant logo behind the page content for that
+ * extra playful infographic touch. Fixed so it stays put while scrolling.
+ * The actual background-image URL is applied inline in JSX so webpack's
+ * css-loader doesn't try to resolve "/bankovnictvi-logo.png" as a module. */
+.bg-watermark {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    background-repeat: no-repeat;
+    background-position: center center;
+    background-size: 60% auto;
+    opacity: 0.085;
+}
+
+.divider-dot::before {
+    content: "·";
+    @apply mx-2;
+    color: hsl(var(--muted-foreground));
+}
+
+/* Scrollbars */
+::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+::-webkit-scrollbar-thumb {
+    background: hsl(var(--border));
+    border-radius: 5px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--primary) / 0.5);
+}
+
+/* Indikátor probíhající synchronizace u řádku v tabulce zdrojů (pás zprava doleva) */
+@keyframes source-row-sync-sweep {
+    0% {
+        left: 100%;
+    }
+    100% {
+        left: -38%;
+    }
+}
+.source-sync-indeterminate {
+    position: relative;
+    height: 3px;
+    width: 100%;
+    overflow: hidden;
+    background: hsl(var(--muted) / 0.55);
+}
+.source-sync-indeterminate__bar {
+    position: absolute;
+    top: 0;
+    height: 100%;
+    width: 38%;
+    left: 100%;
+    border-radius: 9999px;
+    background: linear-gradient(
+        90deg,
+        transparent 0%,
+        hsl(var(--primary) / 0.2) 15%,
+        hsl(var(--primary) / 0.95) 50%,
+        hsl(var(--primary) / 0.2) 85%,
+        transparent 100%
+    );
+    animation: source-row-sync-sweep 1.25s linear infinite;
+    will-change: left;
+}
+
+/* PDF reader safety: page/canvas must never exceed parent width on mobile. */
+.react-pdf__Page,
+.react-pdf__Page__canvas {
+    max-width: 100% !important;
+    height: auto !important;
+    box-sizing: border-box;
+}
+
+/* PDF.js text layer — výběr textu v archivní čtečce (text vrstva je neviditelná, vidí se jen canvas) */
+[data-archive-pdf-js] canvas {
+    display: block;
+    pointer-events: none;
+}
+[data-archive-pdf-js] .textLayer {
+    position: absolute;
+    left: 0;
+    top: 0;
+    overflow: hidden;
+    line-height: 1;
+    pointer-events: auto;
+    z-index: 2;
+    opacity: 1;
+    user-select: text;
+    -webkit-user-select: text;
+    cursor: text;
+}
+[data-archive-pdf-js] .textLayer span,
+[data-archive-pdf-js] .textLayer br {
+    color: transparent !important;
+    -webkit-text-fill-color: transparent !important;
+    position: absolute;
+    white-space: pre;
+    cursor: text;
+    transform-origin: 0 0;
+}
+[data-archive-pdf-js] .textLayer span::selection,
+[data-archive-pdf-js] .textLayer ::selection {
+    color: transparent !important;
+    -webkit-text-fill-color: transparent !important;
+    background: hsl(var(--primary) / 0.22);
+}
+[data-archive-pdf-js][data-text-select="1"] .textLayer span::selection,
+[data-archive-pdf-js][data-text-select="1"] .textLayer ::selection {
+    background: hsl(var(--primary) / 0.38);
+}
+.archive-pdf-text-select-mode {
+    user-select: text;
+    -webkit-user-select: text;
+}
+
+/* Archiv PDF — klikací text (jemné podtržení, zvýraznění až po najetí) */
+.archive-pdf-text-hotspot {
+    border-radius: 2px;
+}
+.archive-pdf-text-hotspot::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 12%;
+    height: 56%;
+    bottom: auto;
+    border-radius: 2px;
+    background: hsl(var(--primary) / 0.18);
+    opacity: 0;
+    transition: opacity 0.16s ease;
+    pointer-events: none;
+}
+.archive-pdf-text-hotspot:hover::before,
+.archive-pdf-text-hotspot:focus-visible::before {
+    opacity: 1;
+}
+.archive-pdf-text-hotspot::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 68%;
+    bottom: auto;
+    height: 0;
+    border-bottom: 1.5px solid hsl(var(--primary) / 0.34);
+    background: none;
+    border-radius: 0;
+    transition: border-color 0.16s ease;
+    pointer-events: none;
+}
+.archive-pdf-text-hotspot:hover::after,
+.archive-pdf-text-hotspot:focus-visible::after {
+    border-bottom-color: hsl(var(--primary) / 0.58);
+}
+
+/* Archiv PDF — klikací oblast (graf, video, odkaz…) — neviditelná, jen klik */
+.archive-pdf-chart-hotspot::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 4px;
+    border: 1px solid transparent;
+    background: transparent;
+    box-shadow: none;
+    transition: background 0.16s ease, border-color 0.16s ease;
+    pointer-events: none;
+}
+.archive-pdf-chart-hotspot:hover::before,
+.archive-pdf-chart-hotspot:focus-visible::before {
+    border-color: hsl(var(--primary) / 0.22);
+    background: hsl(var(--primary) / 0.05);
+}
+.archive-pdf-chart-hotspot .archive-pdf-region-hotspot-tip {
+    transform: translateY(2px);
+    opacity: 0;
+    transition: opacity 0.16s ease, transform 0.16s ease;
+    pointer-events: none;
+}
+.archive-pdf-chart-hotspot:hover .archive-pdf-region-hotspot-tip,
+.archive-pdf-chart-hotspot:focus-visible .archive-pdf-region-hotspot-tip {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* Archiv PDF — tooltip u textového odkazu */
+.archive-pdf-text-hotspot-tip {
+    transform: translateX(-50%) translateY(4px);
+    opacity: 0;
+    transition: opacity 0.16s ease, transform 0.16s ease;
+}
+.archive-pdf-text-hotspot:hover .archive-pdf-text-hotspot-tip,
+.archive-pdf-text-hotspot:focus-visible .archive-pdf-text-hotspot-tip {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
+/* Archiv PDF — admin tažení oblasti */
+.archive-pdf-region-draft {
+    border-radius: 4px;
+    border: 1.5px dashed hsl(var(--primary) / 0.55);
+    background: hsl(var(--primary) / 0.1);
+    box-shadow: 0 0 0 1px hsl(var(--primary) / 0.08);
+}
+.archive-pdf-region-pending {
+    border-radius: 4px;
+    border: 1.5px dashed hsl(152 45% 38% / 0.55);
+    background: hsl(152 55% 42% / 0.08);
+}
+@media (prefers-reduced-motion: reduce) {
+    .source-sync-indeterminate__bar {
+        animation: none;
+        left: 30% !important;
+        width: 40%;
+    }
+}
+
+/* Excel náhled ve formuláři zdroje — vždycky viditelný svislý posuvník (sidebar) */
+.excel-preview-scroll {
+    scrollbar-gutter: stable;
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--primary) / 0.55) hsl(205 35% 90% / 0.95);
+}
+.excel-preview-scroll::-webkit-scrollbar {
+    width: 12px;
+    height: 12px;
+}
+.excel-preview-scroll::-webkit-scrollbar-track {
+    background: hsl(205 35% 93%);
+    border-left: 1px solid hsl(var(--border) / 0.45);
+    border-radius: 0 0.375rem 0.375rem 0;
+}
+.excel-preview-scroll::-webkit-scrollbar-thumb {
+    background: linear-gradient(
+        180deg,
+        hsl(var(--primary) / 0.42),
+        hsl(var(--primary-deep) / 0.48)
+    );
+    border-radius: 6px;
+    border: 2px solid hsl(205 35% 93%);
+}
+.excel-preview-scroll::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--primary) / 0.62);
+}
+
+/**
+ * Bezpečné zalamování běžného textu (nadpisy, popisky karet, prose).
+ * Technické řetězce (URL, set_id…) používají .text-technical-wrap jen tam, kde je potřeba.
+ *
+ * Pozor na layout katalogové hlavičky (AppShell): levý blok nesmí být flex-first s md:basis-0 bez
+ * min šířky — toolbar s shrink-0 jinak stlačí textový sloupec pod ~260px řádek (efekt jedno písmeno na řádek).
+ */
+@layer utilities {
+    .text-content-wrap {
+        white-space: normal;
+        word-break: normal;
+        overflow-wrap: break-word;
+        min-width: 0;
+        max-width: 100%;
+    }
+    /** @deprecated použij text-content-wrap (alias pro zpětnou kompatibilitu) */
+    .text-normal-wrap {
+        white-space: normal;
+        word-break: normal;
+        overflow-wrap: break-word;
+        min-width: 0;
+        max-width: 100%;
+    }
+    .text-technical-wrap {
+        overflow-wrap: anywhere;
+        word-break: break-word;
+        min-width: 0;
+        max-width: 100%;
+    }
+}
+
+@layer base {
+    [data-debug-wrapper="true"] {
+        display: contents !important;
+    }
+    [data-debug-wrapper="true"] > * {
+        margin: inherit;
+        padding: inherit;
+        gap: inherit;
+    }
+}
+
+/* Mobilní WebView embed — plná výška, bez cookie lišty */
+html.banko-mobile-embed,
+html.banko-mobile-embed body,
+html.banko-mobile-embed #root {
+    height: 100%;
+    margin: 0;
+    overflow: hidden;
+}
+html.banko-mobile-embed .banko-mobile-embed-root {
+    min-height: 100dvh;
+}
+html.banko-mobile-embed .banko-mobile-embed-chart .kpi-card,
+html.banko-mobile-embed .banko-mobile-embed-chart [class*="soft-card"] {
+    min-height: 280px;
+}
+html.banko-mobile-embed [data-testid="cookie-banner"] {
+    display: none !important;
+}
+/* Ovládání AradView — větší dotykové cíle na telefonu */
+html.banko-mobile-embed .banko-mobile-embed-chart button,
+html.banko-mobile-embed .banko-mobile-embed-chart [role="combobox"],
+html.banko-mobile-embed .banko-mobile-embed-chart select {
+    min-height: 40px;
+}
+html.banko-mobile-embed .banko-mobile-embed-chart .kpi-card > div:first-child {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    background: hsl(var(--background));
+}
+/* Embed — bez duplicitního titulku (název je v nativní hlavičce appky) */
+html.banko-mobile-embed .banko-arad-embed-header .flex.items-start > .min-w-0.flex-1 {
+    display: none;
+}
+html.banko-mobile-embed .banko-arad-embed-header .flex.items-start {
+    justify-content: flex-end;
+}
+html.banko-mobile-embed .banko-arad-embed-header [data-testid="arad-mobile-moznosti"] {
+    min-height: 44px;
+}
+html.banko-mobile-embed .banko-arad-embed-header {
+    border-bottom-color: hsl(var(--border) / 0.35) !important;
+}
+html.banko-mobile-embed [data-mobile-embed="1"] {
+    box-shadow: none !important;
+}
+html.banko-mobile-embed .banko-mobile-embed-chart .chart-body-slot {
+    padding-left: 0.5rem !important;
+    padding-right: 0.5rem !important;
+}
+html.banko-mobile-embed .banko-mobile-embed-chart [data-arad-card] {
+    border: none !important;
+    border-radius: 0 !important;
+}
+html.banko-mobile-embed .banko-mobile-embed-chart .kpi-card,
+html.banko-mobile-embed .banko-mobile-embed-chart [class*="soft-card"] {
+    min-height: 0;
+    box-shadow: none !important;
+}
+
+/* Článek iframe embed — plná výška, bez cookie lišty */
+html.banko-article-embed,
+html.banko-article-embed body,
+html.banko-article-embed #root {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    background: #fff;
+}
+html.banko-article-embed .banko-article-embed-root {
+    min-height: 360px;
+    height: 100%;
+}
+html.banko-article-embed [data-testid="cookie-banner"] {
+    display: none !important;
+}
+
+.banko-mobile-chart-landscape-inner > [data-arad-card="1"] {
+    height: 100%;
+    max-height: 100%;
+    width: 100%;
+    max-width: 100%;
+}
+
+@keyframes explore-scan {
+    0% {
+        transform: translateX(-120%);
+    }
+    100% {
+        transform: translateX(420%);
+    }
+}
+
+/* Manager Explorer — výsledkový report (krok 2) */
+.explore-manager-report {
+    font-family: "Manrope", "Inter", ui-sans-serif, system-ui, sans-serif;
+}
+
+.explore-manager-report-document {
+    max-width: 920px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.explore-manager-report-cover-accent {
+    background: linear-gradient(135deg, hsl(202 90% 48%), hsl(218 65% 28%));
+}
+
+.explore-report-panel {
+    min-width: 0;
+}
+
+.explore-report-panel-featured {
+    border-left: 4px solid hsl(202 90% 52%);
+}
+
+.explore-report-panel-tint-sector {
+    background: linear-gradient(180deg, hsl(205 75% 98%), #fff 40%);
+}
+
+.explore-report-panel-tint-political_situation {
+    background: linear-gradient(180deg, hsl(30 12% 97%), #fff 42%);
+    border-color: hsl(30 8% 72% / 0.7);
+}
+
+.explore-manager-report .explore-report-section-title {
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: hsl(218 65% 28%);
+}
+
+.explore-report-summary {
+    font-family: inherit;
+    font-size: 1.125rem;
+    line-height: 1.7;
+    font-weight: 500;
+    color: #1e293b;
+    letter-spacing: 0.01em;
+}
+
+.explore-report-body {
+    font-family: inherit;
+    font-size: 1rem;
+    line-height: 1.65;
+    font-weight: 450;
+    color: #1e293b;
+}
+
+@media (min-width: 640px) {
+    .explore-report-summary {
+        font-size: 1.3125rem;
+        line-height: 1.65;
+    }
+
+    .explore-report-body {
+        font-size: 1.0625rem;
+    }
+}
+
+@media print {
+    .explore-manager-report-document {
+        max-width: none;
+        box-shadow: none !important;
+    }
+
+    .explore-report-export-bar,
+    [data-export-ignore="true"] {
+        display: none !important;
+    }
+
+    .explore-manager-report-cover,
+    .explore-report-panel,
+    .explore-dashboard-chart-card {
+        break-inside: avoid;
+        box-shadow: none !important;
+    }
+
+    .explore-report-charts-block {
+        break-before: page;
+    }
+}
+
+/* Manager Explorer — grafy ve stejném stylu jako dashboard widgety */
+.explore-dashboard-chart-card {
+    min-height: 0;
+}
+
+.explore-dashboard-chart-plot .recharts-cartesian-axis-tick text,
+.explore-dashboard-chart-plot .recharts-legend-item-text {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+}
+
+.explore-dashboard-chart-plot .recharts-legend-wrapper {
+    overflow: visible !important;
+}
+
+.explore-dashboard-chart-plot .recharts-legend-item {
+    margin-right: 10px !important;
+    margin-bottom: 2px !important;
+}
+
+.explore-dashboard-chart-plot .recharts-legend-item-text,
+.explore-dashboard-chart-plot .explore-chart-legend-label {
+    color: #334155;
+    white-space: normal !important;
+    word-break: break-word;
+    overflow: visible !important;
+    line-height: 1.35;
+    max-width: min(320px, 100%);
+}
+
+.explore-dashboard-chart-plot .recharts-tooltip-wrapper {
+    z-index: 20;
+}
+
+/* Chart System — kompaktní tooltip, dashboard karta */
+.chart-system-tooltip {
+    min-width: 160px;
+    max-width: 240px;
+    font-family: Inter, system-ui, sans-serif;
+}
+
+.chart-system-tooltip-body {
+    scrollbar-width: thin;
+}
+
+.chart-system-container .chart-system-toolbar {
+    font-family: Inter, system-ui, sans-serif;
+}
+
+.chart-system-demo-page {
+    background: linear-gradient(180deg, hsl(208 40% 97%) 0%, hsl(210 25% 94%) 100%);
+    min-height: 100vh;
+}
+
+.chart-system-demo-section {
+    break-inside: avoid;
+}
+
+/* Pride · duha — výrazně barevnější UI (tlačítka, navigace, karty) */
+[data-appearance-preset="pride-spectrum"] {
+    --pride-gradient: linear-gradient(
+        118deg,
+        hsl(0 97% 48%) 0%,
+        hsl(33 100% 50%) 20%,
+        hsl(56 100% 50%) 40%,
+        hsl(138 72% 38%) 60%,
+        hsl(222 100% 50%) 80%,
+        hsl(292 78% 42%) 100%
+    );
+    --pride-gradient-soft: linear-gradient(
+        160deg,
+        hsl(0 100% 97%) 0%,
+        hsl(56 100% 92%) 35%,
+        hsl(138 70% 91%) 55%,
+        hsl(222 100% 94%) 75%,
+        hsl(292 100% 95%) 100%
+    );
+}
+
+[data-appearance-preset="pride-spectrum"] .btn-primary,
+[data-appearance-preset="pride-spectrum"] .btn-mint,
+[data-appearance-preset="pride-spectrum"] button.bg-primary.text-primary-foreground,
+[data-appearance-preset="pride-spectrum"] a.bg-primary.text-primary-foreground {
+    background: var(--pride-gradient) !important;
+    color: #fff !important;
+    border: none;
+    box-shadow: 0 6px 18px hsl(292 78% 42% / 0.28);
+}
+
+[data-appearance-preset="pride-spectrum"] .btn-primary:hover,
+[data-appearance-preset="pride-spectrum"] .btn-mint:hover,
+[data-appearance-preset="pride-spectrum"] button.bg-primary.text-primary-foreground:hover,
+[data-appearance-preset="pride-spectrum"] a.bg-primary.text-primary-foreground:hover {
+    filter: brightness(1.06) saturate(1.08);
+    box-shadow: 0 10px 24px hsl(222 100% 50% / 0.35);
+}
+
+[data-appearance-preset="pride-spectrum"] button.bg-secondary.text-secondary-foreground,
+[data-appearance-preset="pride-spectrum"] a.bg-secondary.text-secondary-foreground {
+    background: linear-gradient(135deg, hsl(33 100% 52%), hsl(56 100% 48%)) !important;
+    color: hsl(44 84% 12%) !important;
+    box-shadow: 0 4px 14px hsl(33 100% 50% / 0.28);
+}
+
+[data-appearance-preset="pride-spectrum"] button.bg-destructive,
+[data-appearance-preset="pride-spectrum"] .bg-destructive.text-destructive-foreground {
+    background: linear-gradient(135deg, hsl(0 97% 48%), hsl(346 86% 52%)) !important;
+}
+
+[data-appearance-preset="pride-spectrum"] .nav-link.active {
+    background: var(--pride-gradient);
+    color: #fff;
+    box-shadow: 0 4px 14px hsl(0 97% 48% / 0.32);
+}
+
+[data-appearance-preset="pride-spectrum"] .nav-link:hover {
+    background: hsl(56 100% 90%);
+    color: hsl(292 78% 28%);
+}
+
+[data-appearance-preset="pride-spectrum"] .soft-card {
+    position: relative;
+    overflow: hidden;
+    border-color: hsl(292 42% 78% / 0.75);
+}
+
+[data-appearance-preset="pride-spectrum"] .soft-card::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(
+        90deg,
+        hsl(0 97% 48%),
+        hsl(33 100% 50%),
+        hsl(56 100% 50%),
+        hsl(138 72% 38%),
+        hsl(222 100% 50%),
+        hsl(292 78% 42%)
+    );
+    pointer-events: none;
+}
+
+[data-appearance-preset="pride-spectrum"] .row-selected {
+    background: linear-gradient(90deg, hsl(0 97% 48% / 0.12), hsl(222 100% 50% / 0.1));
+    border-left: 3px solid hsl(138 72% 38%);
+    color: hsl(292 78% 28%);
+}
+
+[data-appearance-preset="pride-spectrum"] ::selection {
+    background: hsl(292 78% 42% / 0.35);
+    color: hsl(234 42% 18%);
+}
+
+[data-appearance-preset="pride-spectrum"] .catalog-ai-submit-btn:not(:disabled) {
+    background: linear-gradient(135deg, hsl(138 72% 42%), hsl(222 100% 50%)) !important;
+    border-color: hsl(138 72% 38% / 0.45) !important;
+    color: #fff !important;
+}
+
+[data-appearance-preset="pride-spectrum"] .catalog-ai-mode-box {
+    border-color: hsl(292 58% 72% / 0.85) !important;
+    background: linear-gradient(180deg, hsl(56 100% 96%), hsl(222 100% 97%)) !important;
+}
+
+[data-appearance-preset="pride-spectrum"] .input:focus,
+[data-appearance-preset="pride-spectrum"] textarea.input:focus,
+[data-appearance-preset="pride-spectrum"] select.input:focus {
+    border-color: hsl(222 100% 50%);
+    box-shadow: 0 0 0 3px hsl(222 100% 50% / 0.2);
+}
+
+[data-appearance-preset="pride-spectrum"] a:not(.nav-link):not(.bg-primary):hover {
+    color: hsl(292 78% 38%);
+}
+
+/* Popisky sekcí, nadpisy stránek, KPI labely */
+[data-appearance-preset="pride-spectrum"] .kpi-label,
+[data-appearance-preset="pride-spectrum"] .explore-report-section-title {
+    background: var(--pride-gradient);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}
+
+[data-appearance-preset="pride-spectrum"] main h1.font-serif,
+[data-appearance-preset="pride-spectrum"] .page-header-inner h1.font-serif,
+[data-appearance-preset="pride-spectrum"] .font-display,
+[data-appearance-preset="pride-spectrum"] h1.font-serif,
+[data-appearance-preset="pride-spectrum"] h2.font-serif {
+    background: linear-gradient(
+        102deg,
+        hsl(292 78% 34%) 0%,
+        hsl(222 100% 46%) 28%,
+        hsl(138 72% 34%) 58%,
+        hsl(33 100% 46%) 82%,
+        hsl(0 97% 44%) 100%
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}
+
+[data-appearance-preset="pride-spectrum"] .data-table thead th {
+    background: linear-gradient(180deg, hsl(56 100% 96%), hsl(222 100% 97%));
+    border-bottom-color: hsl(292 58% 62% / 0.45);
+    color: hsl(292 78% 28%);
+}
+
+[data-appearance-preset="pride-spectrum"] aside div.font-semibold.uppercase:has(> svg) {
+    background: var(--pride-gradient);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}
+
+[data-appearance-preset="pride-spectrum"] aside div.font-semibold.uppercase:has(> svg) svg {
+    color: hsl(222 100% 50%);
+    stroke: hsl(222 100% 50%);
+}
+
+[data-appearance-preset="pride-spectrum"] .kpi-value {
+    color: hsl(222 78% 28%);
+}
+
+body.podcast-embed-active {
+    padding-bottom: 11.5rem;
+}
+
+body.podcast-embed-minimized {
+    padding-bottom: 4.75rem;
+}
+
+@media (min-width: 768px) {
+    body.podcast-embed-active {
+        padding-bottom: 10.5rem;
+    }
+
+    body.podcast-embed-minimized {
+        padding-bottom: 4.25rem;
+    }
+}

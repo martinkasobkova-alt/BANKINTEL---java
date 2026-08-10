@@ -1,0 +1,18 @@
+{
+  "short_name": "Bankovnictví",
+  "name": "Bankovnictví – konsolidovaná datová platforma",
+  "description": "Vyhledávání a prohlížení ekonomických a finančních dat napříč veřejnými zdroji.",
+  "icons": [
+    {
+      "src": "favicon.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#d6eaf8",
+  "theme_color": "#1e3a5f",
+  "lang": "cs"
+}

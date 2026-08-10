@@ -1,0 +1,9 @@
+{
+  "dataset_id": "manager-explorer-cold-path-gold-2026-08-03",
+  "version": "1.0.0",
+  "description": "Composition of the frozen Search V2 holdout and exact-entity regression judgments for Manager Explorer cold-path evaluation.",
+  "includes": [
+    "search_v2_holdout_queries.json",
+    "search_v2_exact_entity_queries.json"
+  ]
+}

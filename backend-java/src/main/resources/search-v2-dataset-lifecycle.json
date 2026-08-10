@@ -1,0 +1,19 @@
+{
+  "version": "2026-07-22",
+  "datasets": [
+    {
+      "source": "ecb2",
+      "dataset": "CBD",
+      "status": "historical",
+      "reason": "dataset_registry_discontinued",
+      "confidence": 1.0
+    },
+    {
+      "source": "ecb2",
+      "dataset": "CBD2",
+      "status": "current",
+      "reason": "dataset_registry_successor",
+      "confidence": 1.0
+    }
+  ]
+}

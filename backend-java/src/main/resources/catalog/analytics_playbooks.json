@@ -1,0 +1,82 @@
+{
+  "_comment": "Domain -> ordered calculation-type list + benchmark-group hint for the analytics engine's AnalyticsPlannerService. Deliberately keyed by the SAME domain keys as forecast_predictors.json — domain MATCHING (match_terms) and the economic-relationship predictor list are NOT duplicated here; AnalyticsPlannerService resolves the domain via ForecastPredictorConfig.resolveDomain and only looks up this file's calculation_types/benchmark_group for that already-resolved key. calculation_types values are one of: basic_metrics, indexation, trend, comparison, real_values, relationships, anomalies, forecast, scenarios (spec sections 1-9). benchmark_group is a key into geo_groups below, or null when no natural peer group exists for the domain.",
+  "default_calculation_types": ["basic_metrics", "indexation", "trend", "anomalies", "relationships", "forecast"],
+  "domains": {
+    "price_inflation": {
+      "calculation_types": ["basic_metrics", "indexation", "trend", "comparison", "anomalies", "relationships", "forecast", "scenarios"],
+      "benchmark_group": "eurozone",
+      "notes": "Inflace se typicky srovnává s eurozónou/EU průměrem a s cílem centrální banky; vztahové kontroly zahrnují sazby, mzdy a ceny energií."
+    },
+    "policy_rate": {
+      "calculation_types": ["basic_metrics", "trend", "comparison", "relationships", "forecast", "scenarios"],
+      "benchmark_group": "eurozone",
+      "notes": "Sazby centrální banky se srovnávají s ECB/Fed a s inflací/růstem HDP jako hlavními vztahovými kontrolami."
+    },
+    "mortgage_rates": {
+      "calculation_types": ["basic_metrics", "trend", "comparison", "relationships", "forecast", "scenarios"],
+      "benchmark_group": "v4",
+      "notes": "Hypoteční sazby se srovnávají v rámci V4/CEE regionu; vztah k sazbám centrální banky a cenám nemovitostí."
+    },
+    "mortgage_volumes": {
+      "calculation_types": ["basic_metrics", "indexation", "trend", "anomalies", "relationships", "forecast"],
+      "benchmark_group": "v4",
+      "notes": "Objem hypoték je tokový ukazatel — indexace a meziroční dynamika jsou důležitější než absolutní úroveň napříč zeměmi."
+    },
+    "house_prices": {
+      "calculation_types": ["basic_metrics", "indexation", "trend", "comparison", "real_values", "anomalies", "relationships", "forecast"],
+      "benchmark_group": "v4",
+      "notes": "Ceny nemovitostí se typicky ukazují jako index a reálně (deflátované inflací) a srovnávají v rámci V4/CEE."
+    },
+    "industrial_production": {
+      "calculation_types": ["basic_metrics", "indexation", "trend", "comparison", "anomalies", "relationships", "forecast"],
+      "benchmark_group": "eu",
+      "notes": "Průmyslová výroba se srovnává s EU/DE jako klíčovým obchodním partnerem; citlivá na ceny energií a export."
+    },
+    "retail_sales": {
+      "calculation_types": ["basic_metrics", "indexation", "trend", "real_values", "comparison", "anomalies", "relationships", "forecast"],
+      "benchmark_group": "v4",
+      "notes": "Maloobchod se často ukazuje reálně (deflátovaný) a srovnává v rámci V4."
+    },
+    "banking_profitability": {
+      "calculation_types": ["basic_metrics", "trend", "comparison", "anomalies", "relationships", "forecast", "scenarios"],
+      "benchmark_group": "eu",
+      "notes": "ROE/zisk bank se srovnává napříč EU bankovním sektorem; citlivé na sazby centrální banky a NPL."
+    },
+    "gdp_growth": {
+      "calculation_types": ["basic_metrics", "indexation", "trend", "comparison", "anomalies", "relationships", "forecast", "scenarios"],
+      "benchmark_group": "v4",
+      "notes": "Růst HDP se standardně srovnává v rámci V4/EU; kompozit z průmyslu, exportu a maloobchodu."
+    },
+    "wages": {
+      "calculation_types": ["basic_metrics", "indexation", "trend", "real_values", "comparison", "relationships", "forecast"],
+      "benchmark_group": "v4",
+      "notes": "Mzdy se ukazují nominálně i reálně (deflátované inflací) a srovnávají v rámci V4."
+    },
+    "unemployment": {
+      "calculation_types": ["basic_metrics", "trend", "comparison", "anomalies", "relationships", "forecast"],
+      "benchmark_group": "v4",
+      "notes": "Nezaměstnanost se standardně srovnává v rámci V4/EU."
+    },
+    "equity_index": {
+      "calculation_types": ["basic_metrics", "trend", "comparison", "anomalies", "relationships", "forecast", "scenarios"],
+      "benchmark_group": null,
+      "notes": "Akcie/indexy se srovnávají s referenčním benchmark indexem (role benchmark_index z forecast_predictors.json), ne s geografickou skupinou."
+    },
+    "commodity_gold": {
+      "calculation_types": ["basic_metrics", "trend", "anomalies", "relationships", "forecast", "scenarios"],
+      "benchmark_group": null,
+      "notes": "Zlato se vztahově srovnává s reálnými sazbami a dolarovým indexem, ne s geografickou skupinou."
+    },
+    "commodity_prices": {
+      "calculation_types": ["basic_metrics", "trend", "anomalies", "relationships", "forecast", "scenarios"],
+      "benchmark_group": null,
+      "notes": "Komodity (obecně) — obdobně jako zlato, vztahové kontroly místo geografického srovnání."
+    }
+  },
+  "geo_groups": {
+    "eu": ["Germany", "France", "Italy", "Spain", "Poland", "Netherlands", "Belgium", "Austria", "Czech Republic", "Sweden", "Portugal", "Hungary", "Slovakia", "Denmark", "Finland"],
+    "eurozone": ["Germany", "France", "Italy", "Spain", "Netherlands", "Belgium", "Austria", "Portugal", "Finland", "Slovakia"],
+    "v4": ["Czech Republic", "Poland", "Slovakia", "Hungary"],
+    "cee": ["Czech Republic", "Poland", "Slovakia", "Hungary", "Romania", "Bulgaria", "Slovenia", "Croatia"]
+  }
+}

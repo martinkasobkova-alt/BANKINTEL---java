@@ -1,0 +1,277 @@
+{
+  "dataset_id": "search-v2-exact-entity-regression",
+  "version": "2026-07-12",
+  "baseline": {
+    "SEARCH_ENGINE_VERSION": "v2",
+    "SEARCH_CATALOG_INDEX": "sidecar",
+    "SEARCH_SEMANTIC_RETRIEVAL_ENABLED": "false"
+  },
+  "queries": [
+    {
+      "query_id": "nasdaq100_compact",
+      "query": "nasdaq100",
+      "entity_type": "market_index",
+      "canonical_entity": "NASDAQ-100",
+      "acceptable_sources": ["fred"],
+      "expected_terms": ["nasdaq-100", "nasdaq100", "nasdaq 100"],
+      "relevant_series_ids": ["NASDAQ100", "NASDAQXNDX"],
+      "sibling_terms": ["s&p 500", "sp500", "vix", "dow jones"]
+    },
+    {
+      "query_id": "nasdaq100_space",
+      "query": "Nasdaq 100",
+      "entity_type": "market_index",
+      "canonical_entity": "NASDAQ-100",
+      "acceptable_sources": ["fred"],
+      "expected_terms": ["nasdaq-100", "nasdaq100", "nasdaq 100"],
+      "relevant_series_ids": ["NASDAQ100", "NASDAQXNDX"],
+      "sibling_terms": ["s&p 500", "sp500", "vix", "dow jones"]
+    },
+    {
+      "query_id": "nasdaq100_dash",
+      "query": "Nasdaq-100",
+      "entity_type": "market_index",
+      "canonical_entity": "NASDAQ-100",
+      "acceptable_sources": ["fred"],
+      "expected_terms": ["nasdaq-100", "nasdaq 100"],
+      "relevant_series_ids": ["NASDAQ100", "NASDAQXNDX"],
+      "sibling_terms": ["s&p 500", "sp500", "vix", "dow jones"]
+    },
+    {
+      "query_id": "nasdaq100_ndx",
+      "query": "NDX",
+      "entity_type": "market_index",
+      "canonical_entity": "NASDAQ-100",
+      "acceptable_sources": ["fred"],
+      "expected_terms": ["nasdaq-100", "nasdaq 100", "ndx"],
+      "relevant_series_ids": ["NASDAQ100", "NASDAQXNDX"],
+      "sibling_terms": ["s&p 500", "sp500", "vix", "dow jones"]
+    },
+    {
+      "query_id": "nasdaq100_upper",
+      "query": "NASDAQ100",
+      "entity_type": "market_index",
+      "canonical_entity": "NASDAQ-100",
+      "acceptable_sources": ["fred"],
+      "expected_terms": ["nasdaq-100", "nasdaq100", "nasdaq 100"],
+      "relevant_series_ids": ["NASDAQ100", "NASDAQXNDX"],
+      "sibling_terms": ["s&p 500", "sp500", "vix", "dow jones"]
+    },
+    {
+      "query_id": "nasdaq100_index",
+      "query": "Nasdaq-100 index",
+      "entity_type": "market_index",
+      "canonical_entity": "NASDAQ-100",
+      "acceptable_sources": ["fred"],
+      "expected_terms": ["nasdaq-100", "nasdaq 100", "index"],
+      "relevant_series_ids": ["NASDAQ100", "NASDAQXNDX"],
+      "sibling_terms": ["s&p 500", "sp500", "vix", "dow jones"]
+    },
+    {
+      "query_id": "nasdaq100_cz_trend",
+      "query": "vyvoj Nasdaq 100",
+      "entity_type": "market_index",
+      "canonical_entity": "NASDAQ-100",
+      "acceptable_sources": ["fred"],
+      "expected_terms": ["nasdaq-100", "nasdaq 100"],
+      "relevant_series_ids": ["NASDAQ100", "NASDAQXNDX"],
+      "sibling_terms": ["s&p 500", "sp500", "vix", "dow jones"]
+    },
+    {
+      "query_id": "nasdaq100_cz_value",
+      "query": "hodnota Nasdaq-100",
+      "entity_type": "market_index",
+      "canonical_entity": "NASDAQ-100",
+      "acceptable_sources": ["fred"],
+      "expected_terms": ["nasdaq-100", "nasdaq 100"],
+      "relevant_series_ids": ["NASDAQ100", "NASDAQXNDX"],
+      "sibling_terms": ["s&p 500", "sp500", "vix", "dow jones"]
+    },
+    {
+      "query_id": "nasdaq100_total_return",
+      "query": "Nasdaq-100 total return",
+      "entity_type": "market_index",
+      "canonical_entity": "NASDAQ-100",
+      "acceptable_sources": ["fred"],
+      "expected_terms": ["nasdaq-100", "total return"],
+      "relevant_series_ids": ["NASDAQXNDX", "NASDAQ100"],
+      "sibling_terms": ["s&p 500", "sp500", "vix", "dow jones"]
+    },
+    {
+      "query_id": "sp500",
+      "query": "S&P 500",
+      "entity_type": "market_index",
+      "canonical_entity": "S&P 500",
+      "acceptable_sources": ["fred"],
+      "expected_terms": ["s&p 500", "sp500", "standard and poor"],
+      "relevant_series_ids": ["SP500"],
+      "sibling_terms": ["nasdaq-100", "nasdaq100", "vix"]
+    },
+    {
+      "query_id": "dow_jones",
+      "query": "Dow Jones",
+      "entity_type": "market_index",
+      "canonical_entity": "Dow Jones Industrial Average",
+      "acceptable_sources": ["fred"],
+      "expected_terms": ["dow jones", "djia"],
+      "sibling_terms": ["nasdaq-100", "s&p 500", "vix"]
+    },
+    {
+      "query_id": "dax",
+      "query": "DAX",
+      "entity_type": "market_index",
+      "canonical_entity": "DAX",
+      "acceptable_sources": ["fred"],
+      "expected_terms": ["dax"],
+      "sibling_terms": ["nasdaq-100", "s&p 500", "vix"]
+    },
+    {
+      "query_id": "vix",
+      "query": "VIX",
+      "entity_type": "market_index",
+      "canonical_entity": "VIX",
+      "acceptable_sources": ["fred"],
+      "expected_terms": ["vix", "volatility index"],
+      "relevant_series_ids": ["VIXCLS"],
+      "sibling_terms": ["nasdaq-100", "s&p 500"]
+    },
+    {
+      "query_id": "cez",
+      "query": "CEZ.PR",
+      "entity_type": "equity",
+      "canonical_entity": "CEZ",
+      "acceptable_sources": ["stocks"],
+      "expected_terms": ["cez", "cez.pr"],
+      "sibling_terms": ["aapl", "msft"]
+    },
+    {
+      "query_id": "aapl",
+      "query": "AAPL",
+      "entity_type": "equity",
+      "canonical_entity": "Apple",
+      "acceptable_sources": ["stocks"],
+      "expected_terms": ["aapl", "apple"],
+      "sibling_terms": ["msft", "microsoft"]
+    },
+    {
+      "query_id": "msft",
+      "query": "MSFT",
+      "entity_type": "equity",
+      "canonical_entity": "Microsoft",
+      "acceptable_sources": ["stocks"],
+      "expected_terms": ["msft", "microsoft"],
+      "sibling_terms": ["aapl", "apple"]
+    },
+    {
+      "query_id": "eur_usd",
+      "query": "EUR/USD",
+      "entity_type": "fx_pair",
+      "canonical_entity": "EUR/USD",
+      "acceptable_sources": ["ecb2", "fred"],
+      "expected_terms": ["eur", "usd", "exchange rate"],
+      "sibling_terms": ["czk", "jpy"]
+    },
+    {
+      "query_id": "czk_eur",
+      "query": "CZK/EUR",
+      "entity_type": "fx_pair",
+      "canonical_entity": "CZK/EUR",
+      "acceptable_sources": ["ecb2", "arad"],
+      "expected_terms": ["czk", "eur", "exchange rate", "koruna"],
+      "sibling_terms": ["usd", "jpy"]
+    },
+    {
+      "query_id": "usd_jpy",
+      "query": "USDJPY",
+      "entity_type": "fx_pair",
+      "canonical_entity": "USD/JPY",
+      "acceptable_sources": ["ecb2", "fred"],
+      "expected_terms": ["usd", "jpy", "exchange rate"],
+      "sibling_terms": ["eur", "czk"]
+    },
+    {
+      "query_id": "roa",
+      "query": "ROA bank",
+      "entity_type": "financial_ratio",
+      "canonical_entity": "Return on assets",
+      "acceptable_sources": ["ecb2", "imf", "bis", "eurostat"],
+      "expected_terms": ["return on assets", "roa"],
+      "sibling_terms": ["return on equity", "roe"]
+    },
+    {
+      "query_id": "roe",
+      "query": "ROE bank",
+      "entity_type": "financial_ratio",
+      "canonical_entity": "Return on equity",
+      "acceptable_sources": ["ecb2", "imf", "bis", "eurostat"],
+      "expected_terms": ["return on equity", "roe"],
+      "sibling_terms": ["return on assets", "roa"]
+    },
+    {
+      "query_id": "hicp",
+      "query": "HICP Spain",
+      "entity_type": "economic_indicator",
+      "canonical_entity": "HICP",
+      "acceptable_sources": ["eurostat", "ecb2", "oecd4"],
+      "expected_terms": ["hicp", "harmonised index", "inflation"],
+      "expected_geo": ["ES"],
+      "sibling_terms": ["gdp", "unemployment"]
+    },
+    {
+      "query_id": "cpi",
+      "query": "CPI Spain",
+      "entity_type": "economic_indicator",
+      "canonical_entity": "CPI",
+      "acceptable_sources": ["eurostat", "oecd4", "data360", "csu"],
+      "expected_terms": ["cpi", "consumer price index"],
+      "expected_geo": ["ES"],
+      "sibling_terms": ["gdp", "unemployment"]
+    },
+    {
+      "query_id": "gdp",
+      "query": "GDP Germany",
+      "entity_type": "economic_indicator",
+      "canonical_entity": "GDP",
+      "acceptable_sources": ["eurostat", "oecd4", "data360", "imf"],
+      "expected_terms": ["gdp", "gross domestic product"],
+      "expected_geo": ["DE"],
+      "sibling_terms": ["inflation", "unemployment"]
+    },
+    {
+      "query_id": "repo_2t",
+      "query": "2T repo sazba",
+      "entity_type": "interest_rate",
+      "canonical_entity": "2T repo sazba",
+      "acceptable_sources": ["arad"],
+      "expected_terms": ["repo", "2t", "2w"],
+      "sibling_terms": ["discount rate", "lombard"]
+    },
+    {
+      "query_id": "brent",
+      "query": "Brent",
+      "entity_type": "commodity",
+      "canonical_entity": "Brent crude oil",
+      "acceptable_sources": ["fred", "commodities", "oecd4", "data360"],
+      "expected_terms": ["brent", "crude oil"],
+      "sibling_terms": ["gold", "natural gas"]
+    },
+    {
+      "query_id": "gold",
+      "query": "gold price",
+      "entity_type": "commodity",
+      "canonical_entity": "Gold",
+      "acceptable_sources": ["fred", "commodities", "data360"],
+      "expected_terms": ["gold", "zlato"],
+      "sibling_terms": ["brent", "natural gas"]
+    },
+    {
+      "query_id": "natural_gas",
+      "query": "natural gas price",
+      "entity_type": "commodity",
+      "canonical_entity": "Natural gas",
+      "acceptable_sources": ["fred", "commodities", "data360"],
+      "expected_terms": ["natural gas", "gas"],
+      "sibling_terms": ["brent", "gold"]
+    }
+  ]
+}

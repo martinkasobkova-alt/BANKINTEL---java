@@ -1,0 +1,84 @@
+spring:
+  application:
+    name: bankintel-api
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.mongo.MongoAutoConfiguration
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://127.0.0.1:5432/bankintel}
+    username: ${DATABASE_USER:bankintel}
+    password: ${DATABASE_PASSWORD:bankintel}
+    hikari:
+      maximum-pool-size: 20
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+  servlet:
+    multipart:
+      max-file-size: 85MB
+      max-request-size: 90MB
+
+server:
+  port: ${PORT:8080}
+  error:
+    include-message: always
+  servlet:
+    encoding:
+      charset: UTF-8
+      enabled: true
+      force: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+bankintel:
+  jwt:
+    secret: ${JWT_SECRET:bankintel-dev-jwt-secret-key-min-32-chars!!}
+    access-ttl-minutes: ${JWT_ACCESS_TTL_MIN:720}
+    refresh-ttl-days: ${JWT_REFRESH_TTL_DAYS:7}
+  openai:
+    model-chat: ${OPENAI_MODEL_CHAT:gpt-5.4-mini}
+    model-planner: ${OPENAI_MODEL_PLANNER:gpt-5.4-nano}
+    model-reranker: ${OPENAI_MODEL_RERANKER:gpt-5.4-nano}
+    model-web-search: ${OPENAI_MODEL_WEB_SEARCH:gpt-5.4-mini}
+    search-v2-llm-connect-timeout-ms: ${SEARCH_V2_LLM_CONNECT_TIMEOUT_MS:3000}
+    search-v2-llm-request-timeout-ms: ${SEARCH_V2_LLM_REQUEST_TIMEOUT_MS:12000}
+    search-v2-llm-reasoning-effort: ${SEARCH_V2_LLM_REASONING_EFFORT:none}
+  cors:
+    origins: ${CORS_ORIGINS:http://localhost:5173,http://localhost:5174,http://127.0.0.1:5173,http://127.0.0.1:5174,http://localhost:3000}
+  cookie:
+    secure: ${COOKIE_SECURE:false}
+    same-site: ${COOKIE_SAME_SITE:Lax}
+    domain: ${COOKIE_DOMAIN:}
+  dev:
+    seed: ${DEV_SEED:false}
+    log-verification-tokens: ${DEV_LOG_VERIFICATION_TOKENS:true}
+  subscriber-registration-code: ${SUBSCRIBER_REGISTRATION_CODE:}
+  catalog:
+    index-dir: ${CATALOG_SEARCH_INDEX_DIR:./data/catalog_search_indexes}
+    fts-db: ${CLASSIC_CATALOG_FTS_DB:}
+    metadata-dir: ${CATALOG_SEARCH_METADATA_DIR:./data/catalog_search_metadata}
+  search:
+    engine-version: ${SEARCH_ENGINE_VERSION:v1}
+    shadow-mode: ${SEARCH_V2_SHADOW_MODE:false}
+  chat:
+    attachment-dir: ${CHAT_ATTACHMENT_DIR:}
+  storage:
+    user-private-dir: ${USER_PRIVATE_DIR:}
+    admin-uploads-dir: ${UPLOADS_DIR:}
+    podcast-media-dir: ${PODCAST_MEDIA_DIR:}
+
+logging:
+  level:
+    cz.bankintel: INFO

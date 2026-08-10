@@ -1,0 +1,144 @@
+{
+  "topics": [
+    {
+      "id": "inflace_celkova",
+      "label_cs": "Inflace celková (HICP / CPI)",
+      "group_id": "inflace",
+      "indicator_ids": ["inflation_prices"],
+      "title_any": ["hicp", "cpi", "celkov", "headline", "all items"],
+      "title_none": []
+    },
+    {
+      "id": "inflace_jadrova",
+      "label_cs": "Inflace jádrová / core",
+      "group_id": "inflace",
+      "indicator_ids": ["inflation_prices"],
+      "title_any": ["core", "jadrov", "excl", "bez energie"],
+      "title_none": ["excluding energy"]
+    },
+    {
+      "id": "inflace_energie",
+      "label_cs": "Inflace energií",
+      "group_id": "inflace",
+      "indicator_ids": ["inflation_prices"],
+      "title_any": ["energ", "fuel", "paliv", "cp045"],
+      "title_none": ["excluding energy"]
+    },
+    {
+      "id": "inflace_potraviny",
+      "label_cs": "Inflace potravin",
+      "group_id": "inflace",
+      "indicator_ids": ["inflation_prices"],
+      "title_any": ["potravin", "food", "cp01"],
+      "title_none": []
+    },
+    {
+      "id": "hdp_rust",
+      "label_cs": "HDP — meziroční růst",
+      "group_id": "rust",
+      "indicator_ids": ["gdp_growth"],
+      "title_any": ["hdp", "gdp", "rust", "growth"],
+      "title_none": []
+    },
+    {
+      "id": "hdp_uroven",
+      "label_cs": "HDP — úroveň / objem",
+      "group_id": "rust",
+      "indicator_ids": ["gdp_level"],
+      "title_any": ["hdp", "gdp", "objem", "level"],
+      "title_none": []
+    },
+    {
+      "id": "nezamestnanost",
+      "label_cs": "Nezaměstnanost",
+      "group_id": "prace",
+      "indicator_ids": ["unemployment"],
+      "title_any": ["nezam", "unemployment", "lur"],
+      "title_none": []
+    },
+    {
+      "id": "zamestnanost",
+      "label_cs": "Zaměstnanost / obsazenost",
+      "group_id": "prace",
+      "indicator_ids": ["employment"],
+      "title_any": ["zaměst", "employment", "obsaz"],
+      "title_none": []
+    },
+    {
+      "id": "urokove_sazby",
+      "label_cs": "Úrokové sazby (policy / trh)",
+      "group_id": "finance",
+      "indicator_ids": ["interest_rates"],
+      "title_any": ["urok", "rate", "policy"],
+      "title_none": []
+    },
+    {
+      "id": "fx_kurzy",
+      "label_cs": "Směnné kurzy",
+      "group_id": "mena",
+      "indicator_ids": ["exchange_rates"],
+      "title_any": ["kurz", "exchange", "fx"],
+      "title_none": []
+    },
+    {
+      "id": "dluh_vlada",
+      "label_cs": "Vládní dluh (% HDP)",
+      "group_id": "fiskal",
+      "indicator_ids": ["government_debt"],
+      "title_any": ["dluh", "debt", "ggxwdg"],
+      "title_none": []
+    },
+    {
+      "id": "export",
+      "label_cs": "Export zboží a služeb",
+      "group_id": "external",
+      "indicator_ids": ["exports"],
+      "title_any": ["export"],
+      "title_none": ["import"]
+    },
+    {
+      "id": "import",
+      "label_cs": "Import zboží a služeb",
+      "group_id": "external",
+      "indicator_ids": ["imports"],
+      "title_any": ["import"],
+      "title_none": ["export"]
+    },
+    {
+      "id": "ropa",
+      "label_cs": "Ropa a ropné produkty",
+      "group_id": "komodity",
+      "indicator_ids": ["commodities_energy"],
+      "title_any": ["ropa", "oil", "crude", "brent"],
+      "title_none": []
+    },
+    {
+      "id": "weo_vyhlidka",
+      "label_cs": "IMF WEO — výhled HDP a aktivit",
+      "group_id": "rust",
+      "indicator_ids": ["weo_outlook"],
+      "title_any": ["weo", "vyhlid", "outlook"],
+      "title_none": []
+    }
+  ],
+  "geo_labels": {
+    "GLOBAL": "Globální",
+    "EU": "Evropská unie",
+    "U6": "Evropská unie (EU27)",
+    "EA": "Eurozóna",
+    "U2": "Eurozóna (EA20)",
+    "CZ": "Česko",
+    "SK": "Slovensko",
+    "DE": "Německo",
+    "PL": "Polsko",
+    "AT": "Rakousko",
+    "FR": "Francie",
+    "IT": "Itálie",
+    "ES": "Španělsko",
+    "GB": "Velká Británie",
+    "US": "Spojené státy",
+    "JP": "Japonsko",
+    "CN": "Čína",
+    "CH": "Švýcarsko"
+  }
+}

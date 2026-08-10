@@ -1,0 +1,232 @@
+{
+  "version": 1,
+  "intents": {
+    "profitability": {
+      "match_groups": ["profitability", "bank_profitability", "banking_profitability"],
+      "match_aliases": ["ziskovost", "zisk bank", "rentabilita", "return on equity", "return on assets"],
+      "probes": [
+        "return on equity",
+        "return on assets",
+        "ROE",
+        "ROA",
+        "bank profitability"
+      ],
+      "keep_needles": [
+        "return on equity",
+        "return on assets",
+        "roe",
+        "roa",
+        "rentabilit",
+        "bank profitability",
+        "profitability of banks"
+      ],
+      "exclude_needles": [
+        "gdp_share",
+        "gdp share",
+        "egss",
+        "biological",
+        "dwellings",
+        "house price",
+        "housing price"
+      ],
+      "preview_seeds": {
+        "eurostat": ["tipsbd40"]
+      }
+    },
+    "debt": {
+      "match_groups": ["debt", "government_debt", "household_debt", "loans_credit", "banking_asset_quality"],
+      "match_aliases": ["zadluzeni", "zadluzenost", "npl", "non-performing"],
+      "probes": [
+        "non-performing loans",
+        "NPL",
+        "loans to households",
+        "credit institutions debt"
+      ],
+      "keep_needles": [
+        "non-performing",
+        "npl",
+        "indebtedness",
+        "loans to households",
+        "government debt"
+      ],
+      "exclude_needles": [
+        "gdp_share",
+        "gdp share",
+        "egss",
+        "biological",
+        "retail sales"
+      ],
+      "preview_seeds": {
+        "eurostat": ["tipsbd10", "gov_10dd_edpt1"]
+      }
+    },
+    "trade": {
+      "match_groups": [],
+      "match_aliases": [
+        "obchod",
+        "export",
+        "import",
+        "exports",
+        "imports",
+        "zahranicni obchod",
+        "foreign trade",
+        "trade balance",
+        "obchodni bilance",
+        "vyvoz",
+        "dovoz"
+      ],
+      "probes": [
+        "exports",
+        "imports",
+        "trade balance",
+        "international trade"
+      ],
+      "keep_needles": [
+        "export",
+        "import",
+        "trade balance",
+        "international trade",
+        "foreign trade"
+      ],
+      "exclude_needles": [
+        "gdp_share",
+        "gdp share",
+        "egss",
+        "biological",
+        "dwellings",
+        "house price"
+      ],
+      "preview_seeds": {
+        "eurostat": ["ext_st_eu27_2020sitc", "nama_10_exi"]
+      }
+    },
+    "production": {
+      "match_groups": ["production", "automotive", "automotive_production"],
+      "match_aliases": ["vyroba", "manufactur", "prumysl", "industrial production", "pocitac", "automobil"],
+      "probes": [
+        "production manufacturing",
+        "manufacturing production",
+        "industrial production",
+        "production in industry",
+        "sts_inpr_m",
+        "investment goods",
+        "NACE C29",
+        "manufacture of motor vehicles",
+        "new passenger cars",
+        "car registration"
+      ],
+      "keep_needles": [
+        "manufactur",
+        "industrial production",
+        "production in industry",
+        "production manufacturing",
+        "sts_inpr",
+        "prumyslov",
+        "investment goods",
+        "c29",
+        "motor vehicles",
+        "passenger cars"
+      ],
+      "exclude_needles": [
+        "dwellings",
+        "dwelling",
+        "housing",
+        "house price",
+        "residential property",
+        "real estate",
+        "byt ",
+        "byty",
+        "gdp_share",
+        "gdp share",
+        "egss",
+        "biological",
+        "biolog",
+        "environmental goods",
+        "retail sales",
+        "retail turnover",
+        "maloobchod"
+      ],
+      "preview_seeds": {
+        "eurostat": ["sts_inpr_m", "sts_inpp_m", "sts_intv_m"],
+        "fred": ["IPMAN", "INDPRO"]
+      }
+    },
+    "investment": {
+      "match_groups": [],
+      "match_aliases": ["invest", "capex", "navysit", "gross fixed capital"],
+      "probes": [
+        "gross fixed capital formation",
+        "investment"
+      ],
+      "keep_needles": [
+        "gross fixed capital",
+        "fixed capital formation",
+        "investment"
+      ],
+      "exclude_needles": [
+        "gdp_share",
+        "gdp share",
+        "egss",
+        "biological",
+        "biolog",
+        "environmental goods"
+      ],
+      "preview_seeds": {
+        "eurostat": ["nama_10_an6"]
+      }
+    },
+    "banking_capital": {
+      "match_groups": ["banking_capital", "bank_assets"],
+      "match_aliases": ["cet1", "capital adequacy", "tier 1", "own funds"],
+      "probes": [
+        "capital adequacy",
+        "CET1",
+        "tier 1 capital",
+        "bank capital"
+      ],
+      "keep_needles": [
+        "cet1",
+        "capital adequacy",
+        "tier 1",
+        "own funds",
+        "bank capital"
+      ],
+      "exclude_needles": [
+        "gdp_share",
+        "gdp share",
+        "egss",
+        "biological",
+        "dwellings"
+      ],
+      "preview_seeds": {
+        "eurostat": ["tipsbd30"]
+      }
+    },
+    "retail": {
+      "match_groups": [],
+      "match_aliases": ["maloobchod", "retail sales", "retail turnover", "volume of retail"],
+      "probes": [
+        "retail sales",
+        "retail turnover",
+        "volume of retail trade"
+      ],
+      "keep_needles": [
+        "retail sales",
+        "retail turnover",
+        "retail trade",
+        "maloobchod"
+      ],
+      "exclude_needles": [
+        "gdp_share",
+        "gdp share",
+        "egss",
+        "biological",
+        "industrial production",
+        "manufactur"
+      ],
+      "preview_seeds": {
+        "eurostat": ["sts_trtu_m", "sts_trtu_a"]
+      }
+    }
+  }
+}

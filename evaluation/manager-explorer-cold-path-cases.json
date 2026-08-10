@@ -1,0 +1,17 @@
+[
+  {"id":"bank-profitability-cz","query":"ziskovost českých bank","required_groups":[["profit","zisk","return on (assets|equity)","roa","roe"],["bank"]],"geo":["cz","czech","česk"]},
+  {"id":"household-debt","query":"zadlužení domácností","required_groups":[["debt","zadlu","liabilit","credit"],["household","domácnost"]]},
+  {"id":"inflation-cz","query":"inflace Česko","required_groups":[["inflation","hicp","consumer price","inflace"]],"geo":["cz","czech","česk"]},
+  {"id":"gdp-de","query":"HDP Německo","required_groups":[["gdp","gross domestic product","hdp"]],"geo":["de","german","něme"]},
+  {"id":"insurance-profitability-es","query":"ziskovost pojišťoven Španělsko","required_groups":[["profit","return on","zisk"],["insur","pojišť"]],"geo":["es","spain","spanish","španěl"]},
+  {"id":"insurance-costs","query":"náklady pojišťoven","required_groups":[["cost","expense","náklad"],["insur","pojišť"]]},
+  {"id":"insurance-assets","query":"aktiva pojišťoven","required_groups":[["asset","aktiv"],["insur","pojišť"]]},
+  {"id":"europe-real-estate","query":"evropské nemovitosti","required_groups":[["real estate","house price","property","housing","nemovit"]],"geo":["eu","europe","euro area","evrop"]},
+  {"id":"retail-cz","query":"český maloobchod","required_groups":[["retail","maloobchod"]],"geo":["cz","czech","česk"]},
+  {"id":"automotive-de","query":"německý automotive","required_groups":[["automotive","motor vehicle","car","automobil"]],"geo":["de","german","něme"]},
+  {"id":"technology-us","query":"americké technologie","required_groups":[["technolog","information tech","software","semiconductor"]],"geo":["us","united states","america","ameri"]},
+  {"id":"energy-cz","query":"energetika Česko","required_groups":[["energy","electric","power","energet"]],"geo":["cz","czech","česk"]},
+  {"id":"unemployment-fr","query":"nezaměstnanost Francie","required_groups":[["unemployment","nezaměst"]],"geo":["fr","france","french","franci"]},
+  {"id":"rates-euro-area","query":"úrokové sazby eurozóny","required_groups":[["interest rate","policy rate","úrok","sazb"]],"geo":["euro area","eurozone","ea","u2","euroz"]},
+  {"id":"household-loans","query":"úvěry domácnostem","required_groups":[["loan","credit","úvěr"],["household","domácnost"]]}
+]

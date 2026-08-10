@@ -1,0 +1,37 @@
+{
+  "version": "search-v2-entity-type-schema-2026-07-12",
+  "supported_entity_types": [
+    "market_index",
+    "equity",
+    "fx_pair",
+    "commodity",
+    "economic_indicator",
+    "financial_ratio",
+    "institution",
+    "dataset_code",
+    "series_code",
+    "geography",
+    "named_company",
+    "interest_rate",
+    "bond_yield",
+    "ticker"
+  ],
+  "query_variant_roles": [
+    "original_exact",
+    "canonical_name",
+    "exact_alias",
+    "symbol",
+    "translated_exact",
+    "professional_synonym",
+    "broader_concept",
+    "related_entity",
+    "comparison_entity"
+  ],
+  "first_pass_exact_roles": [
+    "original_exact",
+    "canonical_name",
+    "exact_alias",
+    "symbol",
+    "translated_exact"
+  ]
+}

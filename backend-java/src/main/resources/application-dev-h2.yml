@@ -1,0 +1,14 @@
+spring:
+  config:
+    activate:
+      on-profile: dev-h2
+  datasource:
+    url: jdbc:h2:mem:bankintel;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: validate
+  h2:
+    console:
+      enabled: true

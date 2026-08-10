@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "metrics": [
+    {
+      "id": "debt",
+      "aliases": [
+        "debt", "indebtedness", "liability", "liabilities", "loan", "loans", "lending", "borrowing",
+        "dluh", "dluhy", "dluhove", "zadluzeni", "zadluzenost", "zavazek", "zavazky",
+        "uver", "uvery", "uverovani", "pujcka", "pujcky"
+      ]
+    },
+    {
+      "id": "profitability",
+      "aliases": [
+        "profit", "profitability", "profits", "return on equity", "return on assets", "roe", "roa",
+        "net income", "earnings",
+        "zisk", "ziskovost", "vynos", "vynosnost", "rentabilita"
+      ]
+    },
+    {
+      "id": "cost",
+      "aliases": [
+        "cost", "costs", "expense", "expenses", "expenditure", "operating cost",
+        "naklad", "naklady", "vydaj", "vydaje", "provozni naklady"
+      ]
+    },
+    {
+      "id": "assets",
+      "aliases": [
+        "asset", "assets", "balance sheet", "total assets",
+        "aktivum", "aktiva", "majetek", "rozvaha"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,211 @@
+{
+  "version": "search-v2-concept-registry-2026-07-13",
+  "description": "General query concept registry. Aliases define meaning; routing remains capability-driven and never maps one query phrase directly to one source.",
+  "concepts": [
+    {
+      "id": "interest_rate",
+      "aliases": {
+        "cs": ["úroková míra", "úroková sazba", "úrokové míry", "úrokové sazby"],
+        "en": ["interest rate", "interest rates"]
+      },
+      "catalog_families": ["interest_rates", "bank_interest_rates", "policy_rates"],
+      "entity_types": ["interest_rate", "economic_indicator"],
+      "preferred_sources": ["ecb2", "eurostat", "oecd4", "fred", "imf"],
+      "compatible_concepts": ["policy_rate", "lending_rate", "deposit_rate", "mortgage_rate", "bond_yield"]
+    },
+    {
+      "id": "policy_rate",
+      "aliases": {
+        "cs": ["měnověpolitická sazba", "základní sazba", "repo sazba", "sazba centrální banky", "sazby centrální banky"],
+        "en": ["policy rate", "central bank policy rate", "official interest rate", "repo rate"]
+      },
+      "catalog_families": ["policy_rates", "interest_rates", "cz_interest_rates"],
+      "entity_types": ["interest_rate", "economic_indicator"],
+      "preferred_sources": ["ecb2", "fred", "oecd4", "arad"],
+      "compatible_concepts": ["interest_rate"]
+    },
+    {
+      "id": "lending_rate",
+      "aliases": {
+        "cs": ["úvěrová sazba", "sazba úvěrů", "sazby úvěrů", "sazby půjček"],
+        "en": ["lending rate", "loan interest rate", "loan rate"]
+      },
+      "catalog_families": ["bank_interest_rates", "interest_rates"],
+      "entity_types": ["interest_rate", "economic_indicator"],
+      "preferred_sources": ["ecb2", "fred", "oecd4"],
+      "compatible_concepts": ["interest_rate"]
+    },
+    {
+      "id": "deposit_rate",
+      "aliases": {
+        "cs": ["depozitní sazba", "sazba vkladů", "sazby vkladů"],
+        "en": ["deposit rate", "deposit interest rate"]
+      },
+      "catalog_families": ["bank_interest_rates", "interest_rates"],
+      "entity_types": ["interest_rate", "economic_indicator"],
+      "preferred_sources": ["ecb2", "fred", "oecd4"],
+      "compatible_concepts": ["interest_rate"]
+    },
+    {
+      "id": "mortgage_rate",
+      "aliases": {
+        "cs": ["hypoteční sazba", "hypoteční sazby", "sazby hypoték", "sazba hypoték"],
+        "en": ["mortgage rate", "mortgage interest rate", "housing loan rate"]
+      },
+      "catalog_families": ["mortgage_rates", "bank_interest_rates", "real_estate"],
+      "entity_types": ["interest_rate", "economic_indicator"],
+      "preferred_sources": ["ecb2", "oecd4", "fred", "arad"],
+      "compatible_concepts": ["interest_rate", "lending_rate"]
+    },
+    {
+      "id": "bond_yield",
+      "aliases": {
+        "cs": ["výnos dluhopisu", "výnos státního dluhopisu", "výnosy dluhopisů"],
+        "en": ["bond yield", "government bond yield", "sovereign bond yield"]
+      },
+      "catalog_families": ["bond_yields", "interest_rates", "financial_markets"],
+      "entity_types": ["bond_yield", "economic_indicator"],
+      "preferred_sources": ["fred", "ecb2", "oecd4"],
+      "compatible_concepts": ["interest_rate"]
+    },
+    {
+      "id": "unemployment_rate",
+      "aliases": {
+        "cs": ["míra nezaměstnanosti", "nezaměstnanost"],
+        "en": ["unemployment rate", "jobless rate"]
+      },
+      "catalog_families": ["labour", "macro"],
+      "entity_types": ["economic_indicator"],
+      "preferred_sources": ["eurostat", "oecd4", "imf", "data360"],
+      "compatible_concepts": []
+    },
+    {
+      "id": "inflation_rate",
+      "aliases": {
+        "cs": ["míra inflace", "inflace", "spotřebitelská inflace"],
+        "en": ["inflation rate", "consumer price inflation", "hicp inflation", "cpi inflation"]
+      },
+      "catalog_families": ["prices", "eu_macro", "macro"],
+      "entity_types": ["economic_indicator"],
+      "preferred_sources": ["eurostat", "ecb2", "oecd4", "imf", "data360"],
+      "compatible_concepts": []
+    },
+    {
+      "id": "exchange_rate",
+      "aliases": {
+        "cs": ["směnný kurz", "měnový kurz", "kurz měny"],
+        "en": ["exchange rate", "foreign exchange rate", "fx rate"]
+      },
+      "catalog_families": ["fx"],
+      "entity_types": ["fx_pair", "economic_indicator"],
+      "preferred_sources": ["ecb2", "fred", "imf", "bis"],
+      "compatible_concepts": []
+    },
+    {
+      "id": "birth_rate",
+      "aliases": {
+        "cs": ["porodnost", "míra porodnosti"],
+        "en": ["birth rate", "fertility rate"]
+      },
+      "catalog_families": ["population", "macro"],
+      "entity_types": ["economic_indicator"],
+      "preferred_sources": ["eurostat", "data360", "oecd4"],
+      "compatible_concepts": []
+    },
+    {
+      "id": "mortality_rate",
+      "aliases": {
+        "cs": ["úmrtnost", "míra úmrtnosti"],
+        "en": ["mortality rate", "death rate"]
+      },
+      "catalog_families": ["population", "macro"],
+      "entity_types": ["economic_indicator"],
+      "preferred_sources": ["eurostat", "data360", "oecd4"],
+      "compatible_concepts": []
+    },
+    {
+      "id": "growth_rate",
+      "aliases": {
+        "cs": ["tempo růstu", "míra růstu", "růstová míra", "ekonomický růst", "růst ekonomiky"],
+        "en": ["growth rate", "rate of growth", "economic growth"]
+      },
+      "catalog_families": ["macro"],
+      "entity_types": ["economic_indicator"],
+      "preferred_sources": ["eurostat", "oecd4", "imf", "data360"],
+      "compatible_concepts": ["gdp"]
+    },
+    {
+      "id": "gdp",
+      "aliases": {
+        "cs": ["hdp", "hrubý domácí produkt"],
+        "en": ["gdp", "gross domestic product"]
+      },
+      "catalog_families": ["macro", "eu_macro"],
+      "entity_types": ["economic_indicator"],
+      "preferred_sources": ["eurostat", "oecd4", "imf", "data360"],
+      "compatible_concepts": ["growth_rate"]
+    },
+    {
+      "id": "industrial_production",
+      "aliases": {
+        "cs": ["průmyslová výroba", "index průmyslové produkce"],
+        "en": ["industrial production", "industrial production index"]
+      },
+      "catalog_families": ["industry", "macro"],
+      "entity_types": ["economic_indicator"],
+      "preferred_sources": ["eurostat", "oecd4", "data360"],
+      "compatible_concepts": []
+    },
+    {
+      "id": "commodity_price",
+      "aliases": {
+        "cs": ["cena komodity", "cena ropy", "cena zlata"],
+        "en": ["commodity price", "oil price", "crude oil price", "gold price"]
+      },
+      "catalog_families": ["commodities"],
+      "entity_types": ["commodity", "economic_indicator"],
+      "preferred_sources": ["commodities", "fred", "oecd4", "data360"],
+      "compatible_concepts": []
+    },
+    {
+      "id": "bank_profitability",
+      "aliases": {
+        "cs": ["zisk bank", "ziskovost bank", "roa bank", "roe bank"],
+        "en": ["bank profit", "bank profitability", "return on assets of banks", "return on equity of banks"]
+      },
+      "catalog_families": ["banking", "financial_stability"],
+      "entity_types": ["financial_ratio", "economic_indicator"],
+      "preferred_sources": ["ecb2", "bis", "imf", "eurostat"],
+      "compatible_concepts": []
+    },
+    {
+      "id": "net_interest_income",
+      "aliases": {
+        "cs": [
+          "čistý úrokový výnos",
+          "čisté úrokové výnosy",
+          "úrokový výnos bank",
+          "úrokové výnosy bank",
+          "úrokové výnosy bankovního sektoru"
+        ],
+        "en": ["net interest income", "interest income of banks", "bank interest income"]
+      },
+      "retrieval_terms": ["interest income"],
+      "catalog_families": ["banking", "financial_stability"],
+      "entity_types": ["financial_ratio", "economic_indicator"],
+      "preferred_sources": ["ecb2", "eurostat", "bis", "arad", "imf"],
+      "compatible_concepts": ["bank_profitability"]
+    },
+    {
+      "id": "market_index",
+      "aliases": {
+        "cs": ["akciový index", "burzovní index"],
+        "en": ["market index", "stock index", "equity index"]
+      },
+      "catalog_families": ["markets_indices"],
+      "entity_types": ["market_index"],
+      "preferred_sources": ["fred", "data360"],
+      "compatible_concepts": []
+    }
+  ]
+}

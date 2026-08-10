@@ -1,0 +1,83 @@
+[
+  {
+    "query_id": "stability_bank_roe_sk_ecb",
+    "query": "bank ROE Slovakia ECB",
+    "expected_geo": ["SK"],
+    "expected_concepts": ["roe", "return on equity", "bank"],
+    "expected_sector_ids": ["banks"],
+    "expected_metric_intents": ["profitability"],
+    "acceptable_sources": ["ecb2", "eurostat"],
+    "required_source": "ecb2"
+  },
+  {
+    "query_id": "stability_household_debt_cz",
+    "query": "household debt Czechia",
+    "expected_geo": ["CZ"],
+    "expected_concepts": ["household debt", "household liabilities", "zadluzenost domacnosti"],
+    "expected_sector_ids": ["households"],
+    "expected_metric_intents": ["debt"],
+    "acceptable_sources": ["eurostat", "oecd4", "data360", "ecb2"]
+  },
+  {
+    "query_id": "stability_gdp_at",
+    "query": "GDP Austria",
+    "expected_geo": ["AT"],
+    "expected_concepts": ["gdp", "gross domestic product"],
+    "acceptable_sources": ["eurostat", "oecd4", "data360", "imf"]
+  },
+  {
+    "query_id": "stability_inflation_hu",
+    "query": "inflation Hungary",
+    "expected_geo": ["HU"],
+    "expected_concepts": ["inflation", "hicp", "consumer price"],
+    "acceptable_sources": ["eurostat", "oecd4", "imf", "data360"]
+  },
+  {
+    "query_id": "stability_insurance_assets_cz",
+    "query": "insurance company assets Czechia",
+    "expected_geo": ["CZ"],
+    "expected_concepts": ["insurance assets", "insurance company assets"],
+    "expected_sector_ids": ["insurance"],
+    "expected_metric_intents": ["assets"],
+    "acceptable_sources": ["oecd4", "eurostat", "ecb2"]
+  },
+  {
+    "query_id": "stability_pension_assets_cz",
+    "query": "pension fund assets Czechia",
+    "expected_geo": ["CZ"],
+    "expected_concepts": ["pension fund assets", "pension funds"],
+    "expected_sector_ids": ["pension_funds"],
+    "expected_metric_intents": ["assets"],
+    "acceptable_sources": ["oecd4", "eurostat", "ecb2"]
+  },
+  {
+    "query_id": "stability_house_prices_at",
+    "query": "house prices Austria",
+    "expected_geo": ["AT"],
+    "expected_concepts": ["house price", "residential property price", "housing price"],
+    "acceptable_sources": ["eurostat", "oecd4", "data360"]
+  },
+  {
+    "query_id": "stability_electricity_prices_de",
+    "query": "electricity prices Germany",
+    "expected_geo": ["DE"],
+    "expected_concepts": ["electricity price", "energy price"],
+    "acceptable_sources": ["eurostat", "oecd4", "data360"]
+  },
+  {
+    "query_id": "stability_nasdaq100_compact",
+    "query": "nasdaq100",
+    "acceptable_sources": ["fred"],
+    "expected_terms": ["nasdaq-100", "nasdaq100", "nasdaq 100"],
+    "relevant_series_ids": ["NASDAQ100", "NASDAQXNDX"]
+  },
+  {
+    "query_id": "stability_household_loans_de",
+    "query": "household loans Germany",
+    "expected_geo": ["DE"],
+    "expected_concepts": ["household loans", "loans to households", "household credit"],
+    "expected_sector_ids": ["households"],
+    "expected_metric_intents": ["debt"],
+    "acceptable_sources": ["ecb2", "eurostat", "data360", "oecd4"]
+  }
+]

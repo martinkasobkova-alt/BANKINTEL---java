@@ -1,0 +1,20 @@
+{
+  "version": 2,
+  "sources": [
+    {"id": "ecb", "tier": "official", "domains": ["ecb.europa.eu"]},
+    {"id": "eurostat", "tier": "official", "domains": ["ec.europa.eu", "eurostat.ec.europa.eu"]},
+    {"id": "world_bank", "tier": "official", "domains": ["worldbank.org", "data.worldbank.org", "api.worldbank.org"]},
+    {"id": "imf", "tier": "official", "domains": ["imf.org"]},
+    {"id": "oecd", "tier": "official", "domains": ["oecd.org", "data.oecd.org"]},
+    {"id": "bis", "tier": "official", "domains": ["bis.org"]},
+    {"id": "fred", "tier": "official", "domains": ["fred.stlouisfed.org", "stlouisfed.org"]},
+    {"id": "cnb", "tier": "official", "domains": ["cnb.cz"]},
+    {"id": "csu", "tier": "official", "domains": ["czso.cz"]},
+    {"id": "reuters", "tier": "press", "domains": ["reuters.com"]},
+    {"id": "bloomberg", "tier": "press", "domains": ["bloomberg.com"]},
+    {"id": "ct24", "tier": "press", "domains": ["ct24.ceskatelevize.cz"]},
+    {"id": "e15", "tier": "press", "domains": ["e15.cz"]},
+    {"id": "patria", "tier": "press", "domains": ["patria.cz"]},
+    {"id": "kurzy", "tier": "press", "domains": ["kurzy.cz"]}
+  ]
+}

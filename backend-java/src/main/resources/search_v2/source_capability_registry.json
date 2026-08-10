@@ -1,0 +1,66 @@
+{
+  "version": "search-v2-source-capabilities-2026-07-12",
+  "description": "Catalog-family and entity-type routing hints derived from the adapters currently available in BankIntel-v2. These hints are routing preferences, not hard filters unless the user explicitly constrains a source.",
+  "sources": {
+    "fred": {
+      "catalog_families": ["markets_indices", "interest_rates", "policy_rates", "bond_yields", "mortgage_rates", "macro", "commodities", "fx"],
+      "entity_types": ["market_index", "bond_yield", "economic_indicator", "interest_rate", "commodity", "fx_pair", "series_code", "dataset_code"],
+      "notes": "FRED adapter contains market indices, rates, macro series, commodity references and direct series codes."
+    },
+    "stocks": {
+      "catalog_families": ["markets_equities"],
+      "entity_types": ["equity", "named_company", "ticker", "series_code"],
+      "notes": "Yahoo/stock adapter contains equity tickers and named listed companies."
+    },
+    "commodities": {
+      "catalog_families": ["commodities"],
+      "entity_types": ["commodity", "series_code"],
+      "notes": "Commodity adapter contains commodity price series and aliases."
+    },
+    "eurostat": {
+      "catalog_families": ["macro", "eu_macro", "prices", "labour", "industry", "trade", "population", "real_estate", "interest_rates", "banking", "financial_stability"],
+      "entity_types": ["economic_indicator", "interest_rate", "financial_ratio", "dataset_code", "series_code", "geography"],
+      "notes": "Eurostat adapter contains European statistical datasets and dimension-selectable tables, including banking-sector indicators such as bank profitability and capital ratios."
+    },
+    "ecb2": {
+      "catalog_families": ["banking", "fx", "interest_rates", "bank_interest_rates", "policy_rates", "mortgage_rates", "bond_yields", "euro_area_macro", "prices"],
+      "entity_types": ["fx_pair", "interest_rate", "bond_yield", "economic_indicator", "financial_ratio", "dataset_code", "series_code"],
+      "notes": "ECB adapter contains exchange rates, policy/market rates, HICP and banking series."
+    },
+    "arad": {
+      "catalog_families": ["cz_banking", "cz_interest_rates", "cz_macro", "cz_markets"],
+      "entity_types": ["interest_rate", "economic_indicator", "financial_ratio", "dataset_code", "series_code"],
+      "notes": "CNB ARAD adapter contains Czech central-bank, banking, macro and market datasets."
+    },
+    "csu": {
+      "catalog_families": ["cz_macro", "cz_labour", "cz_prices", "cz_real_estate", "cz_industry", "population"],
+      "entity_types": ["economic_indicator", "dataset_code", "series_code", "geography"],
+      "notes": "CZSO adapter contains Czech statistical tables and dimensions."
+    },
+    "imf": {
+      "catalog_families": ["macro", "banking", "financial_stability", "government_finance", "interest_rates", "fx"],
+      "entity_types": ["economic_indicator", "interest_rate", "financial_ratio", "dataset_code", "series_code", "geography"],
+      "notes": "IMF adapter contains macro, government and financial-stability indicators."
+    },
+    "bis": {
+      "catalog_families": ["banking", "fx", "financial_markets", "bank_interest_rates"],
+      "entity_types": ["financial_ratio", "fx_pair", "interest_rate", "economic_indicator", "dataset_code", "series_code"],
+      "notes": "BIS adapter contains banking, credit, exchange-rate and financial-market statistics."
+    },
+    "oecd4": {
+      "catalog_families": ["macro", "labour", "prices", "industry", "trade", "real_estate", "commodities", "interest_rates", "policy_rates", "bond_yields", "mortgage_rates"],
+      "entity_types": ["economic_indicator", "interest_rate", "bond_yield", "commodity", "dataset_code", "series_code", "geography"],
+      "notes": "OECD adapter contains economic outlook, prices, labour, sectoral, real-estate and commodity datasets."
+    },
+    "data360": {
+      "catalog_families": ["macro", "banking", "real_estate", "sectoral", "commodities", "markets_equities"],
+      "entity_types": ["economic_indicator", "financial_ratio", "commodity", "market_index", "equity", "dataset_code", "series_code"],
+      "notes": "Data360/World Bank style catalog contains broad macro, sectoral, commodity and market indicators."
+    },
+    "worldbank": {
+      "catalog_families": ["macro", "development", "labour", "prices", "trade", "population", "interest_rates"],
+      "entity_types": ["economic_indicator", "interest_rate", "dataset_code", "series_code", "geography"],
+      "notes": "World Bank catalog contains WDI and related development indicators."
+    }
+  }
+}

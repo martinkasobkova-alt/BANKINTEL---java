@@ -1,0 +1,63 @@
+# === Secrets (NEVER commit) ===
+.env
+.env.local
+.env.*.local
+backend-java/.env
+frontend/.env.local
+*.pem
+*.key
+
+# === Build artifacts ===
+node_modules/
+dist/
+build/
+backend-java/build/
+backend-java/.gradle/
+.gradle/
+target/
+*.class
+
+# === Local data & indexes (multi-GB — never commit) ===
+# Optimized FTS index copy + per-source JSONL live here.
+data/
+backend-java/data/
+
+# === Logs & run artifacts ===
+*.log
+logs/
+dev-logs/
+outputs/
+.codex-logs/
+.codex-run/
+.claude/
+
+# === Python caches (scripts/, tools/) ===
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# === Separate Python microservice (out of this repo's scope) ===
+forecast-service/
+
+# === Ad-hoc / temp dumps & test-run output ===
+tmp_*.json
+*.tmp
+frontend/source-preview-geo-results.json
+frontend/stage9-*.json
+*_FINAL_REPORT.md
+
+# === Internal working notes / AI-agent prompts (kept local, not for the public repo) ===
+CURSOR_*.md
+ETAPA_*_REPORT.md
+AUDIT_*.md
+*_progress.md
+COMPLETION.md
+backend-java/COMPLETION.md
+
+# === OS / IDE ===
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.iml

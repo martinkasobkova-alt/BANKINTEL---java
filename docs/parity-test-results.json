@@ -1,0 +1,142 @@
+﻿[
+    {
+        "Name":  "health",
+        "Status":  200,
+        "OK":  true,
+        "Len":  82,
+        "Preview":  "{\"service\":\"bankintel-java\",\"time\":\"2026-07-03T22:50:02.727471700Z\",\"status\":\"ok\"}"
+    },
+    {
+        "Name":  "homepage-config",
+        "Status":  200,
+        "OK":  true,
+        "Len":  258,
+        "Preview":  "{\"id\":\"main\",\"title\":\"ExekutivnÃ­ pÅehled\",\"subtitle\":\"VÃ¡mi vybranÃ¡ data z veÅejnÃ½ch portÃ¡lÅ¯ Â· ARAD ÄNB a dalÅ¡Ã­\",\"default_chart_type\":\"line\",\"default_chart_frequency\":nu..."
+    },
+    {
+        "Name":  "homepage-render",
+        "Status":  200,
+        "OK":  true,
+        "Len":  227,
+        "Preview":  "{\"title\":\"ExekutivnÃ­ pÅehled\",\"subtitle\":\"VÃ¡mi vybranÃ¡ data z veÅejnÃ½ch portÃ¡lÅ¯ Â· ARAD ÄNB a dalÅ¡Ã­\",\"updated_at\":\"2026-07-03T22:49:22.327583Z\",\"default_chart_type\":\"lin..."
+    },
+    {
+        "Name":  "sections",
+        "Status":  200,
+        "OK":  true,
+        "Len":  2,
+        "Preview":  "[]"
+    },
+    {
+        "Name":  "feature-access",
+        "Status":  200,
+        "OK":  true,
+        "Len":  2460,
+        "Preview":  "[{\"feature_key\":\"ad_free_dashboard\",\"label\":\"Dashboard bez reklam\",\"description\":\"SkrytÃ­ reklamnÃ­ch blokÅ¯ pro pÅedplatitele.\",\"access_level\":\"subscriber\"},{\"feature_key\":\"catal..."
+    },
+    {
+        "Name":  "articles",
+        "Status":  200,
+        "OK":  true,
+        "Len":  2,
+        "Preview":  "[]"
+    },
+    {
+        "Name":  "podcasts-shows",
+        "Status":  200,
+        "OK":  true,
+        "Len":  12,
+        "Preview":  "{\"items\":[]}"
+    },
+    {
+        "Name":  "catalog-status",
+        "Status":  200,
+        "OK":  true,
+        "Len":  3147,
+        "Preview":  "{\"browse_ui_timeout_ms\":20000,\"browse_http_timeout_ms\":24000,\"browse_ui_timeout_ms_arad\":125000,\"browse_http_timeout_ms_arad\":120000,\"fred_api_key_configured\":false,\"sources\":[{\"id..."
+    },
+    {
+        "Name":  "catalog-suggest",
+        "Status":  200,
+        "OK":  true,
+        "Len":  2595,
+        "Preview":  "{\"suggestions\":[{\"source\":\"eurostat\",\"source_label\":\"Eurostat\",\"set_id\":\"teina110\",\"title\":\"GDP deflator\",\"full_path\":\"Tables on EU policy \u003e Euro indicators / PEEIs \u003e National acco..."
+    },
+    {
+        "Name":  "catalog-search-post",
+        "Status":  200,
+        "OK":  true,
+        "Len":  207,
+        "Preview":  "{\"source\":\"\",\"query\":\"gdp\",\"results\":[],\"themes_triggered\":[],\"message_cs\":\"NeznÃ¡mÃ½ zdroj pro katalogovÃ© vyhledÃ¡vÃ¡nÃ­.\",\"upstream_unavailable\":false,\"fred_api_configured\":fals..."
+    },
+    {
+        "Name":  "fred-catalog",
+        "Status":  403,
+        "OK":  false,
+        "Len":  0,
+        "Preview":  "Vzdálený server vrátil chybu: (403) Zakázáno."
+    },
+    {
+        "Name":  "bis-browse",
+        "Status":  403,
+        "OK":  false,
+        "Len":  0,
+        "Preview":  "Vzdálený server vrátil chybu: (403) Zakázáno."
+    },
+    {
+        "Name":  "magazines",
+        "Status":  403,
+        "OK":  false,
+        "Len":  0,
+        "Preview":  "Vzdálený server vrátil chybu: (403) Zakázáno."
+    },
+    {
+        "Name":  "ad-slots",
+        "Status":  200,
+        "OK":  true,
+        "Len":  328,
+        "Preview":  "{\"topbar\":{\"enabled\":false,\"kind\":\"image\",\"image_url\":\"\",\"link_url\":\"\",\"alt\":\"\",\"content\":\"\",\"html\":\"\",\"image_mode\":\"single\",\"slides\":[],\"carousel_interval_sec\":5},\"sidebar\":{\"enab..."
+    },
+    {
+        "Name":  "auth-login",
+        "Status":  200,
+        "OK":  true,
+        "Len":  361,
+        "Preview":  "{\"user\":{\"id\":\"f7292192-e897-4323-8c66-887b932c8b24\",\"company\":\"BankIntel\",\"email\":\"admin@bankintel.local\",\"name\":\"Admin Dev\",\"phone\":\"+420000000000\",\"role\":\"admin\",\"access_tier\":\"..."
+    },
+    {
+        "Name":  "me",
+        "Status":  404,
+        "OK":  false,
+        "Len":  0,
+        "Preview":  "Vzdálený server vrátil chybu: (404) Nenalezeno."
+    },
+    {
+        "Name":  "me-dashboard",
+        "Status":  404,
+        "OK":  false,
+        "Len":  0,
+        "Preview":  "Vzdálený server vrátil chybu: (404) Nenalezeno."
+    },
+    {
+        "Name":  "sources-auth",
+        "Status":  200,
+        "OK":  true,
+        "Len":  815,
+        "Preview":  "[{\"id\":\"6566f90b-0cf5-44fc-be4e-f33590657f74\",\"name\":\"Eurostat Â· HICP roÄnÃ­ zmÄna (CZ)\",\"source_type\":\"eurostat\",\"base_url\":\"https://ec.europa.eu/eurostat/api/dissemination/sta..."
+    },
+    {
+        "Name":  "explore-geo-auth",
+        "Status":  404,
+        "OK":  false,
+        "Len":  0,
+        "Preview":  "Vzdálený server vrátil chybu: (404) Nenalezeno."
+    },
+    {
+        "Name":  "chat-unread-auth",
+        "Status":  200,
+        "OK":  true,
+        "Len":  30,
+        "Preview":  "{\"stub\":true,\"unread_count\":0}"
+    }
+]

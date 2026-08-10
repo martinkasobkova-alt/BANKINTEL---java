@@ -1,0 +1,212 @@
+{
+  "term_sets": {
+    "energy": ["energie", "energii", "energy", "plyn", " gas", "gas ", "natural gas", "electric", "elektr", "ropa", " oil", "oil "],
+    "price": ["ceny", "cena", "price", "prices"],
+    "inflation": ["inflace", "inflation", "cpi", " hicp", "hicp ", "consumer price", "harmonised index"],
+    "npl": ["npl", "non-performing", "non performing", "impaired", "problem loan", "ohrozen"],
+    "consumer_price": ["consumer price", "consumer prices", "cpi", " hicp", "hicp ", "inflace", "inflation", "spotrebitelskych"],
+    "loan": ["loan", "loans", "uver", "uvery", "credit", "pujck", "lending"],
+    "unemployment": ["unemployment", "unemployed", "jobless", "nezam"],
+    "employment": ["employment rate", "employed", "zamestnan"],
+    "growth": ["growth", "rust", "rpch", "annual growth"],
+    "level": ["level", "current us"],
+    "mortgage_volume": ["volume", "objem", "outstanding", "stock"],
+    "debt": ["debt", "dluh"],
+    "bank_assets": ["total assets", "balance sheet", "aktiva"],
+    "energy_production": ["production", "generation", "vyroba"],
+    "confidence": ["confidence", "sentiment"],
+    "construction": ["construction", "stavebnictvi", "building output"],
+    "disposable_income": ["disposable", "disponibilni"],
+    "bank": [" bank", "bank ", "banky", "bankov", "banking", " mfi", "mfi "],
+    "profitability": ["zisk", "profit", "earnings", "rentabilit", "roe", "roa", "profitability", "ziskovost"],
+    "equity_market": ["nasdaq", "sp500", "s&p", "dow jones", "nikkei", "ftse", "dax", "russell", "nyse"]
+  },
+  "rules": [
+    {
+      "description": "Energy price queries should not also rank broad inflation unless inflation is explicit.",
+      "when_active": ["gas_energy_prices", "price_inflation"],
+      "when_all_terms": ["energy", "price"],
+      "unless_any_terms": ["inflation"],
+      "remove": ["price_inflation"]
+    },
+    {
+      "description": "Explicit inflation wording activates the broad price-inflation group.",
+      "when_any_terms": ["inflation"],
+      "add": ["price_inflation"]
+    },
+    {
+      "description": "NPL wording is asset-quality, not generic lending volume.",
+      "when_active": ["banking_asset_quality", "loans_credit"],
+      "when_any_terms": ["npl"],
+      "remove": ["loans_credit"]
+    },
+    {
+      "description": "Bank capital should not be confused with real-economy production.",
+      "when_active": ["banking_capital", "production"],
+      "remove": ["production"]
+    },
+    {
+      "description": "Consumer-price wording activates a consumer price group if no broader price group fired.",
+      "when_any_terms": ["consumer_price"],
+      "unless_active": ["consumer_prices", "price_inflation"],
+      "add": ["consumer_prices"]
+    },
+    {
+      "description": "Consumer-price wording should not pull in lending unless a loan term is explicit.",
+      "when_active": ["loans_credit"],
+      "when_any_terms": ["consumer_price"],
+      "unless_any_terms": ["loan"],
+      "remove": ["loans_credit"]
+    },
+    {
+      "description": "Prefer unemployment over employment for unemployment wording.",
+      "when_active": ["unemployment", "employment"],
+      "when_any_terms": ["unemployment"],
+      "remove": ["employment"]
+    },
+    {
+      "description": "Prefer employment over unemployment for employment-rate wording.",
+      "when_active": ["unemployment", "employment"],
+      "when_any_terms": ["employment"],
+      "remove": ["unemployment"]
+    },
+    {
+      "description": "GDP growth wording should not rank GDP level first.",
+      "when_active": ["gdp_growth", "gdp_level"],
+      "when_any_terms": ["growth"],
+      "remove": ["gdp_level"]
+    },
+    {
+      "description": "GDP level wording should not rank growth first.",
+      "when_active": ["gdp_growth", "gdp_level"],
+      "when_any_terms": ["level"],
+      "remove": ["gdp_growth"]
+    },
+    {
+      "description": "Mortgage volume wording should prefer volume over rate.",
+      "when_active": ["mortgage_rates", "mortgage_volumes"],
+      "when_any_terms": ["mortgage_volume"],
+      "remove": ["mortgage_rates"]
+    },
+    {
+      "description": "Mortgage queries without volume wording prefer rates over volume.",
+      "when_active": ["mortgage_rates", "mortgage_volumes"],
+      "unless_any_terms": ["mortgage_volume"],
+      "remove": ["mortgage_volumes"]
+    },
+    {
+      "description": "Household debt wording should not rank household consumption first.",
+      "when_active": ["household_consumption", "household_debt"],
+      "when_any_terms": ["debt"],
+      "remove": ["household_consumption"]
+    },
+    {
+      "description": "Household queries without debt wording prefer consumption over debt.",
+      "when_active": ["household_consumption", "household_debt"],
+      "unless_any_terms": ["debt"],
+      "remove": ["household_debt"]
+    },
+    {
+      "description": "Bank asset wording should prefer bank assets over bank capital.",
+      "when_active": ["banking_capital", "bank_assets"],
+      "when_any_terms": ["bank_assets"],
+      "remove": ["banking_capital"]
+    },
+    {
+      "description": "Bank capital wording should not rank bank assets first.",
+      "when_active": ["banking_capital", "bank_assets"],
+      "unless_any_terms": ["bank_assets"],
+      "remove": ["bank_assets"]
+    },
+    {
+      "description": "Energy production wording should prefer production over prices.",
+      "when_active": ["energy_prices", "energy_production"],
+      "when_any_terms": ["energy_production"],
+      "remove": ["energy_prices"]
+    },
+    {
+      "description": "Energy queries without production wording prefer prices over production.",
+      "when_active": ["energy_prices", "energy_production"],
+      "unless_any_terms": ["energy_production"],
+      "remove": ["energy_production"]
+    },
+    {
+      "description": "Gas energy price is also an energy price signal.",
+      "when_active": ["gas_energy_prices"],
+      "unless_active": ["energy_prices"],
+      "add": ["energy_prices"]
+    },
+    {
+      "description": "Retail confidence wording should prefer confidence over sales.",
+      "when_active": ["retail_sales", "consumer_confidence"],
+      "when_any_terms": ["confidence"],
+      "remove": ["retail_sales"]
+    },
+    {
+      "description": "Retail queries without confidence wording prefer sales.",
+      "when_active": ["retail_sales", "consumer_confidence"],
+      "unless_any_terms": ["confidence"],
+      "remove": ["consumer_confidence"]
+    },
+    {
+      "description": "Retail revenue implies retail sales.",
+      "when_active": ["retail_revenue"],
+      "unless_active": ["retail_sales"],
+      "add": ["retail_sales"]
+    },
+    {
+      "description": "Automotive sector queries imply automotive production candidates.",
+      "when_active": ["automotive"],
+      "unless_active": ["automotive_production"],
+      "add": ["automotive_production"]
+    },
+    {
+      "description": "Consumer loan wording should not rank consumer prices first.",
+      "when_active": ["consumer_prices", "consumer_loans"],
+      "when_any_terms": ["loan"],
+      "remove": ["consumer_prices"]
+    },
+    {
+      "description": "Consumer price wording should not rank consumer loans first.",
+      "when_active": ["consumer_prices", "consumer_loans"],
+      "unless_any_terms": ["loan"],
+      "remove": ["consumer_loans"]
+    },
+    {
+      "description": "Construction wording should prefer construction output over house prices.",
+      "when_active": ["house_prices", "construction_output"],
+      "when_any_terms": ["construction"],
+      "remove": ["house_prices"]
+    },
+    {
+      "description": "Housing price wording should not rank construction output first.",
+      "when_active": ["house_prices", "construction_output"],
+      "unless_any_terms": ["construction"],
+      "remove": ["construction_output"]
+    },
+    {
+      "description": "Disposable-income wording should prefer income over wages.",
+      "when_active": ["wages", "disposable_income"],
+      "when_any_terms": ["disposable_income"],
+      "remove": ["wages"]
+    },
+    {
+      "description": "Wage wording should not rank disposable income first.",
+      "when_active": ["wages", "disposable_income"],
+      "unless_any_terms": ["disposable_income"],
+      "remove": ["disposable_income"]
+    },
+    {
+      "description": "Bank profitability wording activates both legacy and new profitability groups.",
+      "when_all_terms": ["bank", "profitability"],
+      "add": ["bank_profitability", "banking_profitability"]
+    },
+    {
+      "description": "Equity index queries with casual price wording should not rank CPI price-index rows.",
+      "when_any_terms": ["equity_market"],
+      "when_active": ["price_inflation"],
+      "unless_any_terms": ["inflation"],
+      "remove": ["price_inflation"]
+    }
+  ]
+}

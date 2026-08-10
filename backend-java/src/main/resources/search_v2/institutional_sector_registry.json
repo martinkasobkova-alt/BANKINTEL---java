@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "sectors": [
+    {
+      "id": "central_bank",
+      "aliases": ["central bank", "central banks", "centralni banka", "centralni banky"]
+    },
+    {
+      "id": "pension_funds",
+      "aliases": ["pension fund", "pension funds", "penzijni fond", "penzijni fondy", "penzijnich fondu", "duchodovy fond", "duchodove fondy", "duchodovych fondu"]
+    },
+    {
+      "id": "insurance",
+      "aliases": ["insurance company", "insurance companies", "insurance corporation", "insurance corporations", "pojistovna", "pojistovny", "pojistoven", "pojistovnach"]
+    },
+    {
+      "id": "other_financial_corporations",
+      "aliases": ["other financial corporation", "other financial corporations", "ostatni financni instituce", "ostatni financni spolecnosti"]
+    },
+    {
+      "id": "nonfinancial_corporations",
+      "aliases": ["non-financial corporation", "non-financial corporations", "nonfinancial corporation", "nonfinancial corporations", "nefinancni podnik", "nefinancni podniky", "nefinancni spolecnost", "nefinancni spolecnosti"]
+    },
+    {
+      "id": "government",
+      "aliases": ["general government", "government sector", "public sector", "vladni sektor", "verejny sektor"]
+    },
+    {
+      "id": "households",
+      "aliases": ["household", "households", "domacnost", "domacnosti"]
+    },
+    {
+      "id": "banks",
+      "aliases": ["bank", "banks", "banky", "banku", "bankam", "banking", "banking sector", "bankovni sektor", "bankovni instituce", "credit institution", "credit institutions", "uverova instituce", "uverove instituce"]
+    }
+  ]
+}

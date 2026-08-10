@@ -1,0 +1,41 @@
+{
+  "sector_indicators": [
+    {
+      "source": "eurostat",
+      "dataset_id": "nama_10_a10",
+      "name_template": "Hrubá přidaná hodnota — {sector}",
+      "category": "sector_indicators",
+      "confidence_score": 0.55
+    },
+    {
+      "source": "eurostat",
+      "dataset_id": "sts_inpr_m",
+      "name_template": "Průmyslová produkce",
+      "category": "sector_indicators",
+      "confidence_score": 0.5
+    },
+    {
+      "source": "ecb",
+      "dataset_id": "ICP",
+      "name_template": "Ceny průmyslových výrobků",
+      "category": "cost_indicators",
+      "confidence_score": 0.45
+    }
+  ],
+  "macro_indicators": [
+    {
+      "source": "ecb",
+      "dataset_id": "FM",
+      "name_template": "Úrokové sazby",
+      "category": "macro_indicators",
+      "confidence_score": 0.6
+    },
+    {
+      "source": "eurostat",
+      "dataset_id": "prc_hicp_manr",
+      "name_template": "Inflace (HICP)",
+      "category": "macro_indicators",
+      "confidence_score": 0.55
+    }
+  ]
+}

@@ -1,0 +1,53 @@
+[
+  {
+    "match_terms": [
+      "\\broe\\b", " roe", "\\broa\\b", " rentabilit", "zisk bank", "ziskovost bank",
+      "bank profit", "banking sector profit", "credit institutions", "return on equity",
+      "return on assets", "bank profitability", "profitability", "\\bnpl\\b", "non-performing",
+      "\\bcet1\\b", "kapitálov", "kapitalov", "uver", "úvěr", "vklad", " bilance",
+      "bilanční", "aktiva bank", "pasiva bank", "bankovní sektor", "bank sector",
+      "financial stability", "financial soundness", "banky", "bankovnictvi", "bankovni"
+    ],
+    "sources": ["arad", "ecb", "ecb2", "eurostat", "bis", "data360", "oecd4", "imf"]
+  },
+  {
+    "match_terms": ["inflace v čr", "inflaci v č", "češt infl", "ČR inflation", "czech republic", "češt cen"],
+    "sources": ["csu", "arad", "eurostat"]
+  },
+  {
+    "match_terms": ["cpi", " hicp", "spotřební cen", " consumer price", "inflace", "inflaci", "inflation"],
+    "sources": ["csu", "arad", "eurostat", "imf", "fred"]
+  },
+  {
+    "match_terms": [" evrope", "eurozón", "european union ", " zemí pod", " zeměmi", "evropska unie"],
+    "sources": ["eurostat", "ecb", "ecb2", "bis", "imf"]
+  },
+  {
+    "match_terms": ["unemployment united states", "unemployment usa", "nezaměstnanost v usa", "nezaměstnanost usa"],
+    "sources": ["fred", "imf", "oecd4", "data360"]
+  },
+  {
+    "match_terms": ["nezaměstnan", "nezamestnan", " unemployment rate", "unemployment"],
+    "sources": ["eurostat", "arad", "csu", "fred", "imf"]
+  },
+  {
+    "match_terms": ["kurz", "exchange rate", "eur/czk", "usd/czk", "eurusd", "eur/usd", "eur usd"],
+    "sources": ["ecb", "ecb2", "fred", "imf", "arad"]
+  },
+  {
+    "match_terms": ["sazby ecb", "deposit facility rate", "mro euro", "refinancing", "refinance"],
+    "sources": ["ecb", "ecb2", "eurostat"]
+  },
+  {
+    "match_terms": [" hdp", "hdp ", "gdp", "hruby domaci produkt", "hrubý domácí produkt", " gross domestic"],
+    "sources": ["imf", "eurostat", "data360", "fred", "oecd4"]
+  },
+  {
+    "match_terms": [
+      "ropa", "ropy", "ropu", "cena ropy", "ceny ropy", " oil", "oil ", "brent", "wti", "crude",
+      "petroleum", "komodit", "commodit", "commodity", "commodities", "pink sheet", "cmo",
+      "natural gas", "plyn", "plynu", "zlato", "gold price", "cena zlata"
+    ],
+    "sources": ["fred", "data360", "imf", "commodities", "bis"]
+  }
+]

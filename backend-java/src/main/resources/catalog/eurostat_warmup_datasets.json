@@ -1,0 +1,31 @@
+{
+  "_comment": "Common macro-indicator Eurostat dataset codes warmed at application startup so cold-start dimension resolution (metadata fetch + live existence probe) is already cached before the first live user deep-search query arrives. This list is purely a preview-latency cache warm list (kolo 6, #3b) — it has no effect on catalog search ranking/scoring and is not consulted by CatalogCompositeScorer.",
+  "datasets": [
+    "prc_hicp_manr",
+    "prc_hicp_aind",
+    "prc_hicp_midx",
+    "tipsun10",
+    "tipsun20",
+    "tipsun30",
+    "une_rt_m",
+    "une_rt_a",
+    "ei_lmhr_m",
+    "teilm020",
+    "tipslm80",
+    "lfsi_jhh_a",
+    "namq_10_gdp",
+    "nama_10_gdp",
+    "tec00001",
+    "tec00115",
+    "earn_mw_cur",
+    "lc_lci_r2_q",
+    "nama_10_lp_ulc",
+    "irt_st_m",
+    "teimf050",
+    "teifn050",
+    "ei_bsco_m",
+    "sts_inpr_m",
+    "teina225"
+  ],
+  "countries": ["CZ", "SK", "PL", "DE", "HU", "EU27_2020"]
+}

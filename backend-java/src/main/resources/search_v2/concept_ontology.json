@@ -1,0 +1,108 @@
+{
+  "version": "2026-07-11",
+  "notes": "Versioned Search V2 concept ontology used by deterministic metadata fallback and query expansion. This file is data, not query-specific production logic.",
+  "fallback_stop_terms": [
+    "and",
+    "data",
+    "dataset",
+    "from",
+    "inflace",
+    "jen",
+    "only",
+    "price",
+    "prices",
+    "rada",
+    "rady",
+    "serie",
+    "series",
+    "source",
+    "the",
+    "v",
+    "ve",
+    "with",
+    "z",
+    "ze"
+  ],
+  "short_meaningful_terms": [
+    "cpi",
+    "fx",
+    "gdp",
+    "hdp",
+    "hicp",
+    "ppi",
+    "roa",
+    "roe"
+  ],
+  "currency_codes": [
+    "aud",
+    "cad",
+    "chf",
+    "cny",
+    "czk",
+    "dkk",
+    "eur",
+    "gbp",
+    "huf",
+    "jpy",
+    "nok",
+    "nzd",
+    "pln",
+    "sek",
+    "usd"
+  ],
+  "required_signal_aliases": {
+    "cpi": ["cpi", "consumer price"],
+    "gdp": ["gdp", "gross domestic product"],
+    "hdp": ["hdp", "gdp", "gross domestic product"],
+    "hicp": ["hicp", "harmonised index of consumer prices", "harmonized index of consumer prices"],
+    "ppi": ["ppi", "producer price"],
+    "roa": ["roa", "return on assets"],
+    "roe": ["roe", "return on equity"]
+  },
+  "query_expansion_rules": [
+    {
+      "trigger_any": ["total assets", "assets level", "financial position", "celkova aktiva", "aktiva celkem", "stav aktiv"],
+      "add_terms": ["total assets", "total financial assets", "balance sheet total"]
+    },
+    {
+      "trigger_all": ["real", "mzdy"],
+      "add_terms": ["real wages", "real earnings", "inflation adjusted wages", "real_wages", "nominal_real real wages"]
+    },
+    {
+      "trigger_any": ["ekonomicky rust", "rust ekonomiky", "economic growth"],
+      "add_terms": ["real GDP growth", "GDP growth", "economic growth rate", "gdp_growth"]
+    },
+    {
+      "trigger_any": ["prumyslova vyroba", "industrial production"],
+      "add_terms": ["industrial production", "production in industry", "industrial production index", "industrial_production_index", "industrial_production"]
+    },
+    {
+      "trigger_any": ["vyroba automobilu", "automobilova vyroba", "motor vehicle production", "automotive production"],
+      "add_terms": ["automotive production", "motor vehicle production", "manufacture of motor vehicles", "nace c29", "automotive_manufacturing"]
+    },
+    {
+      "trigger_any": ["ceny nemovitosti", "ceny obydli", "house price", "residential property"],
+      "add_terms": ["house price index", "residential property prices", "dwelling prices", "house_price_index", "real_estate"]
+    },
+    {
+      "trigger_any": ["cena zlata", "gold price"],
+      "add_terms": ["gold price", "spot price gold", "commodity spot price gold", "market price gold", "commodity_market_price"]
+    },
+    {
+      "trigger_all": ["zisk", "bank"],
+      "add_terms": ["bank profit", "profit of banks", "bank net profit", "net income of banks", "bank income statement", "deposit takers income statement"]
+    },
+    {
+      "trigger_any": ["sazby cnb", "repo sazba", "menovepoliticka sazba"],
+      "add_terms": ["central bank policy rate", "repo rate", "discount rate", "lombard rate", "central_bank_policy_rate"]
+    }
+  ],
+  "context_only_terms": [
+    "contribution",
+    "contributions",
+    "differential",
+    "differentials",
+    "weight",
+    "weights"
+  ]
+}

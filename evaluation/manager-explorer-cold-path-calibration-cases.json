@@ -1,0 +1,7 @@
+[
+  {"id":"bank-profitability-cz","query":"ziskovost českých bank","required_groups":[["profit","zisk","return on (assets|equity)","roa","roe"],["bank"]],"geo":["cz","czech","česk"]},
+  {"id":"household-debt","query":"zadlužení domácností","required_groups":[["debt","zadlu","liabilit","credit"],["household","domácnost"]]},
+  {"id":"insurance-assets","query":"aktiva pojišťoven","required_groups":[["asset","aktiv"],["insur","pojišť"]]},
+  {"id":"unemployment-fr","query":"nezaměstnanost Francie","required_groups":[["unemployment","nezaměst"]],"geo":["fr","france","french","franci"]},
+  {"id":"rates-euro-area","query":"úrokové sazby eurozóny","required_groups":[["interest rate","policy rate","úrok","sazb"]],"geo":["euro area","eurozone","ea","u2","euroz"]}
+]

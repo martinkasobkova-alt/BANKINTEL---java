@@ -1,0 +1,15 @@
+package cz.bankintel.search.openai;
+
+public enum OpenAiErrorType {
+    LLM_CONNECT_TIMEOUT,
+    LLM_REQUEST_TIMEOUT,
+    LLM_RATE_LIMIT,
+    LLM_SERVER_ERROR,
+    LLM_AUTH_ERROR,
+    LLM_CLIENT_ERROR,
+    LLM_SCHEMA_ERROR,
+    LLM_PARSE_ERROR,
+    LLM_EMPTY_RESPONSE,
+    LLM_NOT_CONFIGURED,
+    LLM_UNKNOWN_ERROR
+}

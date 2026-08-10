@@ -1,0 +1,13 @@
+{
+  "european_iso2": [
+    "AL", "AD", "AM", "AT", "AZ", "BY", "BE", "BA", "BG", "HR", "CY", "CZ", "DK", "EE", "FI", "FR", "GE",
+    "DE", "GR", "HU", "IS", "IE", "IT", "XK", "LV", "LI", "LT", "LU", "MT", "MD", "MC", "ME", "NL", "MK",
+    "NO", "PL", "PT", "RO", "RU", "SM", "RS", "SK", "SI", "ES", "SE", "CH", "TR", "UA", "GB", "VA"
+  ],
+  "eu_aggregate_terms": [
+    "eu", "eu27", "eu 27", "eu-27", "evropska unie", "european union",
+    "eurozona", "euro area", "ea20", "ea", "eurozone", "evropa", "evrope", "evrop", "europe", "european"
+  ],
+  "global_aggregate_terms": ["svet", "world", "global", "worldwide", "oecd", "g7", "g20"],
+  "fixed_source_scopes": ["arad:CZ", "csu:CZ"]
+}

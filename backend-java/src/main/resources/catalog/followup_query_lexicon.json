@@ -1,0 +1,191 @@
+{
+  "source_aliases": {
+    "eurostat": ["eurostat", "eurostatu"],
+    "arad": ["arad", "cnb", "ceska narodni banka"],
+    "csu": ["csu", "czso", "cesky statisticky urad"],
+    "ecb2": ["ecb", "evropske centralni bank", "european central bank"],
+    "bis": ["bis", "bank for international settlements"],
+    "imf": ["imf", "mmf", "mezinarodni menovy fond", "international monetary fund"],
+    "oecd4": ["oecd"],
+    "worldbank": ["world bank", "worldbank", "svetova banka"],
+    "fred": ["fred", "st louis fed", "federal reserve economic data"],
+    "alphavantage": ["alpha vantage", "alphavantage"],
+    "data360": ["data360", "world bank data360"]
+  },
+  "topic_markers": [
+    {
+      "id": "bank_profitability",
+      "terms": ["zisk", "ziskov", "profit", "roe", "roa", "rentabilit", "return on equity", "return on assets"]
+    },
+    {
+      "id": "bank_balance",
+      "terms": ["vklad", "depozit", "deposit", "uver", "loan", "aktiva", "assets", "liabilit", "credit institution", "mfi"]
+    },
+    {
+      "id": "inflation",
+      "terms": ["inflac", "hicp", "cpi", "spotrebitelsk"]
+    },
+    {
+      "id": "gdp",
+      "terms": ["hdp", "gdp", "gross domestic product"]
+    },
+    {
+      "id": "unemployment",
+      "terms": ["nezamest", "unemployment", "jobless"]
+    },
+    {
+      "id": "wages",
+      "terms": ["mzda", "mzdy", "wage", "salary"]
+    },
+    {
+      "id": "rates",
+      "terms": ["sazb", "rate", "yield", "vynos", "interest"]
+    },
+    {
+      "id": "insurance",
+      "terms": ["pojist", "insurance", "insurer"]
+    },
+    {
+      "id": "funds",
+      "terms": ["fond", "fund", "asset management"]
+    },
+    {
+      "id": "education",
+      "terms": ["vzdel", "education", "school", "student", "attainment", "literacy"]
+    },
+    {
+      "id": "water",
+      "terms": ["voda", "vody", "water", "municipal water", "spotreba vody"]
+    },
+    {
+      "id": "population",
+      "terms": ["populac", "population", "obyvatel", "demograf", "migration"]
+    },
+    {
+      "id": "healthcare",
+      "terms": ["zdravot", "health", "hospital", "mortality", "life expectancy"]
+    },
+    {
+      "id": "energy",
+      "terms": ["energie", "energy", "electric", "gas", "oil", "ropa"]
+    },
+    {
+      "id": "housing",
+      "terms": ["bydlen", "housing", "house price", "rent", "mortgage"]
+    },
+    {
+      "id": "trade",
+      "terms": ["export", "import", "trade", "obchod"]
+    }
+  ],
+  "topic_anchor_tags": [
+    {
+      "tags": ["inflace", "HICP", "CPI"],
+      "terms": ["inflac", "hicp", "cpi", "spotrebitelsk"]
+    },
+    {
+      "tags": ["nezamestnanost"],
+      "terms": ["nezamest", "unemployment"]
+    },
+    {
+      "tags": ["mzda"],
+      "terms": ["mzda", "plat", "salary", "wage"]
+    },
+    {
+      "tags": ["HDP"],
+      "terms": ["hdp", "gdp", "gross domestic product"]
+    },
+    {
+      "tags": ["banky"],
+      "terms": ["bank", "banky", "banka", "credit institution", "mfi"]
+    },
+    {
+      "tags": ["ROE"],
+      "terms": ["roe", "return on equity"]
+    },
+    {
+      "tags": ["ROA"],
+      "terms": ["roa", "return on assets"]
+    },
+    {
+      "tags": ["ziskovost bank"],
+      "terms": ["roe", "roa", "rentabilit", "ziskov", "profitabilit", "profitability", "return on equity", "return on assets"]
+    },
+    {
+      "tags": ["vzdelavani"],
+      "terms": ["vzdel", "education", "school", "student", "attainment", "literacy"]
+    },
+    {
+      "tags": ["voda"],
+      "terms": ["voda", "vody", "water", "municipal water"]
+    },
+    {
+      "tags": ["populace"],
+      "terms": ["populac", "population", "obyvatel", "demograf"]
+    },
+    {
+      "tags": ["zdravotnictvi"],
+      "terms": ["zdravot", "health", "hospital", "mortality"]
+    }
+  ],
+  "conversational_source_phrases": [
+    "zkus mi",
+    "zkus to",
+    "zkuste",
+    "podivej se",
+    "najit na",
+    "najdi na",
+    "zkus na",
+    "hledej na",
+    "divej se v",
+    "nacti z",
+    "mrkni na",
+    "mrknout na",
+    "mrkni do",
+    "zkontroluj"
+  ],
+  "source_alternative_phrases": [
+    "jiny zdroj",
+    "jine zdroje",
+    "dalsi zdroj",
+    "dalsi zdroje",
+    "alternativni zdroj",
+    "other source",
+    "other sources",
+    "alternative source"
+  ],
+  "source_exclusion_terms": [
+    "mimo",
+    "bez",
+    "krome",
+    "vyjma",
+    "except",
+    "excluding",
+    "other than"
+  ],
+  "new_topic_suppress_terms": [
+    "jen",
+    "pouze",
+    "alternativ",
+    "podobn",
+    "dalsi",
+    "jine",
+    "zpresni",
+    "upresni",
+    "zkus",
+    "podivej",
+    "mrkni",
+    "nacti",
+    "zkontroluj"
+  ],
+  "indicator_only_terms": ["roe", "roa", "nim", "cet1", "lcr", "nsfr", "npl", "hicp", "cpi", "ppi", "gdp", "hdp", "rentabilit"],
+  "generic_refine_phrases": [
+    "najdi jine relevantni rady",
+    "zpresni hledani",
+    "najdi jine rady"
+  ],
+  "metric_focus_aliases": {
+    "roa": ["roa", "return on assets"],
+    "roe": ["roe", "return on equity"]
+  }
+}

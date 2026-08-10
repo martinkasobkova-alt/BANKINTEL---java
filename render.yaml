@@ -1,0 +1,66 @@
+# Render Blueprint — BankIntel v2 backend
+# Persistent disk required for FTS catalog index (classic_catalog_search.sqlite + per-source JSONL).
+# Populate /data/catalog_search_indexes via index build/mirror before first deploy, or mount
+# a pre-built snapshot from object storage during startup.
+
+services:
+  - type: web
+    name: bankintel-api
+    runtime: docker
+    dockerfilePath: ./backend-java/Dockerfile
+    dockerContext: ./backend-java
+    plan: starter
+    region: frankfurt
+    healthCheckPath: /actuator/health
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: bankintel-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: CATALOG_SEARCH_INDEX_DIR
+        value: /data/catalog_search_indexes
+      - key: CATALOG_SEARCH_METADATA_DIR
+        value: /data/catalog_search_metadata
+      - key: CLASSIC_CATALOG_FTS_DB
+        value: /data/catalog_search_indexes/classic_catalog_search.sqlite
+      - key: SEARCH_ENGINE_VERSION
+        value: v2
+      - key: SEARCH_CATALOG_INDEX
+        value: sidecar
+      - key: SEARCH_SEMANTIC_RETRIEVAL_ENABLED
+        value: "false"
+      - key: SEARCH_CATALOG_SIDECAR_DIR
+        value: /data/search_v2_sidecar
+      - key: SEARCH_CATALOG_SIDECAR_FTS_DB
+        value: /data/search_v2_sidecar/search_v2_sidecar.sqlite
+      # Optional — HTTP URL to pre-built FTS snapshot (.zip or .gz); downloaded on first boot if sqlite missing
+      # - key: FTS_INDEX_SNAPSHOT_URL
+      #   value: https://storage.example.com/classic_catalog_search.sqlite.gz
+      - key: BANKINTEL_DATA_DIR
+        value: /data
+      - key: COOKIE_SECURE
+        value: "true"
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
+      # Native-Java Eurostat refresh of manager_series_cache (nightly, 04:00 UTC) — live-verified
+      # 2026-08-07: 8,713 targets, ~80% loaded, written to the real collection in ~4.5 min. Still
+      # requires BANKINTEL_SCHEDULER_LEADER below to actually fire — see that flag's own comment.
+      - key: MANAGER_SERIES_CACHE_JAVA_REFRESH_ENABLED
+        value: "1"
+      # Set on exactly one replica when scaling horizontally — safe here: plan is "starter"
+      # (single instance, no horizontal scaling configured).
+      - key: BANKINTEL_SCHEDULER_LEADER
+        value: "1"
+    disk:
+      name: bankintel-fts-index
+      mountPath: /data
+      sizeGB: 20
+
+databases:
+  - name: bankintel-db
+    plan: starter
+    region: frankfurt
+    databaseName: bankintel
+    user: bankintel

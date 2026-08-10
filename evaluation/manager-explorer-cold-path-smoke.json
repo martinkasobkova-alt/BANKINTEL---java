@@ -1,0 +1,8 @@
+[
+  {
+    "id": "bank-profitability-cz",
+    "query": "ziskovost ceskych bank",
+    "required_groups": [["zisk", "profit", "return on assets", "return on equity", "roa", "roe"]],
+    "geo": ["cesk", "czech", "cz"]
+  }
+]

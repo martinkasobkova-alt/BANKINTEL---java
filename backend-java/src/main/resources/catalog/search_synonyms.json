@@ -1,0 +1,168 @@
+{
+  "czech_search_synonyms": {
+    "zisk": ["profit", "profits", "earnings", "net income", "net profit", "profitability"],
+    "zisky": ["profit", "profits", "earnings", "net income"],
+    "bank": ["banks", "banking", "banking sector", "credit institutions"],
+    "banky": ["banks", "banking", "banking sector", "credit institutions", "MFI"],
+    "banka": ["banks", "banking", "credit institutions"],
+    "bankovnictvi": ["banks", "banking", "banking sector", "credit institutions"],
+    "inflace": ["inflation", "hicp", "cpi", "consumer price", "consumer prices"],
+    "inflaci": ["inflation", "hicp", "cpi", "consumer price"],
+    "kurz": ["exchange rate", "exchange rates", "fx rate", "foreign exchange"],
+    "kurzu": ["exchange rate", "exchange rates", "fx rate"],
+    "eurusd": [
+      "eur/usd",
+      "eur usd",
+      "euro dollar",
+      "euro-dollar",
+      "euro dollar exchange rate",
+      "us dollar exchange rate",
+      "exchange rate",
+      "foreign exchange"
+    ],
+    "eur/usd": ["eurusd", "eur usd", "euro dollar", "euro dollar exchange rate", "us dollar exchange rate", "exchange rate"],
+    "elektrina": [
+      "electricity",
+      "electric power",
+      "power prices",
+      "electricity prices",
+      "electricity consumption",
+      "electricity generation",
+      "power market"
+    ],
+    "nezamestnanost": ["unemployment", "unemployed", "jobless", "unemployment rate"],
+    "nezamestnanosti": ["unemployment", "unemployed", "jobless", "unemployment rate"],
+    "hdp": ["gdp", "gross domestic product", "gross domestic product growth", "hrubý domácí produkt"],
+    "gdp": ["gross domestic product", "gdp growth", "real gdp", "hrubý domácí produkt"],
+    "ropa": ["oil", "crude", "crude oil", "petroleum", "brent", "wti"],
+    "ropy": ["oil", "crude", "crude oil", "petroleum", "brent", "wti"],
+    "ropu": ["oil", "crude", "crude oil", "petroleum", "brent", "wti"],
+    "plyn": ["natural gas", "gas prices", "gas"],
+    "plynu": ["natural gas", "gas prices", "gas"],
+    "zlato": ["gold", "gold price"],
+    "zlata": ["gold", "gold price"],
+    "komodit": ["commodity", "commodities", "commodity prices"],
+    "komodity": ["commodity", "commodities", "commodity prices"]
+  },
+  "banking_synonym_groups": {
+    "banking_general": [
+      "banks",
+      "banking",
+      "banking sector",
+      "credit institutions",
+      "monetary financial institutions",
+      "MFI"
+    ],
+    "banking_profitability": [
+      "profit",
+      "profits",
+      "earnings",
+      "net income",
+      "net profit",
+      "profitability",
+      "return on equity",
+      "return on assets",
+      "ROE",
+      "ROA",
+      "rentabilita"
+    ],
+    "banking_balance": [
+      "assets",
+      "liabilities",
+      "deposits",
+      "balance sheet",
+      "total assets",
+      "bank assets",
+      "aktiva",
+      "vklady"
+    ],
+    "banking_capital": ["capital", "bank capital", "capital adequacy", "CET1", "tier 1", "own funds", "kapital"],
+    "banking_lending": ["loans", "lending", "credit", "mortgages", "housing loans", "uvery", "hypoteky"],
+    "banking_rates": [
+      "interest rate",
+      "interest rates",
+      "lending rate",
+      "deposit rate",
+      "mortgage rate",
+      "sazby",
+      "urokova sazba"
+    ]
+  },
+  "banking_flat_keys": ["banky", "bankovnictvi", "bankovni sektor"],
+  "banking_triggers": {
+    "banking_general": [
+      "banky",
+      "bankovnictvi",
+      "bankovni sektor",
+      "bankovni",
+      "banking sector",
+      "credit institutions",
+      " bank ",
+      "banka",
+      "banking",
+      " mfi"
+    ],
+    "banking_profitability": [
+      "zisk",
+      "zisky",
+      "profit",
+      "profits",
+      "earnings",
+      "net income",
+      "rentabilit",
+      " roe",
+      " roa",
+      "return on equity",
+      "return on assets"
+    ],
+    "banking_balance": [
+      "aktiva",
+      "majetek",
+      " assets",
+      "assets ",
+      "liabilit",
+      "deposits",
+      "vklady",
+      "balance sheet",
+      "bilanc",
+      "pasiva"
+    ],
+    "banking_capital": [
+      "kapitál",
+      "kapital",
+      " cet1",
+      "tier 1",
+      "tier1",
+      "capital ratio",
+      "capital adequacy",
+      "own funds",
+      "kapitálov",
+      "kapitalov"
+    ],
+    "banking_lending": [
+      "uver",
+      "uvery",
+      "úvěr",
+      "úvěry",
+      "loan",
+      "loans",
+      "lending",
+      "credit",
+      "hypotek",
+      "hypoté",
+      "mortgage",
+      "pujck"
+    ],
+    "banking_rates": [
+      "sazby",
+      "sazba",
+      "interest rate",
+      "interest rates",
+      "urokova sazba",
+      "urokove sazby",
+      "lending rate",
+      "deposit rate",
+      "mortgage rate"
+    ]
+  }
+}

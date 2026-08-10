@@ -1,0 +1,58 @@
+{
+  "preferred_terms": [
+    { "terms": ["all items", "headline", "overall", "monthly data index"], "bonus": 90 }
+  ],
+  "unrequested_refinements": [
+    {
+      "terms": ["administered prices", "composition"],
+      "query_terms": ["administered", "regulated", "regulovane", "regulovana", "composition", "slozeni"],
+      "penalty": 340
+    },
+    {
+      "terms": ["constant tax", "tax rates"],
+      "query_terms": ["constant tax", "tax", "dane", "dan", "bez dane"],
+      "penalty": 300
+    },
+    {
+      "terms": ["excluding", "less", "excl."],
+      "query_terms": ["excluding", "exclude", "bez", "mimo", "core", "jadro", "jadrova", "energy", "energie", "food", "potraviny"],
+      "penalty": 260
+    },
+    {
+      "terms": ["core", "underlying"],
+      "query_terms": ["core", "jadro", "jadrova", "underlying"],
+      "penalty": 240
+    },
+    {
+      "terms": [
+        "carbon intensity",
+        "co2 intensity",
+        "greenhouse gas",
+        "co2 emissions",
+        "emissions per unit of gdp",
+        "per unit of gdp",
+        "uhlikova intenzita",
+        "emise co2",
+        "sklenikove plyny",
+        "en ghg co2 rt gdp"
+      ],
+      "query_terms": [
+        "carbon",
+        "co2",
+        "emission",
+        "emissions",
+        "greenhouse",
+        "ghg",
+        "intensity",
+        "environment",
+        "uhlik",
+        "uhlikova",
+        "emise",
+        "emisni",
+        "sklenikove",
+        "intenzita"
+      ],
+      "penalty": 760
+    }
+  ]
+}

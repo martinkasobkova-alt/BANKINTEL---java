@@ -1,0 +1,49 @@
+[
+  {
+    "id": "municipal_water_consumption",
+    "query": "spotreba vody v municipalitach",
+    "allowed_query_shapes": ["expanded_open_topic", "open_topic"],
+    "expected_profile_contains_any": ["vod", "water"],
+    "forbidden_profile_terms": ["gross domestic product", "gdp growth", "hdp growth"]
+  },
+  {
+    "id": "education_france",
+    "query": "vzdelani ve Francii podle regionu",
+    "allowed_query_shapes": ["open_topic_geo", "expanded_open_topic", "metric_geo"],
+    "expected_country_codes": ["FR"],
+    "expected_profile_contains_any": ["vzdel", "education"],
+    "forbidden_profile_terms": ["gross domestic product", "gdp growth", "hdp growth"]
+  },
+  {
+    "id": "transport_co2_germany",
+    "query": "emise co2 v doprave v Nemecku",
+    "allowed_query_shapes": ["open_topic_geo", "expanded_open_topic", "metric_geo"],
+    "expected_country_codes": ["DE"],
+    "expected_profile_contains_any": ["co2", "emise", "emission"],
+    "forbidden_profile_terms": ["gross domestic product", "gdp growth", "hdp growth"]
+  },
+  {
+    "id": "healthcare_doctors_poland",
+    "query": "zdravotnictvi a pocet lekaru v Polsku",
+    "allowed_query_shapes": ["open_topic_geo", "expanded_open_topic", "metric_geo"],
+    "expected_country_codes": ["PL"],
+    "expected_profile_contains_any": ["zdravot", "health", "lekar"],
+    "forbidden_profile_terms": ["gross domestic product", "gdp growth", "hdp growth"]
+  },
+  {
+    "id": "urban_housing_rents_austria",
+    "query": "mestske bydleni a najmy v Rakousku",
+    "allowed_query_shapes": ["open_topic_geo", "expanded_open_topic", "metric_geo"],
+    "expected_country_codes": ["AT"],
+    "expected_profile_contains_any": ["bydlen", "najm", "rent", "housing"],
+    "forbidden_profile_terms": ["gross domestic product", "gdp growth", "hdp growth"]
+  },
+  {
+    "id": "bank_profitability_poland",
+    "query": "rentabilita bank v Polsku",
+    "allowed_query_shapes": ["metric_domain_geo", "metric_domain"],
+    "expected_country_codes": ["PL"],
+    "expected_profile_contains_any": ["rentabilit", "roe", "profitability"],
+    "expected_active_groups_any": ["bank_profitability", "banking_profitability", "profitability"]
+  }
+]

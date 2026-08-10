@@ -1,0 +1,222 @@
+{
+  "_comment": "Domain -> exogenous-predictor map for the Java forecast planner. `match_terms` select a domain bucket; predictors define curated economic relationships rather than text similarity. `role`, `concept` and `value_kind` are generic metadata consumed by the in-process Java model engine for quality checks, candidate evaluation and transparent driver reporting. `common_lags`, `preferred_frequency`, `preferred_series_hint` and `preferred_target_transformation` remain registry hints. English and folded Czech search terms support the mixed-language catalog without query-specific Java branches.",
+  "domains": {
+    "price_inflation": {
+      "label_cz": "Inflace / spotřebitelské ceny",
+      "match_terms": ["inflace", "inflation", "cpi", "hicp", "spotrebitelsk", "cenova hladina", "price index"],
+      "common_lags": [1, 3, 6, 9, 12],
+      "preferred_frequency": "monthly",
+      "preferred_target_transformation": "yoy_pct",
+      "preferred_series_hint": ["CPI YoY", "HICP YoY", "CPI index"],
+      "notes": "Inflation is often affected by energy prices, FX, producer/import prices, wages and demand conditions with lags of a few months, and by monetary policy (rates) with longer lags.",
+      "predictors": [
+        {"role": "policy_rate", "concept_cz": "úrokové sazby centrální banky", "value_kind": "rate", "search_query": "policy interest rate central bank key rate urokova sazba repo sazba"},
+        {"role": "energy_price", "concept_cz": "ceny energií", "value_kind": "index_level", "search_query": "energy price index electricity gas ceny energie elektrina plyn"},
+        {"role": "wages", "concept_cz": "mzdy", "value_kind": "index_level", "search_query": "wages earnings average wage index mzdy prumerna mzda"},
+        {"role": "fx_rate", "concept_cz": "měnový kurz", "value_kind": "asset_price", "search_query": "exchange rate euro dollar menovy kurz"},
+        {"role": "food_price", "concept_cz": "ceny potravin", "value_kind": "index_level", "search_query": "food price index ceny potravin"},
+        {"role": "services_price", "concept_cz": "ceny služeb", "value_kind": "index_level", "search_query": "services price index ceny sluzeb"}
+      ]
+    },
+    "policy_rate": {
+      "label_cz": "Úrokové sazby centrální banky",
+      "match_terms": ["sazba cnb", "cnb rate", "policy rate", "key rate", "repo rate", "urokova sazba centralni", "base rate", "interest rate", "urokove sazby"],
+      "common_lags": [1, 3, 6, 12],
+      "preferred_frequency": "monthly",
+      "preferred_target_transformation": "level",
+      "preferred_series_hint": ["CNB repo rate", "policy rate level"],
+      "notes": "Central bank policy rates react to inflation and growth conditions and, with a lag, to FX and unemployment developments.",
+      "predictors": [
+        {"role": "inflation", "concept_cz": "inflace", "value_kind": "rate", "search_query": "consumer price index inflation inflace spotrebitelske ceny"},
+        {"role": "gdp_growth", "concept_cz": "růst HDP", "value_kind": "rate", "search_query": "gdp growth rate real hruby domaci produkt hdp"},
+        {"role": "fx_rate", "concept_cz": "měnový kurz", "value_kind": "asset_price", "search_query": "exchange rate euro dollar menovy kurz"},
+        {"role": "unemployment", "concept_cz": "nezaměstnanost", "value_kind": "rate", "search_query": "unemployment rate nezamestnanost"}
+      ]
+    },
+    "mortgage_rates": {
+      "label_cz": "Hypoteční sazby",
+      "match_terms": ["hypotecni sazb", "mortgage rate", "urokova sazba hypotek"],
+      "common_lags": [1, 3, 6, 12],
+      "preferred_frequency": "monthly",
+      "preferred_target_transformation": "level",
+      "preferred_series_hint": ["average mortgage rate"],
+      "notes": "Mortgage rates track the policy rate with a spread and react to housing demand, wages and consumer confidence.",
+      "predictors": [
+        {"role": "policy_rate", "concept_cz": "sazby centrální banky", "value_kind": "rate", "search_query": "policy interest rate central bank urokova sazba repo sazba"},
+        {"role": "wages", "concept_cz": "mzdy", "value_kind": "index_level", "search_query": "wages earnings average wage index mzdy prumerna mzda"},
+        {"role": "house_price", "concept_cz": "ceny bytů", "value_kind": "index_level", "search_query": "house price index residential property ceny bytu nemovitosti"},
+        {"role": "unemployment", "concept_cz": "nezaměstnanost", "value_kind": "rate", "search_query": "unemployment rate nezamestnanost"},
+        {"role": "consumer_confidence", "concept_cz": "spotřebitelská důvěra", "value_kind": "index_level", "search_query": "consumer confidence indicator spotrebitelska duvera"}
+      ]
+    },
+    "mortgage_volumes": {
+      "label_cz": "Objem nových hypoték",
+      "match_terms": ["nove hypoteky", "hypotecni uvery objem", "mortgage volume", "mortgage lending", "objem hypotek"],
+      "common_lags": [1, 3, 6, 12],
+      "preferred_frequency": "monthly",
+      "preferred_target_transformation": "yoy_pct",
+      "preferred_series_hint": ["new mortgage lending volume"],
+      "notes": "New mortgage lending responds to mortgage rates and wages fairly quickly, and to unemployment/consumer confidence with a lag.",
+      "predictors": [
+        {"role": "mortgage_rate", "concept_cz": "hypoteční sazby", "value_kind": "rate", "search_query": "mortgage rate housing loan rate hypotecni urokova sazba"},
+        {"role": "wages", "concept_cz": "mzdy", "value_kind": "index_level", "search_query": "wages earnings average wage index mzdy prumerna mzda"},
+        {"role": "house_price", "concept_cz": "ceny bytů", "value_kind": "index_level", "search_query": "house price index residential property ceny bytu nemovitosti"},
+        {"role": "unemployment", "concept_cz": "nezaměstnanost", "value_kind": "rate", "search_query": "unemployment rate nezamestnanost"},
+        {"role": "consumer_confidence", "concept_cz": "spotřebitelská důvěra", "value_kind": "index_level", "search_query": "consumer confidence indicator spotrebitelska duvera"}
+      ]
+    },
+    "house_prices": {
+      "label_cz": "Ceny nemovitostí / bytů",
+      "match_terms": ["cena bytu", "cena nemovitost", "house price", "housing price", "residential property price", "hpi"],
+      "common_lags": [1, 3, 6, 12, 24],
+      "preferred_frequency": "quarterly",
+      "preferred_target_transformation": "yoy_pct",
+      "preferred_series_hint": ["house price index YoY", "house price index 2019=100"],
+      "notes": "House prices are driven by wages and credit availability (mortgage rates, loan volumes) over several quarters, and by GDP growth/rents structurally.",
+      "predictors": [
+        {"role": "wages", "concept_cz": "mzdy", "value_kind": "index_level", "search_query": "wages earnings average wage index mzdy prumerna mzda"},
+        {"role": "mortgage_rate", "concept_cz": "hypoteční sazby", "value_kind": "rate", "search_query": "mortgage rate housing loan rate hypotecni urokova sazba"},
+        {"role": "credit_volume", "concept_cz": "objem úvěrů", "value_kind": "volume", "search_query": "housing loans outstanding volume uvery objem uveru"},
+        {"role": "gdp_growth", "concept_cz": "HDP", "value_kind": "rate", "search_query": "gdp growth rate real hruby domaci produkt hdp"},
+        {"role": "rent_price", "concept_cz": "nájemné", "value_kind": "index_level", "search_query": "rent price index housing rent najemne"}
+      ]
+    },
+    "industrial_production": {
+      "label_cz": "Průmyslová výroba",
+      "match_terms": ["prumyslova vyroba", "industrial production", "manufacturing output", "prumysl vyroba"],
+      "common_lags": [1, 3, 6, 9],
+      "preferred_frequency": "monthly",
+      "preferred_target_transformation": "yoy_pct",
+      "preferred_series_hint": ["industrial production index YoY"],
+      "notes": "Industrial production reacts to energy prices and export demand within a few months, and to FX and euro-area/German GDP growth structurally.",
+      "predictors": [
+        {"role": "energy_price", "concept_cz": "ceny energií", "value_kind": "index_level", "search_query": "energy price index electricity gas ceny energie elektrina plyn"},
+        {"role": "new_orders", "concept_cz": "nové zakázky", "value_kind": "index_level", "search_query": "new orders manufacturing nove zakazky"},
+        {"role": "exports", "concept_cz": "export", "value_kind": "volume", "search_query": "exports goods trade export vyvoz"},
+        {"role": "fx_rate", "concept_cz": "měnový kurz", "value_kind": "asset_price", "search_query": "exchange rate euro dollar menovy kurz"},
+        {"role": "gdp_growth_de_eu", "concept_cz": "HDP Německo/EU", "value_kind": "rate", "search_query": "gdp growth Germany Euro area hruby domaci produkt"}
+      ]
+    },
+    "retail_sales": {
+      "label_cz": "Maloobchod",
+      "match_terms": ["maloobchod", "retail sales", "retail trade", "retail turnover"],
+      "common_lags": [1, 3, 6, 12],
+      "preferred_frequency": "monthly",
+      "preferred_target_transformation": "yoy_pct",
+      "preferred_series_hint": ["retail sales volume YoY"],
+      "notes": "Retail sales track real wages (purchasing power) and consumer confidence closely, and inflation/unemployment with a short lag.",
+      "predictors": [
+        {"role": "real_wages", "concept_cz": "reálné mzdy", "value_kind": "index_level", "search_query": "real wages earnings deflated realna mzda"},
+        {"role": "inflation", "concept_cz": "inflace", "value_kind": "rate", "search_query": "consumer price index inflation inflace spotrebitelske ceny"},
+        {"role": "unemployment", "concept_cz": "nezaměstnanost", "value_kind": "rate", "search_query": "unemployment rate nezamestnanost"},
+        {"role": "consumer_confidence", "concept_cz": "spotřebitelská důvěra", "value_kind": "index_level", "search_query": "consumer confidence indicator spotrebitelska duvera"}
+      ]
+    },
+    "banking_profitability": {
+      "label_cz": "Bankovní ziskovost (ROE)",
+      "match_terms": ["roe bank", "bank roe", "bankovni zisk", "ziskovost bank", "bank profitability", "return on equity bank", "return on equity of banks", "bank return on equity", "bank profit"],
+      "common_lags": [1, 3, 6, 12],
+      "preferred_frequency": "quarterly",
+      "preferred_target_transformation": "level",
+      "preferred_series_hint": ["bank ROE %", "bank net profit"],
+      "notes": "Bank profitability is sensitive to the policy rate and loan volumes within a couple of quarters, and to credit costs (NPL) and the macro cycle (GDP, inflation) structurally.",
+      "predictors": [
+        {"role": "policy_rate", "concept_cz": "úrokové sazby", "value_kind": "rate", "search_query": "policy interest rate central bank urokova sazba repo sazba"},
+        {"role": "credit_volume", "concept_cz": "objem úvěrů", "value_kind": "volume", "search_query": "loans outstanding volume credit uvery objem uveru"},
+        {"role": "npl_ratio", "concept_cz": "náklady rizika / NPL", "value_kind": "rate", "search_query": "non-performing loans ratio nedobytne pohledavky"},
+        {"role": "gdp_growth", "concept_cz": "HDP", "value_kind": "rate", "search_query": "gdp growth rate real hruby domaci produkt hdp"},
+        {"role": "inflation", "concept_cz": "inflace", "value_kind": "rate", "search_query": "consumer price index inflation inflace spotrebitelske ceny"}
+      ]
+    },
+    "gdp_growth": {
+      "label_cz": "Růst HDP",
+      "match_terms": ["hdp", "gdp", "gross domestic product", "rust ekonomiky", "real gdp"],
+      "common_lags": [1, 2, 3, 4],
+      "preferred_frequency": "quarterly",
+      "preferred_target_transformation": "yoy_pct",
+      "preferred_series_hint": ["real GDP YoY", "GDP index 2019=100"],
+      "notes": "GDP growth is a composite of industrial production, exports and retail sales in the short run, and is affected by unemployment structurally.",
+      "predictors": [
+        {"role": "industrial_production", "concept_cz": "průmyslová výroba", "value_kind": "index_level", "search_query": "industrial production index prumyslova vyroba"},
+        {"role": "exports", "concept_cz": "export", "value_kind": "volume", "search_query": "exports goods trade export vyvoz"},
+        {"role": "retail_sales", "concept_cz": "maloobchod", "value_kind": "index_level", "search_query": "retail sales trade maloobchod"},
+        {"role": "unemployment", "concept_cz": "nezaměstnanost", "value_kind": "rate", "search_query": "unemployment rate nezamestnanost"}
+      ]
+    },
+    "wages": {
+      "label_cz": "Mzdy",
+      "match_terms": ["mzdy", "mzda", "wages", "earnings", "average wage", "prumerna mzda", "wage growth"],
+      "common_lags": [1, 3, 6, 12],
+      "preferred_frequency": "quarterly",
+      "preferred_target_transformation": "yoy_pct",
+      "preferred_series_hint": ["average nominal wage YoY", "average real wage YoY"],
+      "notes": "Nominal wage growth follows inflation expectations and labour-market tightness (unemployment) and, structurally, productivity/GDP growth.",
+      "predictors": [
+        {"role": "inflation", "concept_cz": "inflace", "value_kind": "rate", "search_query": "consumer price index inflation inflace spotrebitelske ceny"},
+        {"role": "unemployment", "concept_cz": "nezaměstnanost", "value_kind": "rate", "search_query": "unemployment rate nezamestnanost"},
+        {"role": "gdp_growth", "concept_cz": "růst HDP", "value_kind": "rate", "search_query": "gdp growth rate real hruby domaci produkt hdp"},
+        {"role": "retail_sales", "concept_cz": "maloobchod", "value_kind": "index_level", "search_query": "retail sales trade maloobchod"}
+      ]
+    },
+    "unemployment": {
+      "label_cz": "Nezaměstnanost",
+      "match_terms": ["nezamestnanost", "unemployment rate", "unemployment", "mira nezamestnanosti"],
+      "common_lags": [1, 3, 6, 12],
+      "preferred_frequency": "monthly",
+      "preferred_target_transformation": "level",
+      "preferred_series_hint": ["unemployment rate level"],
+      "notes": "Unemployment lags the business cycle (GDP, industrial production) by a few months and is negatively related to wage growth and the policy rate over longer horizons.",
+      "predictors": [
+        {"role": "gdp_growth", "concept_cz": "růst HDP", "value_kind": "rate", "search_query": "gdp growth rate real hruby domaci produkt hdp"},
+        {"role": "industrial_production", "concept_cz": "průmyslová výroba", "value_kind": "index_level", "search_query": "industrial production index prumyslova vyroba"},
+        {"role": "wages", "concept_cz": "mzdy", "value_kind": "index_level", "search_query": "wages earnings average wage index mzdy prumerna mzda"},
+        {"role": "policy_rate", "concept_cz": "úrokové sazby", "value_kind": "rate", "search_query": "policy interest rate central bank urokova sazba repo sazba"}
+      ]
+    },
+    "equity_index": {
+      "label_cz": "Akciové indexy / jednotlivé akcie",
+      "match_terms": ["akcie", "equity", "stock price", "nasdaq", "sp500", "s&p", "dow jones", "index akcii"],
+      "common_lags": [1, 3, 6, 12],
+      "preferred_frequency": "daily",
+      "preferred_target_transformation": "level",
+      "preferred_series_hint": ["equity price/index level", "equity return"],
+      "notes": "Equity prices are sensitive to the policy rate and bond yields (discount-rate channel) and move with a benchmark index and market volatility.",
+      "predictors": [
+        {"role": "benchmark_index", "concept_cz": "referenční index", "value_kind": "asset_price", "search_query": "stock market index benchmark akciovy index"},
+        {"role": "policy_rate", "concept_cz": "úrokové sazby", "value_kind": "rate", "search_query": "policy interest rate central bank urokova sazba repo sazba"},
+        {"role": "bond_yield", "concept_cz": "výnosy dluhopisů", "value_kind": "rate", "search_query": "government bond yield 10y vynos dluhopisu"},
+        {"role": "volatility", "concept_cz": "volatilita", "value_kind": "index_level", "search_query": "volatility index vix volatilita"}
+      ]
+    },
+    "commodity_gold": {
+      "label_cz": "Zlato",
+      "match_terms": ["zlato", "gold price", "gold", "xau"],
+      "common_lags": [1, 3, 6, 12],
+      "preferred_frequency": "daily",
+      "preferred_target_transformation": "level",
+      "preferred_series_hint": ["gold price level", "gold price return"],
+      "notes": "Gold is inversely related to real rates and the dollar, and positively related to inflation and risk-off sentiment.",
+      "predictors": [
+        {"role": "fx_rate", "concept_cz": "dolarový index", "value_kind": "asset_price", "search_query": "us dollar index exchange rate dolarovy index kurz"},
+        {"role": "real_rate", "concept_cz": "reálné sazby", "value_kind": "rate", "search_query": "real interest rate treasury realna urokova sazba"},
+        {"role": "bond_yield", "concept_cz": "výnosy dluhopisů", "value_kind": "rate", "search_query": "government bond yield 10y vynos dluhopisu"},
+        {"role": "inflation", "concept_cz": "inflace", "value_kind": "rate", "search_query": "consumer price index inflation inflace spotrebitelske ceny"}
+      ]
+    },
+    "commodity_prices": {
+      "label_cz": "Komodity (obecně)",
+      "match_terms": ["komodity", "commodity price", "commodity index", "oil price", "cena oleje", "cena nafty", "brent", "wti", "copper price", "wheat price"],
+      "common_lags": [1, 3, 6, 12],
+      "preferred_frequency": "daily",
+      "preferred_target_transformation": "level",
+      "preferred_series_hint": ["commodity price level", "commodity price return"],
+      "notes": "General commodity prices are influenced by the dollar, real rates, global demand proxies and inflation/risk sentiment — similar drivers to gold but broader and more demand-sensitive.",
+      "predictors": [
+        {"role": "fx_rate", "concept_cz": "dolarový index", "value_kind": "asset_price", "search_query": "us dollar index exchange rate dolarovy index kurz"},
+        {"role": "real_rate", "concept_cz": "reálné sazby", "value_kind": "rate", "search_query": "real interest rate treasury realna urokova sazba"},
+        {"role": "inflation", "concept_cz": "inflace", "value_kind": "rate", "search_query": "consumer price index inflation inflace spotrebitelske ceny"},
+        {"role": "gdp_growth", "concept_cz": "globální poptávka / HDP", "value_kind": "rate", "search_query": "gdp growth rate real hruby domaci produkt hdp"}
+      ]
+    }
+  }
+}

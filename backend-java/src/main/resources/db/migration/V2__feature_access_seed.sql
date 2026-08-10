@@ -1,0 +1,17 @@
+INSERT INTO feature_access_rules (feature_key, label, description, access_level) VALUES
+('catalog_deep_search', 'AI hloubkové katalogové vyhledávání', 'Rozšířené AI vyhledávání nad katalogovými indexy s ověřením náhledy.', 'registered'),
+('export_data', 'Export dat', 'Možnost exportovat data z grafů, tabulek a katalogu.', 'subscriber'),
+('save_widget', 'Ukládání widgetů', 'Možnost ukládat oblíbené widgety.', 'subscriber'),
+('personal_dashboard', 'Osobní dashboard', 'Vlastní stránka s uloženými widgety.', 'subscriber'),
+('multiple_dashboards', 'Více widget stránek', 'Možnost vytvořit více vlastních widget stránek.', 'subscriber'),
+('saved_calculations', 'Uložené výpočty', 'Možnost ukládat vlastní výpočty nad daty.', 'subscriber'),
+('upload_custom_data', 'Vlastní data', 'Možnost nahrávat vlastní datové soubory.', 'subscriber'),
+('company_data_analysis', 'Firemní datová analýza', 'Upload a analýza soukromých firemních dat v Manager Exploreru.', 'subscriber'),
+('composite_charts', 'Složené grafy', 'Možnost vytvářet složené grafy a kombinovat datové řady.', 'subscriber'),
+('ad_free_dashboard', 'Dashboard bez reklam', 'Skrytí reklamních bloků pro předplatitele.', 'subscriber'),
+('chart_period', 'Perioda dat v grafu', 'Změna periody agregace.', 'registered'),
+('chart_type', 'Typ grafu', 'Změna typu zobrazení.', 'registered'),
+('chart_time_range', 'Časové okno grafu', 'Výběr zobrazeného rozsahu v čase.', 'registered'),
+('chart_table_toggle', 'Graf a tabulka', 'Přepínání mezi grafem a tabulkou.', 'registered'),
+('chart_image_export', 'Stažení grafu (PNG/JPG)', 'Stažení grafu jako obrázek.', 'subscriber'),
+('rss_monitoring', 'RSS monitoring', 'Sledování RSS kanálů.', 'subscriber');
