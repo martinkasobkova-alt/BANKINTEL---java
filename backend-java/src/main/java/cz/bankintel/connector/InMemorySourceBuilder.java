@@ -171,10 +171,15 @@ public class InMemorySourceBuilder {
                 }
             }
         }
+        boolean geoIsOurDefault = false;
         if (!hasGeo(queryParams) && !country.isBlank()) {
             queryParams.put("geo", country.toUpperCase());
         } else if (!hasGeo(queryParams)) {
+            // Poslední záchrana, když dotaz žádnou zemi neurčuje. U datasetů s neregionálním geo
+            // (urban audit, metropolitní regiony) je "CZ" neplatná hodnota a Eurostat celý dotaz
+            // odmítne - konektor to pozná podle příznaku níž a zopakuje dotaz bez geo.
             queryParams.put("geo", "CZ");
+            geoIsOurDefault = true;
         }
         boolean hasExplicitTimeFilter = hasTimeFilter(queryParams);
         String explicitGeoKey = firstPresentGeoKey(queryParams);
@@ -205,6 +210,9 @@ public class InMemorySourceBuilder {
         out.put("headers", Map.of("Accept", "application/json"));
         out.put("query_params", queryParams);
         out.put("set_id", setId);
+        // Konektor podle toho pozná, že geo je náš default, a při 400/413 dotaz zopakuje bez něj -
+        // viz EurostatConnector#rejectedBecauseOfDefaultGeo.
+        out.put("eurostat_geo_is_default", String.valueOf(geoIsOurDefault && hasGeo(queryParams)));
         out.put("_preview_filters_applied", eurostatPreviewFiltersApplied(queryParams));
         out.put("_preview_user_query", stringField(params, "user_query"));
         Map<String, Object> previewDimensions = eurostatDimensionService.previewAvailableDimensions(setId);

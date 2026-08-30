@@ -36,6 +36,14 @@ public class EurostatConnector implements BaseConnector, AsyncCancellableFetch {
         Map<String, String> headers = toHeaders(source.get("headers"));
         try {
             HttpResponse<String> response = http.get(url, headers, queryParams, Duration.ofSeconds(120));
+            if (rejectedBecauseOfDefaultGeo(response.statusCode(), source)) {
+                Map<String, Object> retryParams = withoutGeo(queryParams);
+                HttpResponse<String> retry = http.get(url, headers, retryParams, Duration.ofSeconds(120));
+                if (retry.statusCode() == 200) {
+                    Map<String, Object> json = http.parseJson(retry.body());
+                    return ConnectorFetchResult.ok(json, source);
+                }
+            }
             if (response.statusCode() != 200) {
                 Map<String, Object> err = new LinkedHashMap<>();
                 err.put("status", response.statusCode());
@@ -48,6 +56,44 @@ public class EurostatConnector implements BaseConnector, AsyncCancellableFetch {
         } catch (Exception ex) {
             return ConnectorFetchResult.error(0, Map.of("error", ex.getMessage(), "detail_cs", ex.getMessage()), source);
         }
+    }
+
+    /**
+     * Odmítl Eurostat dotaz kvůli geo filtru, který jsme doplnili my (ne uživatel)?
+     *
+     * <p>{@code InMemorySourceBuilder#buildEurostat} doplňuje {@code geo=CZ}, když dotaz žádnou
+     * zemi neurčuje. U datasetů, jejichž dimenze {@code geo} nejsou země, ale města (urban audit,
+     * {@code urb_*}) nebo metropolitní regiony ({@code met_*}), je {@code CZ} neplatná hodnota
+     * a Eurostat celý dotaz odmítne — přestože bez toho filtru data vrátí.
+     *
+     * <p>Naměřeno přímo u Eurostatu:
+     * <pre>
+     * urb_ctran?format=JSON&amp;lang=EN            -&gt; HTTP 200, 1,49 MB
+     * urb_ctran?format=JSON&amp;lang=EN&amp;geo=CZ     -&gt; HTTP 413
+     * met_bd_slg1_sizer?format=JSON&amp;lang=EN    -&gt; HTTP 200, 965 kB
+     * met_bd_slg1_sizer?...&amp;geo=CZ             -&gt; HTTP 400
+     * </pre>
+     *
+     * <p>Zopakuje se proto dotaz bez geo — ale jen když šlo o NÁŠ default. Když zemi zadal
+     * uživatel, prázdný/odmítnutý výsledek je správná odpověď a tiše mu ho rozšířit na celou
+     * EU by bylo horší než chyba.
+     */
+    private static boolean rejectedBecauseOfDefaultGeo(int status, Map<String, Object> source) {
+        if (status != 400 && status != 413) {
+            return false;
+        }
+        return Boolean.TRUE.equals(source.get("eurostat_geo_is_default"))
+                || "true".equalsIgnoreCase(string(source, "eurostat_geo_is_default"));
+    }
+
+    private static Map<String, Object> withoutGeo(Map<String, Object> queryParams) {
+        Map<String, Object> out = new LinkedHashMap<>();
+        for (Map.Entry<String, Object> entry : queryParams.entrySet()) {
+            if (!"geo".equalsIgnoreCase(String.valueOf(entry.getKey()).trim())) {
+                out.put(entry.getKey(), entry.getValue());
+            }
+        }
+        return out;
     }
 
     /** Async, genuinely cancellable counterpart of {@link #fetch}. Same response handling. */
