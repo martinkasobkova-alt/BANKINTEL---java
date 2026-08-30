@@ -96,6 +96,17 @@ public final class CatalogSourceRegistry {
         return LABELS.getOrDefault(source.toLowerCase(), source.toUpperCase());
     }
 
+    /**
+     * Je to zdroj, který katalogové vyhledávání zná?
+     *
+     * <p>{@link #normalizeSearchSource(String)} neznámý řetězec nechává být, takže dotaz na
+     * neexistující zdroj dřív tiše vracel 0 výsledků místo hlášky „Neznámý zdroj…". Očekává
+     * už normalizovanou hodnotu.
+     */
+    public static boolean isKnownSearchSource(String normalizedSource) {
+        return normalizedSource != null && LABELS.containsKey(normalizedSource.trim().toLowerCase());
+    }
+
     public static int sourceBonus(String source) {
         return SOURCE_BONUS.getOrDefault(source == null ? "" : source.toLowerCase(), 0);
     }

@@ -27,6 +27,7 @@ import { resolveNativeFrequencyCode } from "@/lib/chartFrequencyInfer";
 import api, { formatApiErrorFromAxios } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { stripAiCaptionNoise } from "@/lib/widgetCaption";
+import { isTextWidgetType } from "@/lib/widgetCatalog";
 import { LoadingSpinner } from "@/components/ui/loading";
 import { AdImageFramingBlock } from "@/components/editor/AdImageFramingBlock";
 import WidgetEmbedSnippetModal from "@/components/myDashboard/WidgetEmbedSnippetModal";
@@ -709,7 +710,7 @@ function AdminOverlay({
     const slides = getAdImageSlides(widget?.config || {});
     return String(slides[0]?.image_url || "").trim();
   }, [isAdImage, widget?.config]);
-  const isTextWidget = widget?.type === "markdown";
+  const isTextWidget = isTextWidgetType(widget?.type);
   const isRssWidget = widget?.type === "rss_monitoring";
   const isUserUploadChart = widget?.type === "user_upload_chart";
   const canShowEmbed =

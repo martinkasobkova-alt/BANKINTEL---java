@@ -142,7 +142,9 @@ export default function App() {
           <Route path="/podcasty" element={<PodcastsPage />} />
           <Route path="/podcasty/:showId" element={<PodcastShowPage />} />
           <Route path="/admin/archive" element={<AdminRoute><ArchivePage manage /></AdminRoute>} />
-          <Route path="/admin/archive/:magazineId" element={<AdminRoute><ArchiveMagazinePage manage /></AdminRoute>} />
+          {/* ArchiveMagazinePage bere správu z useAuth().isAdmin, žádný `manage` prop nemá —
+              předávat ho byl zbytek, který nic nedělal a rozbíjel `tsc` (a tím produkční build). */}
+          <Route path="/admin/archive/:magazineId" element={<AdminRoute><ArchiveMagazinePage /></AdminRoute>} />
           <Route path="/messages" element={<AuthRoute><MessagesPage /></AuthRoute>} />
           <Route path="/records" element={<AdminRoute><RecordsPage /></AdminRoute>} />
           <Route path="/formulas" element={<AdminRoute><FormulasPage /></AdminRoute>} />

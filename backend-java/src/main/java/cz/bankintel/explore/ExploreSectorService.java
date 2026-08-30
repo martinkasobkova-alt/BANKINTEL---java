@@ -109,7 +109,8 @@ public class ExploreSectorService {
             return PreparedAnalysis.shortCircuit(Map.of("ok", true, "suggestions", relatedSuggestions(sector)));
         }
 
-        String country = firstNonBlank(request.country(), str(understanding.get("country")));
+        String country =
+                firstNonBlank(request.country(), request.countriesAsCsv(), str(understanding.get("country")));
         String geoMode = firstNonBlank(request.geoMode(), str(understanding.get("geo_mode")));
         String continent = firstNonBlank(request.continent(), str(understanding.get("continent")));
 
@@ -130,6 +131,18 @@ public class ExploreSectorService {
         Map<String, Object> geo = geoResolver.resolve(country, geoMode, continent);
         Map<String, Object> ctx = ExploreSectorContract.buildContext(
                 sector, question.isBlank() ? sector : question, geo, managerPreset, understanding);
+        // Špatný výsledek, který vypadá správně, je horší než chyba: když jsme otázku pochopili
+        // jako „o konkrétní zemi", ale rozsah analýzy skončil na „svět", řekneme to nahlas.
+        String understoodGeoMode = str(understanding.get("geo_mode"));
+        String resolvedGeoMode = str(geo.get("mode"));
+        if (!understoodGeoMode.isBlank()
+                && !"none".equals(understoodGeoMode)
+                && "none".equals(resolvedGeoMode)) {
+            ctx.put(
+                    "geo_warnings",
+                    List.of("Dotaz jsme pochopili jako geograficky omezený (" + understoodGeoMode
+                            + "), ale žádnou zemi se nepodařilo určit — analýza proto běží pro celý svět."));
+        }
         Map<String, Object> base = ExploreSectorContract.buildEmptyContract(ctx, "catalog_deep_search", false);
 
         return new PreparedAnalysis(null, sector, question, ctx, base, understanding, understandingMs, sectorSegments);

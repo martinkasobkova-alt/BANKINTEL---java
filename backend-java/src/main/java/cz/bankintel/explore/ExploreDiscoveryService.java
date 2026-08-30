@@ -4,6 +4,8 @@ import cz.bankintel.search.CatalogDeepSearchService;
 import cz.bankintel.search.CatalogSourceRegistry;
 import cz.bankintel.search.model.GeoIntentSnapshot;
 import cz.bankintel.search.v2.normalization.SearchResultCanonicalMetadataService;
+import cz.bankintel.search.v2.orchestration.SearchV2FeatureFlags;
+import cz.bankintel.search.v2.orchestration.SearchV2Service;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -33,6 +35,26 @@ public class ExploreDiscoveryService {
     private final CatalogDeepSearchService catalogDeepSearchService;
     private final ExploreDiscoveryCache discoveryCache;
     private final SearchResultCanonicalMetadataService canonicalMetadataService;
+    private final SearchV2FeatureFlags searchV2FeatureFlags;
+    private final SearchV2Service searchV2Service;
+
+    /**
+     * Manager Explorer hledal pořád přes V1 engine, i když je zapnuté {@code SEARCH_ENGINE_VERSION=v2}.
+     *
+     * <p>{@code CatalogController#deepSearch} volbu engine řeší přes {@link SearchV2FeatureFlags},
+     * ale discovery Exploreru volalo {@link CatalogDeepSearchService#deepSearch} natvrdo — takže
+     * uživatel viděl v katalogovém hledání jiné (a výrazně lepší) výsledky než v Exploreru pro
+     * úplně stejný dotaz. Naměřeno na „Ziskovost bank a objem úvěrů v ČR": stejný payload dal přes
+     * V2 osm ověřených řad (Bank's ROE/ROA for Czech Republic, ARAD rentabilita aktiv, čisté
+     * úrokové výnosy, úvěry), zatímco přes V1 skončil Explorer u dvou řad o objemu osobní
+     * a nákladní dopravy k HDP. Rozhoduje se tu stejně jako v controlleru, aby obě cesty
+     * nemohly znovu utéct od sebe.
+     */
+    private Map<String, Object> runDeepSearch(Map<String, Object> payload) {
+        return searchV2FeatureFlags.useV2(payload)
+                ? searchV2Service.search(payload)
+                : catalogDeepSearchService.deepSearch(payload);
+    }
 
     public IndicatorBundle discover(String question, String sector, boolean broaderSearch) {
         return discover(question, sector, broaderSearch, List.of());
@@ -59,7 +81,7 @@ public class ExploreDiscoveryService {
                     entry.sectorIndicators(), entry.macroIndicators(), entry.totalCandidates(), true,
                     System.currentTimeMillis() - t0, entry.computeTimeMs());
         }
-        Map<String, Object> result = catalogDeepSearchService.deepSearch(buildPayload(query, broaderSearch));
+        Map<String, Object> result = runDeepSearch(buildPayload(query, broaderSearch));
         IndicatorBundle bundle = buildIndicatorBundle(result, sector, query, resolvedCountryCodes);
         long computeTimeMs = System.currentTimeMillis() - t0;
         discoveryCache.put(
@@ -87,7 +109,7 @@ public class ExploreDiscoveryService {
             return IndicatorBundle.empty();
         }
         long t0 = System.currentTimeMillis();
-        Map<String, Object> result = catalogDeepSearchService.deepSearch(buildPayload(query, broaderSearch));
+        Map<String, Object> result = runDeepSearch(buildPayload(query, broaderSearch));
         IndicatorBundle bundle = buildIndicatorBundle(result, sector, query, resolvedCountryCodes);
         long computeTimeMs = System.currentTimeMillis() - t0;
         return bundle.withTiming(false, computeTimeMs, computeTimeMs);
@@ -226,14 +248,27 @@ public class ExploreDiscoveryService {
                     System.currentTimeMillis() - t0, entry.computeTimeMs());
         }
         Map<String, Integer> sourceCandidateCounts = new LinkedHashMap<>();
-        Map<String, Object> result = catalogDeepSearchService.deepSearchWithLanes(buildPayload(query, broaderSearch), lane -> {
-            String source = CatalogSourceRegistry.normalizeSearchSource(String.valueOf(lane.get("source")));
-            String phase = String.valueOf(lane.getOrDefault("phase", ""));
-            if ("catalog_index".equals(phase) || "catalog_sidecar_timeout_fallback".equals(phase)) {
-                sourceCandidateCounts.put(source, ((Number) lane.getOrDefault("count", 0)).intValue());
-            }
-            consumer.onLane(source, lane);
-        });
+        Map<String, Object> payload = buildPayload(query, broaderSearch);
+        Map<String, Object> result;
+        if (searchV2FeatureFlags.useV2(payload)) {
+            // V2 nemá per-lane callback (viz runDeepSearch). Postup zdrojů proto odvodíme
+            // z hotového výsledku — stejný tvar události, jaký už umí emitCachedLaneEvents.
+            // UI tím ztrácí průběžné odškrtávání zdrojů, ale dostane správná data; lane
+            // události stejně nikdy nenesly výsledky, jen postup.
+            result = searchV2Service.search(payload);
+            sourceCandidateCounts.putAll(candidateCountsBySource(resultRows(result)));
+            sourceCandidateCounts.forEach((source, count) -> consumer.onLane(
+                    source, Map.of("source", source, "count", count, "phase", "catalog_index")));
+        } else {
+            result = catalogDeepSearchService.deepSearchWithLanes(payload, lane -> {
+                String source = CatalogSourceRegistry.normalizeSearchSource(String.valueOf(lane.get("source")));
+                String phase = String.valueOf(lane.getOrDefault("phase", ""));
+                if ("catalog_index".equals(phase) || "catalog_sidecar_timeout_fallback".equals(phase)) {
+                    sourceCandidateCounts.put(source, ((Number) lane.getOrDefault("count", 0)).intValue());
+                }
+                consumer.onLane(source, lane);
+            });
+        }
         IndicatorBundle bundle = buildIndicatorBundle(result, sector, query, resolvedCountryCodes);
         long computeTimeMs = System.currentTimeMillis() - t0;
         discoveryCache.put(
@@ -303,19 +338,38 @@ public class ExploreDiscoveryService {
         // Compatibility for entries created by callers that do not stream lane metadata.
         List<Map<String, Object>> all = new ArrayList<>(entry.sectorIndicators());
         all.addAll(entry.macroIndicators());
-        Map<String, Integer> countsBySource = new LinkedHashMap<>();
-        for (String source : DEFAULT_SOURCES.stream().map(CatalogSourceRegistry::normalizeSearchSource).distinct().toList()) {
-            countsBySource.put(source, 0);
-        }
-        for (Map<String, Object> row : all) {
-            String source = CatalogSourceRegistry.normalizeSearchSource(String.valueOf(row.get("source")));
-            countsBySource.merge(source, 1, Integer::sum);
-        }
-        for (Map.Entry<String, Integer> sourceCount : countsBySource.entrySet()) {
+        for (Map.Entry<String, Integer> sourceCount : candidateCountsBySource(all).entrySet()) {
             consumer.onLane(
                     sourceCount.getKey(),
                     Map.of("source", sourceCount.getKey(), "count", sourceCount.getValue(), "phase", "catalog_index"));
         }
+    }
+
+    /** Rows of a deep-search result, whichever engine produced it. */
+    @SuppressWarnings("unchecked")
+    private static List<Map<String, Object>> resultRows(Map<String, Object> result) {
+        List<Map<String, Object>> rows = new ArrayList<>();
+        rows.addAll((List<Map<String, Object>>) result.getOrDefault("verified", List.of()));
+        rows.addAll((List<Map<String, Object>>) result.getOrDefault("possible", List.of()));
+        return rows;
+    }
+
+    /**
+     * Per-source hit counts, seeded with 0 for every source Explorer asks about — a source with no
+     * event at all is reported as a timeout by {@code ExploreStreamService}, so "searched, found
+     * nothing" must still produce an event.
+     */
+    private static Map<String, Integer> candidateCountsBySource(List<Map<String, Object>> rows) {
+        Map<String, Integer> countsBySource = new LinkedHashMap<>();
+        for (String source : DEFAULT_SOURCES.stream().map(CatalogSourceRegistry::normalizeSearchSource).distinct().toList()) {
+            countsBySource.put(source, 0);
+        }
+        for (Map<String, Object> row : rows) {
+            String source = CatalogSourceRegistry.normalizeSearchSource(
+                    String.valueOf(row.getOrDefault("source", row.get("source_type"))));
+            countsBySource.merge(source, 1, Integer::sum);
+        }
+        return countsBySource;
     }
 
     private static Map<String, Object> buildPayload(String query, boolean broaderSearch) {

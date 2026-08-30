@@ -88,7 +88,7 @@ public final class ExploreSectorContract {
         out.put("index_hits", 0);
         out.put("deep_search_status", null);
         out.put("empty_hint", null);
-        out.put("warnings", List.of());
+        out.put("warnings", list(ctx.get("geo_warnings")));
         out.put("source_statuses", List.of());
         out.put("company_indicators", List.of());
         out.put("company_vs_market", List.of());

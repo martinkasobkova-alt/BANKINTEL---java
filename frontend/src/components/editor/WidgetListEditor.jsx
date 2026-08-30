@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import api, { formatApiError } from "@/lib/api";
-import { WIDGET_TYPES, createEmptyWidget } from "@/lib/widgetCatalog";
+import { WIDGET_TYPES, createEmptyWidget, isTextWidgetType } from "@/lib/widgetCatalog";
 
 function defaultConfigForWidgetType(type) {
   if (type === "arad_view") return { view: "chart", chart_type: "line" };
@@ -334,8 +334,8 @@ export default function WidgetListEditor({ widgets, onChange, expandWidgetId }) 
           const typeLabel = WIDGET_TYPES.find((t) => t.value === w.type)?.label || w.type;
           const widthLabel = WIDTHS.find((t) => t.value === (w.width || "full"))?.label || "Plná šířka";
           const showAppearanceControls = w.type !== "ad";
-          const showChartColor = !["markdown", "ad"].includes(w.type);
-          const showCaption = !["markdown", "ad"].includes(w.type);
+          const showChartColor = !isTextWidgetType(w.type) && w.type !== "ad";
+          const showCaption = !isTextWidgetType(w.type) && w.type !== "ad";
           return (
             <div
               key={w.id}
@@ -787,7 +787,7 @@ function WidgetConfig({
       </div>
     );
   }
-  if (w.type === "markdown") {
+  if (isTextWidgetType(w.type)) {
     return <RichTextConfig cfg={cfg} setConfig={setConfig} />;
   }
   if (w.type === "rss_monitoring") {
@@ -1332,7 +1332,7 @@ function CaptionField({ w, cfg, setConfig }) {
   const { isAdmin } = useAuth();
   const widgetType = w?.type;
   const showAi = Boolean(
-    widgetType && widgetType !== "markdown" && widgetType !== "ad" && widgetType !== "rss_monitoring"
+    widgetType && !isTextWidgetType(widgetType) && widgetType !== "ad" && widgetType !== "rss_monitoring"
   );
   const captionValue = stripAiCaptionNoise(cfg.caption || "");
   const captionEnValue = stripAiCaptionNoise(cfg.caption_en || "");

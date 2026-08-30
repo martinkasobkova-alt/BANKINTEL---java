@@ -73,6 +73,7 @@ class ExploreSectorServiceFallbackObservabilityTest {
                 "banking",
                 "question",
                 "",
+                List.of(),
                 "",
                 "",
                 null,
@@ -132,7 +133,7 @@ class ExploreSectorServiceFallbackObservabilityTest {
         ExploreDiscoveryService.IndicatorBundle emptyDiscovery = new ExploreDiscoveryService.IndicatorBundle(
                 List.of(), List.of(), 0, false, 10L, 10L, Map.of());
         ExploreSectorRequest request = new ExploreSectorRequest(
-                "banking", "question", "", "", "", null, null, "sector", false, false, true, false,
+                "banking", "question", "", List.of(), "", "", null, null, "sector", false, false, true, false,
                 List.of(), "strict_private", "auto", null, true);
 
         Map<String, Object> result = service.finalizeAnalysis(prep, emptyDiscovery, request);

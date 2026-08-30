@@ -6312,7 +6312,9 @@ export default function GlobalCatalogSearchPage() {
           deepData?.ok !== false &&
           aiSearchScope !== AI_SEARCH_SCOPE_EXTENDED ? (
             <p className="text-[11px] text-muted-foreground px-0.5" data-testid="catalog-ai-scope-hint">
-              Výsledky z rychlého AI výběru zdrojů — pro prohledání všech zdrojů změňte rozsah v horní liště na „Vybrané zdroje".
+              {deepData?.llm_planner?.engine === "deterministic_fallback"
+                ? "AI plánovač zdrojů teď nebyl dostupný — zdroje vybral záložní deterministický výběr. Pro prohledání všech zdrojů změňte rozsah v horní liště na „Vybrané zdroje\"."
+                : "Výsledky z rychlého AI výběru zdrojů — pro prohledání všech zdrojů změňte rozsah v horní liště na „Vybrané zdroje\"."}
             </p>
           ) : null}
 

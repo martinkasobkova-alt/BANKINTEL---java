@@ -99,11 +99,17 @@ public class TrendAnalyticsService {
 
     private static Map<String, Object> lastEntry(Map<String, Double> series) {
         List<String> periods = TimeSeriesMath.sortedPeriods(series);
+        Map<String, Object> entry = new LinkedHashMap<>();
         if (periods.isEmpty()) {
-            return Map.of("period", null, "value", null);
+            // Map.of() nepovoluje null hodnoty — prázdná řada by shodila celý výpočet na NPE.
+            entry.put("period", null);
+            entry.put("value", null);
+            return entry;
         }
         String last = periods.get(periods.size() - 1);
-        return Map.of("period", last, "value", series.get(last));
+        entry.put("period", last);
+        entry.put("value", series.get(last));
+        return entry;
     }
 
     private static Map<String, Double> tailMap(Map<String, Double> series, int n) {

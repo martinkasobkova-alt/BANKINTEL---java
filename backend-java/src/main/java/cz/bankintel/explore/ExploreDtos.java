@@ -15,6 +15,12 @@ public final class ExploreDtos {
             String sector,
             String question,
             String country,
+            /**
+             * Alternativní tvar payloadu, který posílá část klientů. Dřív se tiše zahazoval
+             * (record ho neměl a {@code @JsonIgnoreProperties} ho spolkl), takže analýza
+             * na otázku „…v Česku?" proběhla pro celý svět a tvářila se správně.
+             */
+            @JsonProperty("countries") List<String> countries,
             @JsonProperty("geo_mode") String geoMode,
             String continent,
             @JsonProperty("related_segments") String relatedSegments,
@@ -36,6 +42,20 @@ public final class ExploreDtos {
             if (uploadIds == null) {
                 uploadIds = List.of();
             }
+            if (countries == null) {
+                countries = List.of();
+            }
+        }
+
+        /** {@code countries: ["CZ","SK"]} → {@code "CZ,SK"}, tedy tvar, kterému rozumí geo resolver. */
+        public String countriesAsCsv() {
+            return countries == null
+                    ? ""
+                    : countries.stream()
+                            .filter(c -> c != null && !c.isBlank())
+                            .map(String::trim)
+                            .reduce((a, b) -> a + "," + b)
+                            .orElse("");
         }
     }
 

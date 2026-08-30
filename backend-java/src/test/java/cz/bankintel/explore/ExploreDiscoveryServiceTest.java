@@ -18,6 +18,8 @@ import cz.bankintel.search.CatalogDeepSearchService;
 import cz.bankintel.search.v2.normalization.SearchResultCanonicalMetadataService;
 import cz.bankintel.search.v2.ontology.SearchV2InstitutionalSectorRegistry;
 import cz.bankintel.search.v2.ontology.SearchV2MetricIntentRegistry;
+import cz.bankintel.search.v2.orchestration.SearchV2FeatureFlags;
+import cz.bankintel.search.v2.orchestration.SearchV2Service;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -39,6 +41,15 @@ class ExploreDiscoveryServiceTest {
      * is Optional.empty(), so every lookup misses, matching a real cold ExploreDiscoveryCache. */
     private static ExploreDiscoveryCache noopCache() {
         return mock(ExploreDiscoveryCache.class);
+    }
+
+    /**
+     * These tests drive the V1 engine through a mocked {@link CatalogDeepSearchService}. A default
+     * {@link SearchV2FeatureFlags} reports version "v1" (its @Value fields are unset here), so
+     * ExploreDiscoveryService keeps taking the V1 branch and the V2 service is never touched.
+     */
+    private static SearchV2FeatureFlags v1Flags() {
+        return new SearchV2FeatureFlags();
     }
 
     private static SearchResultCanonicalMetadataService canonicalMetadataService() {
@@ -67,7 +78,7 @@ class ExploreDiscoveryServiceTest {
                 "possible", List.of(hit("fred", "FRED_1", "Gross domestic product (GDP)")));
         when(deepSearch.deepSearchWithLanes(anyMap(), any())).thenReturn(deepSearchResult);
 
-        ExploreDiscoveryService service = new ExploreDiscoveryService(deepSearch, noopCache(), canonicalMetadataService());
+        ExploreDiscoveryService service = new ExploreDiscoveryService(deepSearch, noopCache(), canonicalMetadataService(), v1Flags(), mock(SearchV2Service.class));
 
         ExploreDiscoveryService.IndicatorBundle bundle = service.discoverWithLanes(
                 "jak se vyviji hypoteky", "banking_finance", false, (source, lane) -> {});
@@ -94,8 +105,8 @@ class ExploreDiscoveryServiceTest {
         when(deepSearchA.deepSearch(anyMap())).thenReturn(result);
         when(deepSearchB.deepSearchWithLanes(anyMap(), any())).thenReturn(result);
 
-        ExploreDiscoveryService viaDiscover = new ExploreDiscoveryService(deepSearchA, noopCache(), canonicalMetadataService());
-        ExploreDiscoveryService viaLanes = new ExploreDiscoveryService(deepSearchB, noopCache(), canonicalMetadataService());
+        ExploreDiscoveryService viaDiscover = new ExploreDiscoveryService(deepSearchA, noopCache(), canonicalMetadataService(), v1Flags(), mock(SearchV2Service.class));
+        ExploreDiscoveryService viaLanes = new ExploreDiscoveryService(deepSearchB, noopCache(), canonicalMetadataService(), v1Flags(), mock(SearchV2Service.class));
 
         ExploreDiscoveryService.IndicatorBundle a = viaDiscover.discover("inflace", "macro_economy", false);
         ExploreDiscoveryService.IndicatorBundle b =
@@ -117,7 +128,7 @@ class ExploreDiscoveryServiceTest {
                 .thenReturn(Map.of("verified", List.of(legacyHit), "possible", List.of()));
 
         ExploreDiscoveryService service =
-                new ExploreDiscoveryService(deepSearch, noopCache(), canonicalMetadataService());
+                new ExploreDiscoveryService(deepSearch, noopCache(), canonicalMetadataService(), v1Flags(), mock(SearchV2Service.class));
         // "Return on equity of banks" is genuinely on-topic for "bank profitability" and is not a
         // macro-scaffold row (GDP/inflation/unemployment/rates/FX/generic industrial production), so
         // it belongs in sectorIndicators, not macroIndicators - see ExploreDiscoveryService's content-
@@ -154,7 +165,7 @@ class ExploreDiscoveryServiceTest {
                 .thenReturn(Map.of("verified", List.of(carRegistrations), "possible", List.of()));
 
         ExploreDiscoveryService service =
-                new ExploreDiscoveryService(deepSearch, noopCache(), canonicalMetadataService());
+                new ExploreDiscoveryService(deepSearch, noopCache(), canonicalMetadataService(), v1Flags(), mock(SearchV2Service.class));
         ExploreDiscoveryService.IndicatorBundle bundle = service.discoverWithLanes(
                 "Jaký je vývoj automobilového průmyslu?", "automotive", false, (source, lane) -> {});
 
@@ -172,7 +183,7 @@ class ExploreDiscoveryServiceTest {
                 .thenReturn(Map.of("verified", List.of(gdp), "possible", List.of()));
 
         ExploreDiscoveryService service =
-                new ExploreDiscoveryService(deepSearch, noopCache(), canonicalMetadataService());
+                new ExploreDiscoveryService(deepSearch, noopCache(), canonicalMetadataService(), v1Flags(), mock(SearchV2Service.class));
         ExploreDiscoveryService.IndicatorBundle bundle = service.discoverWithLanes(
                 "Jaký je vývoj automobilového průmyslu?", "automotive", false, (source, lane) -> {});
 
@@ -196,7 +207,7 @@ class ExploreDiscoveryServiceTest {
                 .thenReturn(Map.of("verified", List.of(gdp), "possible", List.of()));
 
         ExploreDiscoveryService service =
-                new ExploreDiscoveryService(deepSearch, noopCache(), canonicalMetadataService());
+                new ExploreDiscoveryService(deepSearch, noopCache(), canonicalMetadataService(), v1Flags(), mock(SearchV2Service.class));
         ExploreDiscoveryService.IndicatorBundle bundle = service.discoverWithLanes(
                 "Jak se vyvíjí HDP v Polsku?", "macro_economy", false, (source, lane) -> {});
 
@@ -216,7 +227,7 @@ class ExploreDiscoveryServiceTest {
                 .thenReturn(Map.of("verified", List.of(czechCarProduction), "possible", List.of()));
 
         ExploreDiscoveryService service =
-                new ExploreDiscoveryService(deepSearch, noopCache(), canonicalMetadataService());
+                new ExploreDiscoveryService(deepSearch, noopCache(), canonicalMetadataService(), v1Flags(), mock(SearchV2Service.class));
         ExploreDiscoveryService.IndicatorBundle bundle = service.discoverWithLanes(
                 "Jaký je vývoj automobilového průmyslu na Slovensku?", "automotive", false, (source, lane) -> {});
 
@@ -242,7 +253,7 @@ class ExploreDiscoveryServiceTest {
                 .thenReturn(Map.of("verified", List.of(usIndustrialProduction), "possible", List.of()));
 
         ExploreDiscoveryService service =
-                new ExploreDiscoveryService(deepSearch, noopCache(), canonicalMetadataService());
+                new ExploreDiscoveryService(deepSearch, noopCache(), canonicalMetadataService(), v1Flags(), mock(SearchV2Service.class));
         List<String> europeMembers = List.of("CZ", "DE", "AT", "PL", "SK", "FR", "IT", "ES", "NL", "BE");
         ExploreDiscoveryService.IndicatorBundle bundle = service.discoverWithLanes(
                 "Jak si stojí výroba v Evropě?", "manufacturing", false, europeMembers, (source, lane) -> {});
@@ -266,7 +277,7 @@ class ExploreDiscoveryServiceTest {
                 .thenReturn(Map.of("verified", List.of(usIndustrialProduction), "possible", List.of()));
 
         ExploreDiscoveryService service =
-                new ExploreDiscoveryService(deepSearch, noopCache(), canonicalMetadataService());
+                new ExploreDiscoveryService(deepSearch, noopCache(), canonicalMetadataService(), v1Flags(), mock(SearchV2Service.class));
         ExploreDiscoveryService.IndicatorBundle bundle = service.discoverWithLanes(
                 "Jak si stojí výroba v Německu?", "manufacturing", false, List.of("DE"), (source, lane) -> {});
 
@@ -287,7 +298,7 @@ class ExploreDiscoveryServiceTest {
                 .thenReturn(Map.of("verified", List.of(croatiaCpi), "possible", List.of()));
 
         ExploreDiscoveryService service =
-                new ExploreDiscoveryService(deepSearch, noopCache(), canonicalMetadataService());
+                new ExploreDiscoveryService(deepSearch, noopCache(), canonicalMetadataService(), v1Flags(), mock(SearchV2Service.class));
         ExploreDiscoveryService.IndicatorBundle bundle = service.discoverWithLanes(
                 "Ma smysl investovat do stavebnictvi?", "stavebnictví", false, (source, lane) -> {});
 
@@ -312,7 +323,7 @@ class ExploreDiscoveryServiceTest {
                 .thenReturn(Map.of("verified", List.of(ipman), "possible", List.of()));
 
         ExploreDiscoveryService service =
-                new ExploreDiscoveryService(deepSearch, noopCache(), canonicalMetadataService());
+                new ExploreDiscoveryService(deepSearch, noopCache(), canonicalMetadataService(), v1Flags(), mock(SearchV2Service.class));
         ExploreDiscoveryService.IndicatorBundle bundle = service.discoverWithLanes(
                 "Ma smysl investovat do tovarny?", "Zpracovatelský průmysl", false, List.of("DE", "IT"), (source, lane) -> {});
 
@@ -336,7 +347,7 @@ class ExploreDiscoveryServiceTest {
                 .thenReturn(Map.of("verified", List.of(ipman), "possible", List.of()));
 
         ExploreDiscoveryService service =
-                new ExploreDiscoveryService(deepSearch, noopCache(), canonicalMetadataService());
+                new ExploreDiscoveryService(deepSearch, noopCache(), canonicalMetadataService(), v1Flags(), mock(SearchV2Service.class));
         ExploreDiscoveryService.IndicatorBundle bundle = service.discoverWithLanes(
                 "Ma smysl investovat do tovarny v Nemecku nebo Italii? Zpracovatelský průmysl",
                 "Zpracovatelský průmysl",
@@ -360,7 +371,7 @@ class ExploreDiscoveryServiceTest {
                 .thenReturn(Map.of("verified", List.of(ecbRate, usdEur), "possible", List.of()));
 
         ExploreDiscoveryService service =
-                new ExploreDiscoveryService(deepSearch, noopCache(), canonicalMetadataService());
+                new ExploreDiscoveryService(deepSearch, noopCache(), canonicalMetadataService(), v1Flags(), mock(SearchV2Service.class));
         ExploreDiscoveryService.IndicatorBundle bundle = service.discoverWithLanes(
                 "Ma smysl investovat do tovarny?", "Zpracovatelský průmysl", false, List.of("DE", "IT"), (source, lane) -> {});
 
@@ -371,7 +382,7 @@ class ExploreDiscoveryServiceTest {
     @Test
     void discoverWithLanesReturnsEmptyBundleWithoutCallingDeepSearchForBlankQuery() {
         CatalogDeepSearchService deepSearch = mock(CatalogDeepSearchService.class);
-        ExploreDiscoveryService service = new ExploreDiscoveryService(deepSearch, noopCache(), canonicalMetadataService());
+        ExploreDiscoveryService service = new ExploreDiscoveryService(deepSearch, noopCache(), canonicalMetadataService(), v1Flags(), mock(SearchV2Service.class));
 
         ExploreDiscoveryService.IndicatorBundle bundle =
                 service.discoverWithLanes("", "", false, (source, lane) -> {});
@@ -391,7 +402,7 @@ class ExploreDiscoveryServiceTest {
         CatalogDeepSearchService deepSearch = mock(CatalogDeepSearchService.class);
         when(deepSearch.deepSearchWithLanes(anyMap(), any())).thenReturn(Map.of("verified", List.of(), "possible", List.of()));
         ExploreDiscoveryService service =
-                new ExploreDiscoveryService(deepSearch, noopCache(), canonicalMetadataService());
+                new ExploreDiscoveryService(deepSearch, noopCache(), canonicalMetadataService(), v1Flags(), mock(SearchV2Service.class));
 
         service.discoverWithLanes("jak se vyviji hypoteky", "banking_finance", false, (source, lane) -> {});
 
@@ -412,7 +423,7 @@ class ExploreDiscoveryServiceTest {
         CatalogDeepSearchService deepSearch = mock(CatalogDeepSearchService.class);
         when(deepSearch.deepSearch(anyMap())).thenReturn(Map.of("verified", List.of(), "possible", List.of()));
         ExploreDiscoveryService service =
-                new ExploreDiscoveryService(deepSearch, noopCache(), canonicalMetadataService());
+                new ExploreDiscoveryService(deepSearch, noopCache(), canonicalMetadataService(), v1Flags(), mock(SearchV2Service.class));
 
         service.discover("jak se vyviji hypoteky", "banking_finance", false);
 
@@ -441,7 +452,7 @@ class ExploreDiscoveryServiceTest {
                 .thenReturn(Optional.of(new ExploreDiscoveryCache.CachedEntry(cachedSector, List.of(), 1, 0L)));
 
         ExploreDiscoveryService service =
-                new ExploreDiscoveryService(deepSearch, cache, canonicalMetadataService());
+                new ExploreDiscoveryService(deepSearch, cache, canonicalMetadataService(), v1Flags(), mock(SearchV2Service.class));
         ExploreDiscoveryService.IndicatorBundle bundle = service.discover("ziskovost ceskych bank", "banking_finance", false);
 
         assertEquals(cachedSector, bundle.sectorIndicators());
@@ -461,7 +472,7 @@ class ExploreDiscoveryServiceTest {
                 "verified", List.of(hit("fred", "FRED_1", "Fed indicator")), "possible", List.of()));
 
         ExploreDiscoveryService service =
-                new ExploreDiscoveryService(deepSearch, cache, canonicalMetadataService());
+                new ExploreDiscoveryService(deepSearch, cache, canonicalMetadataService(), v1Flags(), mock(SearchV2Service.class));
         ExploreDiscoveryService.IndicatorBundle bundle = service.discover("inflace v Cesku", "macro_economy", false);
 
         assertEquals(false, bundle.cacheHit());
@@ -489,7 +500,7 @@ class ExploreDiscoveryServiceTest {
                 .thenReturn(Optional.of(new ExploreDiscoveryCache.CachedEntry(cachedSector, cachedMacro, 3, 0L)));
 
         ExploreDiscoveryService service =
-                new ExploreDiscoveryService(deepSearch, cache, canonicalMetadataService());
+                new ExploreDiscoveryService(deepSearch, cache, canonicalMetadataService(), v1Flags(), mock(SearchV2Service.class));
         Map<String, Integer> countsBySource = new java.util.LinkedHashMap<>();
         service.discoverWithLanes(
                 "ziskovost ceskych bank",
@@ -514,7 +525,7 @@ class ExploreDiscoveryServiceTest {
                         cachedTopRows, List.of(), 1, 0L, 125L, actualLaneCounts)));
 
         ExploreDiscoveryService service =
-                new ExploreDiscoveryService(deepSearch, cache, canonicalMetadataService());
+                new ExploreDiscoveryService(deepSearch, cache, canonicalMetadataService(), v1Flags(), mock(SearchV2Service.class));
         Map<String, Integer> replayed = new java.util.LinkedHashMap<>();
         service.discoverWithLanes(
                 "ziskovost ceskych bank",

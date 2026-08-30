@@ -20,8 +20,17 @@ const envBase =
 /** V produkčním buildu CRA vloží REACT_APP_* jen při `npm run build` — musí být nastavené u Vercelu při tomto kroku. */
 const reactAppBackendUrlSet = Boolean(envBase);
 
-/** Při přímém volání (bez proxy) – kvůli CORS a cookies konzistentně 127.0.0.1, ne produkce. */
-const DEFAULT_LOCAL_DEV_API = "http://127.0.0.1:8000";
+/**
+ * Při přímém volání (bez proxy) – kvůli CORS a cookies konzistentně 127.0.0.1, ne produkce.
+ *
+ * Port 8000 tu zbyl po původním Python backendu; Java backend jede na 8080 (resp. na tom,
+ * co říká REACT_APP_PROXY_TARGET). S REACT_APP_DEV_PROXY=false tak aplikace mířila na port,
+ * kde nic neposlouchá, a dokumentovaná varianta „vypnout proxy" nefungovala.
+ */
+const DEFAULT_LOCAL_DEV_API =
+  (typeof process.env.REACT_APP_PROXY_TARGET === "string"
+    ? process.env.REACT_APP_PROXY_TARGET.trim()
+    : "") || "http://127.0.0.1:8080";
 
 let BASE;
 let API_ROOT;
@@ -53,6 +62,13 @@ if (typeof window !== "undefined") {
 
 /** Společný timeout pro api i pro raw /auth/refresh (bez něj může 401 interceptor viset donekonečna). */
 export const API_TIMEOUT_MS = Number(process.env.REACT_APP_API_TIMEOUT_MS) || 360000;
+
+/**
+ * Auth a health volání musí selhat rychle. S obecným API_TIMEOUT_MS (6 minut) visel
+ * `/auth/me` při zaseknuté dev proxy tak dlouho, že aplikace vypadala zamrzlá a uživatel
+ * nedostal žádnou chybu. Tyhle endpointy jsou vždy rychlé, takže tvrdý strop nic nerozbije.
+ */
+export const AUTH_TIMEOUT_MS = Number(process.env.REACT_APP_AUTH_TIMEOUT_MS) || 20000;
 
 /** Manager Explorer / deep search — bez pevného limitu (0 = axios neukončí požadavek). */
 export const EXPLORE_LONG_REQUEST_TIMEOUT_MS =
@@ -88,6 +104,14 @@ function readDocumentCookie(name) {
 }
 
 api.interceptors.request.use((config) => {
+  // Krátký strop pro auth/health — viz AUTH_TIMEOUT_MS. Explicitní per-request timeout
+  // (deep search, explore) má vždy přednost.
+  if (config.timeout === undefined || config.timeout === API_TIMEOUT_MS) {
+    const path = String(config.url || "").replace(API_ROOT, "");
+    if (/^\/?(auth|health)(\/|$)/.test(path)) {
+      config.timeout = AUTH_TIMEOUT_MS;
+    }
+  }
   const m = (config.method || "get").toString().toLowerCase();
   if (["post", "put", "patch", "delete"].includes(m)) {
     const t = readDocumentCookie("csrf_token");
@@ -146,7 +170,7 @@ function getRefreshToken() {
     const headers = { "Content-Type": "application/json" };
     if (t) headers["X-CSRF-Token"] = t;
     refreshInFlight = axios
-      .post(url, {}, { withCredentials: true, headers, timeout: API_TIMEOUT_MS })
+      .post(url, {}, { withCredentials: true, headers, timeout: AUTH_TIMEOUT_MS })
       .finally(() => {
         refreshInFlight = null;
       });

@@ -29,7 +29,7 @@ class ExploreSectorServiceWebResearchFallbackTest {
 
     private static ExploreSectorRequest request() {
         return new ExploreSectorRequest(
-                "banking", "question", "", "", "", null, null, "sector", false, false, false, false,
+                "banking", "question", "", List.of(), "", "", null, null, "sector", false, false, false, false,
                 List.of(), "strict_private", "auto", null, true);
     }
 

@@ -791,33 +791,70 @@ public class CatalogIndexStore {
         List<String> needles = CatalogTextUtils.needlesFromQuery(queryRaw.trim());
         String matchExpr = CatalogTextUtils.buildFtsMatch(needles, queryRaw);
         List<Map<String, Object>> rows = new ArrayList<>();
+        List<Map<String, Object>> scored = List.of();
         try (PooledConnection pooled = borrowPooled()) {
             Connection conn = pooled.connection();
             FtsQueryPlan plan = resolveFtsQueryPlan(conn, source, matchExpr);
             int fetch = computeFtsFetchLimit(conn, source, lim, plan);
-            String sql = plan.ordered() ? SQL_FTS_SEARCH_ORDERED : SQL_FTS_SEARCH_FAST;
-            try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                ps.setString(1, source);
-                ps.setString(2, plan.matchExpr());
-                ps.setInt(3, fetch);
-                try (ResultSet rs = ps.executeQuery()) {
-                    while (rs.next()) {
-                        Map<String, Object> parsed = parseRowJson(rs.getString("row_json"));
-                        if (parsed != null) {
-                            parsed.put("_fts_rank", rs.getDouble("rank"));
-                            rows.add(parsed);
-                        }
-                    }
-                }
-            }
+            rows = fetchFtsRows(conn, plan, source, fetch);
             rows = mergeEntityRescueRows(conn, source, queryRaw, needles, rows, fetch);
             if (rows.isEmpty() && !"\"\"".equals(matchExpr)) {
                 rows.addAll(lookupLikeFallback(conn, source, queryRaw, lim));
             }
+            scored = scoreRows(source, queryRaw, rows, lim);
+
+            // Geo filtr zahodil úplně všechno, co FTS stihlo vytáhnout. U velkého zdroje to
+            // znamená, že se do vzorku prostě nedostaly řádky správné země (FRED má 260 tis. řad,
+            // vytáhne se jen omezené okno — "GDP Germany" tak vracelo 0, přestože německé řady
+            // v indexu jsou). Zopakujeme dotaz se zemí zatlačenou přímo do FTS.
+            //
+            // Když ani takhle zaměřený dotaz nic nenajde, vracíme prázdno záměrně: zdroj prostě
+            // pro tu zemi data nemá. Vrátit místo toho odmítnuté řádky by uživateli na dotaz
+            // o Německu podstrčilo české nebo americké řady.
+            if (scored.isEmpty() && !rows.isEmpty()) {
+                String geoAnchored = CatalogTextUtils.buildGeoAnchoredFtsMatch(matchExpr, queryRaw);
+                if (geoAnchored != null) {
+                    // Vždy bm25-seřazený plán, i u velkého zdroje: tenhle dotaz běží jen ve chvíli,
+                    // kdy bychom jinak vrátili nulu, a neseřazené okno by z desítek tisíc řádků
+                    // vytáhlo prvních pár v pořadí indexu (živě: "GDP Germany" vracelo obce
+                    // "San Germán, PR" místo německých řad).
+                    FtsQueryPlan geoPlan = new FtsQueryPlan(geoAnchored, true);
+                    List<Map<String, Object>> geoRows = fetchFtsRows(
+                            conn, geoPlan, source, computeFtsFetchLimit(conn, source, lim, geoPlan));
+                    if (!geoRows.isEmpty()) {
+                        return scoreRows(source, queryRaw, geoRows, lim);
+                    }
+                }
+            }
         } catch (SQLException ex) {
             log.warn("fts_search sqlite source={}: {}", source, ex.getMessage());
+            return scoreRows(source, queryRaw, rows, lim);
         }
-        return scoreRows(source, queryRaw, rows, lim);
+        return scored;
+    }
+
+    private List<Map<String, Object>> fetchFtsRows(Connection conn, FtsQueryPlan plan, String source, int fetch)
+            throws SQLException {
+        List<Map<String, Object>> rows = new ArrayList<>();
+        if ("\"\"".equals(plan.matchExpr())) {
+            return rows;
+        }
+        String sql = plan.ordered() ? SQL_FTS_SEARCH_ORDERED : SQL_FTS_SEARCH_FAST;
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, source);
+            ps.setString(2, plan.matchExpr());
+            ps.setInt(3, fetch);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    Map<String, Object> parsed = parseRowJson(rs.getString("row_json"));
+                    if (parsed != null) {
+                        parsed.put("_fts_rank", rs.getDouble("rank"));
+                        rows.add(parsed);
+                    }
+                }
+            }
+        }
+        return rows;
     }
 
     private SqliteFtsOutcome ftsSearchSqliteWithinBudget(
@@ -1201,6 +1238,26 @@ public class CatalogIndexStore {
     private List<Map<String, Object>> lookupLikeFallback(
             Connection conn, String source, String queryRaw, int limit) throws SQLException {
         String folded = CatalogTextUtils.foldAscii(queryRaw);
+
+        // Jednoslovný dotaz je typicky vložené ID řady ("DEURHARMMDSMEI"). Přesné vyhledání
+        // přes idx_catalog_rows_lookup(source, set_id) stojí 0 ms, kdežto LIKE níž je plný sken.
+        String trimmed = queryRaw == null ? "" : queryRaw.trim();
+        if (!trimmed.isEmpty() && trimmed.indexOf(' ') < 0) {
+            for (String candidate : List.of(trimmed, trimmed.toUpperCase(Locale.ROOT))) {
+                Optional<Map<String, Object>> exact = lookupSqliteOnConnection(conn, source, candidate);
+                if (exact.isPresent()) {
+                    return new ArrayList<>(List.of(exact.get()));
+                }
+            }
+        }
+
+        // `row_json LIKE '%…%'` neumí použít žádný index. U malých zdrojů je to levná záchrana,
+        // u velkých je to plný sken celé tabulky: naměřeno 8,4 s nad 262 tis. řádky FRED — a to
+        // pro dotaz, který stejně nic nenajde. Zdroj, kde už selhalo FTS i přesné ID, tuhle cenu
+        // platit nemá.
+        if (CatalogSourceRegistry.BIG_FTS_SOURCES.contains(source)) {
+            return List.of();
+        }
         String like = "%" + folded.substring(0, Math.min(40, folded.length())) + "%";
         String sql =
                 "SELECT row_json, 0 AS rank FROM catalog_rows_lookup WHERE source = ? AND row_json LIKE ? LIMIT ?";
@@ -1369,6 +1426,7 @@ public class CatalogIndexStore {
             String source, String queryRaw, List<Map<String, Object>> rows, int limit) {
         return scoringPipeline.scoreAndRankAsMaps(source, queryRaw, rows, limit);
     }
+
 
     private Map<String, Object> parseRowJson(String raw) {
         if (raw == null || raw.isBlank()) {

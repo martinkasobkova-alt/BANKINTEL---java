@@ -1,3 +1,5 @@
+import { isTextWidgetType } from "@/lib/widgetCatalog";
+
 /**
  * 12-sloupcový CSS Grid (viz `.widget-canvas-grid` v index.css).
  * Dva řádky × 200px = 400px — čtvrtina (row-span 2) má stejnou výšku jako dva osminy (2× row-span 1).
@@ -62,7 +64,7 @@ export function getDashboardMobileSpan(widget) {
     FORCE_FULL_MOBILE_TYPES.has(type) ||
     EXTERNAL_DATASET_TYPES.has(type) ||
     type === "dataset_table" ||
-    type === "markdown"
+    isTextWidgetType(type)
   ) {
     return "full";
   }

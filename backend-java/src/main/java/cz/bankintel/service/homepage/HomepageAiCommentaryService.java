@@ -61,15 +61,16 @@ public class HomepageAiCommentaryService {
     public Map<String, Object> generateVerbose(
             String widgetType, String title, Map<String, Object> data, String extraInstruction, Map<String, Object> widgetConfig) {
         if (data != null && data.get("error") != null) {
-            return Map.of(
-                    "text",
-                    null,
-                    "reason",
-                    "Widget vrací chybu dat: " + String.valueOf(data.get("error")).substring(0, Math.min(200, String.valueOf(data.get("error")).length())),
-                    "summary",
-                    null,
-                    "fallback_used",
-                    false);
+            // Map.of() nepovoluje null hodnoty — dřív tahle ošetřovací větev shodila celý
+            // request na NPE právě ve chvíli, kdy měla uživateli srozumitelně říct, že
+            // widget vrací chybu dat. LinkedHashMap null hodnoty unese.
+            String detail = String.valueOf(data.get("error"));
+            Map<String, Object> out = new LinkedHashMap<>();
+            out.put("text", null);
+            out.put("reason", "Widget vrací chybu dat: " + detail.substring(0, Math.min(200, detail.length())));
+            out.put("summary", null);
+            out.put("fallback_used", false);
+            return out;
         }
         String summary = buildDataSummary(widgetType, data);
         String meta = extractMeta(data);

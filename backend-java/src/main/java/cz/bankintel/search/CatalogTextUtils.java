@@ -151,7 +151,56 @@ public final class CatalogTextUtils {
                 }
             }
         }
+        if (tokens.isEmpty()) {
+            // Čistě zeměpisný dotaz ("Germany", "Madarsko"): všechny tokeny vypadly jako geo
+            // a MATCH by vyšel prázdný — zdroj vrátil 0 výsledků a nespustil se ani LIKE
+            // fallback. Když nezbylo nic jiného, hledáme aspoň podle názvu země.
+            for (String word : ftsEscapeToken(topicQuery).split("\\s+")) {
+                String token = ftsEscapeToken(word);
+                if (token.length() >= 2) {
+                    tokens.add("\"" + token + "\"");
+                }
+            }
+        }
         return tokens.isEmpty() ? "\"\"" : String.join(" OR ", tokens);
+    }
+
+    /**
+     * Přidá k základnímu MATCH výrazu povinnou skupinu názvů požadované země.
+     *
+     * <p>Geo záměr se dosud uplatňoval až po vytažení kandidátů z FTS. U velkého zdroje
+     * (FRED má 260 tis. řad) se ale nejdřív vytáhne jen omezený počet řádků v pořadí, v jakém
+     * jsou v indexu — u dotazu „GDP Germany" to byly samé americké řady, které geo filtr pak
+     * všechny zahodil, a uživatel dostal nulu, přestože německé řady v indexu jsou. Tenhle
+     * výraz zatlačí zemi přímo do FTS dotazu, takže se vytáhnou rovnou správné řádky.
+     *
+     * @return {@code null}, když dotaz žádnou konkrétní zemi neobsahuje
+     */
+    public static String buildGeoAnchoredFtsMatch(String baseMatchExpr, String queryRaw) {
+        if (baseMatchExpr == null || baseMatchExpr.isBlank() || "\"\"".equals(baseMatchExpr)) {
+            return null;
+        }
+        List<String> codes = CatalogGeoIntent.requestedGeoCodes(CatalogGeoIntent.detectGeoIntent(queryRaw));
+        if (codes.isEmpty()) {
+            return null;
+        }
+        List<String> geoTokens = new ArrayList<>();
+        Set<String> seen = new LinkedHashSet<>();
+        for (String code : codes) {
+            for (String alias : CatalogCountryAliasRegistry.foldedAliasTerms(code)) {
+                String token = ftsEscapeToken(alias);
+                if (token.length() < 2 || token.contains(" ")) {
+                    continue;
+                }
+                if (seen.add(token.toLowerCase(Locale.ROOT)) && geoTokens.size() < 12) {
+                    geoTokens.add("\"" + token + "\"");
+                }
+            }
+        }
+        if (geoTokens.isEmpty()) {
+            return null;
+        }
+        return "(" + baseMatchExpr + ") AND (" + String.join(" OR ", geoTokens) + ")";
     }
 
     public static String buildFtsSuggestMatch(String queryRaw, List<String> extraPhrases) {
@@ -169,16 +218,28 @@ public final class CatalogTextUtils {
         return groups.isEmpty() ? "\"\"" : String.join(" OR ", groups);
     }
 
+    /** Nejkratší rozepsané slovo, které ještě rozšiřujeme na FTS5 prefix (`"infl"*`). */
+    private static final int MIN_SUGGEST_PREFIX_LENGTH = 3;
+
     private static void addSuggestGroup(List<String> groups, Set<String> seen, String phrase) {
-        List<String> tokens = new ArrayList<>();
+        List<String> rawTokens = new ArrayList<>();
         for (String raw : (phrase == null ? "" : phrase).split("\\s+")) {
             String token = ftsEscapeToken(raw);
             if (token.length() >= 2) {
-                tokens.add("\"" + token + "\"");
+                rawTokens.add(token);
             }
-            if (tokens.size() >= 6) {
+            if (rawTokens.size() >= 6) {
                 break;
             }
+        }
+        List<String> tokens = new ArrayList<>();
+        for (int i = 0; i < rawTokens.size(); i++) {
+            String token = rawTokens.get(i);
+            // Poslední slovo uživatel typicky ještě dopisuje — bez prefixu vracel došeptávač
+            // na "infl" nula návrhů a napovídal až po dopsání celého slova "inflace".
+            boolean isLast = i == rawTokens.size() - 1;
+            boolean prefixable = isLast && token.length() >= MIN_SUGGEST_PREFIX_LENGTH && !token.contains(" ");
+            tokens.add("\"" + token + "\"" + (prefixable ? "*" : ""));
         }
         if (tokens.isEmpty()) {
             return;

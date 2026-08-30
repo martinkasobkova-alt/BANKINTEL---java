@@ -184,9 +184,13 @@ public class SourcePreviewService {
         out.put("rows", List.of());
         out.put("fields", List.of());
         out.put("columns", List.of());
-        out.put(
-                "metadata",
-                Map.of("row_count", 0, "filters_applied", Map.of(), "dimensions", Map.of(), "warning", null));
+        // Map.of() nepovoluje null hodnoty ("warning") — LinkedHashMap ano.
+        Map<String, Object> emptyMetadata = new LinkedHashMap<>();
+        emptyMetadata.put("row_count", 0);
+        emptyMetadata.put("filters_applied", Map.of());
+        emptyMetadata.put("dimensions", Map.of());
+        emptyMetadata.put("warning", null);
+        out.put("metadata", emptyMetadata);
         out.put("indicators", List.of());
         out.put("group_field", null);
         out.put("preview_state", state);
