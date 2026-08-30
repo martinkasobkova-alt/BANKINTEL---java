@@ -67,6 +67,43 @@ class ExploreDiscoveryServiceTest {
         return row;
     }
 
+    /**
+     * QA kolo 3: finální set Exploreru obsahoval tentýž ukazatel dvakrát a duplikáty navíc
+     * sežraly rozpočet 12 míst, takže se do výsledku nevešly úvěrové řady. Naměřeno živě:
+     * 3× "měnové finanční instituce (banky)" a 2× "Banky - Výkaz zisku a ztráty" z osmi slotů.
+     */
+    @Test
+    void nearDuplicateRowsAreCollapsedBeforeTheIndicatorBudgetIsSpent() {
+        CatalogDeepSearchService deepSearch = mock(CatalogDeepSearchService.class);
+        List<Map<String, Object>> verified = new java.util.ArrayList<>();
+        // Same source + same title, different set_id — what the live run actually returned.
+        verified.add(hit("arad", "1012:SBBAM04412", "měnové finanční instituce (banky)"));
+        verified.add(hit("arad", "1059:SMV6M604", "měnové finanční instituce (banky)"));
+        verified.add(hit("arad", "1059:SMV6M104", "měnové finanční instituce (banky)"));
+        verified.add(hit("arad", "1161:SUCM1002", "úvěry"));
+        when(deepSearch.deepSearchWithLanes(anyMap(), any()))
+                .thenReturn(Map.of("verified", verified, "possible", List.of()));
+
+        ExploreDiscoveryService service = new ExploreDiscoveryService(
+                deepSearch, noopCache(), canonicalMetadataService(), v1Flags(), mock(SearchV2Service.class));
+
+        ExploreDiscoveryService.IndicatorBundle bundle =
+                service.discoverWithLanes("ziskovost bank a objem uveru", "banking_finance", false, (s, l) -> {});
+
+        List<Map<String, Object>> all = new java.util.ArrayList<>(bundle.sectorIndicators());
+        all.addAll(bundle.macroIndicators());
+        List<String> titles = all.stream()
+                .map(row -> String.valueOf(row.getOrDefault("title", row.get("name"))).toLowerCase(java.util.Locale.ROOT))
+                .toList();
+
+        assertEquals(
+                titles.size(),
+                new java.util.LinkedHashSet<>(titles).size(),
+                "the same indicator must not appear twice in the final set: " + titles);
+        assertTrue(titles.stream().anyMatch(t -> t.contains("úvěry")),
+                "collapsing duplicates must free a slot for the loan series: " + titles);
+    }
+
     @Test
     void discoverWithLanesReturnsIndicatorBundleFromItsOwnDeepSearchCall() {
         CatalogDeepSearchService deepSearch = mock(CatalogDeepSearchService.class);

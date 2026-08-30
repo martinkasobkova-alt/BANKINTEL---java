@@ -1,7 +1,9 @@
 package cz.bankintel.explore;
 
 import cz.bankintel.search.CatalogDeepSearchService;
+import cz.bankintel.search.CatalogSearchVariantDedup;
 import cz.bankintel.search.CatalogSourceRegistry;
+import cz.bankintel.search.model.CatalogMapSupport;
 import cz.bankintel.search.model.GeoIntentSnapshot;
 import cz.bankintel.search.v2.normalization.SearchResultCanonicalMetadataService;
 import cz.bankintel.search.v2.orchestration.SearchV2FeatureFlags;
@@ -52,8 +54,41 @@ public class ExploreDiscoveryService {
      */
     private Map<String, Object> runDeepSearch(Map<String, Object> payload) {
         return searchV2FeatureFlags.useV2(payload)
-                ? searchV2Service.search(payload)
+                ? searchV2Service.search(withV2DiscoveryTuning(payload))
                 : catalogDeepSearchService.deepSearch(payload);
+    }
+
+    /**
+     * Doplní klíče, které dávají smysl jen pro Search V2. Záměrně se nepřidávají do
+     * {@link #buildPayload}: V1 si zdroje zužuje sám ({@code narrowSourcesForGeo}) a předat mu
+     * celý výchozí seznam by se tvářilo jako uživatelský filtr - viz {@code
+     * ExploreDiscoveryServiceTest#discoverRequestsNoAiStoryFromDeepSearch}.
+     *
+     * <p><b>limit + preview_mode:</b> V2 ověřuje živým náhledem nejvýš {@code MAX_PREVIEW_VERIFY = 8}
+     * kandidátů a ve výchozím režimu {@code full} zbytek ranku zahodí, takže {@code verified} byl
+     * zároveň celý výsledek. V {@code top_preview} zůstane ověřování stejné, ale zbytek se vrátí
+     * jako {@code possible} - naměřeno results 6 -> 24 (verified 6, possible 18), 11,4 s -> 8,0 s.
+     *
+     * <p><b>sources:</b> router V2 si pro tenhle dotaz sám zúžil výběr na čtyři zdroje
+     * ({@code ecb2, bis, imf, eurostat}), takže ARAD a ČSÚ - přesně ty s českými bankovními
+     * řadami - se vůbec nedotazovaly. Naměřeno na "Ziskovost bank a objem úvěrů v ČR":
+     * bez toho {@code lanes = ecb2:231, bis:0, imf:0, eurostat:0} (results 9),
+     * s tím {@code lanes = ecb2:227, arad:5, data360:24, …} (results 18).
+     */
+    private static Map<String, Object> withV2DiscoveryTuning(Map<String, Object> payload) {
+        Map<String, Object> tuned = new LinkedHashMap<>(payload);
+        boolean broader = Boolean.TRUE.equals(payload.get("broader_search"))
+                || CatalogMapSupport.toInt(payload.get("limit_per_source"), 6) > 6;
+        tuned.putIfAbsent("limit", broader ? 30 : 24);
+        tuned.putIfAbsent("preview_mode", "top_preview");
+        tuned.putIfAbsent("preview_top_n", 8);
+        tuned.putIfAbsent(
+                "sources",
+                CatalogSourceRegistry.EXPLORE_DISCOVERY_DEFAULT_SOURCES.stream()
+                        .map(CatalogSourceRegistry::normalizeSearchSource)
+                        .distinct()
+                        .toList());
+        return tuned;
     }
 
     public IndicatorBundle discover(String question, String sector, boolean broaderSearch) {
@@ -255,7 +290,7 @@ public class ExploreDiscoveryService {
             // z hotového výsledku — stejný tvar události, jaký už umí emitCachedLaneEvents.
             // UI tím ztrácí průběžné odškrtávání zdrojů, ale dostane správná data; lane
             // události stejně nikdy nenesly výsledky, jen postup.
-            result = searchV2Service.search(payload);
+            result = searchV2Service.search(withV2DiscoveryTuning(payload));
             sourceCandidateCounts.putAll(candidateCountsBySource(resultRows(result)));
             sourceCandidateCounts.forEach((source, count) -> consumer.onLane(
                     source, Map.of("source", source, "count", count, "phase", "catalog_index")));
@@ -387,6 +422,15 @@ public class ExploreDiscoveryService {
         // phrases (e.g. "CAPEX výroby počítačů") cannot empty those lanes.
         payload.put("manager_discovery", true);
         payload.put("extra_index_probe_terms", ExploreManagerDiscoveryTerms.probeTermsFor(query));
+        // Bez tohohle vracel Explorer 1-7 ukazatelů podle formulace dotazu. Search V2 ověřuje
+        // živým náhledem nejvýš MAX_PREVIEW_VERIFY = 8 kandidátů a ve výchozím režimu "full"
+        // zahodí všechno ostatní, takže `verified` byl zároveň celý výsledek. V režimu
+        // "top_preview" zůstane ověřování stejné (těch 8 nejlepších), ale zbytek ranku se
+        // vrátí jako `possible` - buildIndicatorBundle je použije až po ověřených.
+        //
+        // Naměřeno na "Jak si vede bankovní sektor v Česku…": results 6 -> 24
+        // (verified 6, possible 18), a to o něco rychleji (11,4 s -> 8,0 s).
+        // V1 tyhle klíče ignoruje (reaguje jen na preview_mode=metadata_only).
         return payload;
     }
 
@@ -412,11 +456,34 @@ public class ExploreDiscoveryService {
         List<Map<String, Object>> verified = (List<Map<String, Object>>) result.getOrDefault("verified", List.of());
         @SuppressWarnings("unchecked")
         List<Map<String, Object>> possible = (List<Map<String, Object>>) result.getOrDefault("possible", List.of());
-        List<Map<String, Object>> merged = new ArrayList<>();
-        merged.addAll(verified);
-        for (Map<String, Object> row : possible) {
+        // Blízké duplikáty se konsolidují PŘED rozpočtem 12 míst, ne až po něm.
+        // Naměřeno na "Ziskovost bank a objem úvěrů v ČR": tři řádky se shodným názvem
+        // "měnové finanční instituce (banky)" (různé dataset_id) a dva "Banky - Výkaz zisku
+        // a ztráty" zabraly pět z dvanácti slotů, takže se do finálního setu nevešly úvěrové
+        // řady vůbec. Uživatel navíc viděl v seznamu dvakrát tentýž ukazatel.
+        //
+        // Konsoliduje se zvlášť ve `verified` a `possible`, aby si ověřené řady udržely
+        // přednost - consolidateDisplayRows uvnitř řadí podle skóre, takže jedno společné
+        // volání by nechalo vysoko skórující "possible" předběhnout "verified".
+        List<Map<String, Object>> merged =
+                new ArrayList<>(CatalogSearchVariantDedup.consolidateDisplayRows(verified));
+        if (merged.size() > 12) {
+            merged = new ArrayList<>(merged.subList(0, 12));
+        }
+        Set<String> mergedSignatures = new LinkedHashSet<>();
+        for (Map<String, Object> row : merged) {
+            String signature = CatalogSearchVariantDedup.displaySignature(row);
+            if (!signature.isBlank()) {
+                mergedSignatures.add(signature);
+            }
+        }
+        for (Map<String, Object> row : CatalogSearchVariantDedup.consolidateDisplayRows(possible)) {
             if (merged.size() >= 12) {
                 break;
+            }
+            String signature = CatalogSearchVariantDedup.displaySignature(row);
+            if (!signature.isBlank() && !mergedSignatures.add(signature)) {
+                continue;
             }
             merged.add(row);
         }
