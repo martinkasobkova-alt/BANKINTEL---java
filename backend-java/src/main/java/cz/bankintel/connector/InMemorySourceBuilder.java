@@ -245,8 +245,17 @@ public class InMemorySourceBuilder {
         return out;
     }
 
-    /** Strop pro full-dataset POST v náhledu; delší čekání panel jen zasekne (CsuConnector#fullDatasetTimeout). */
-    private static final int CSU_PREVIEW_FULL_DATASET_TIMEOUT_SEC = 30;
+    /**
+     * Strop pro full-dataset POST v náhledu; delší čekání panel jen zasekne
+     * (CsuConnector#fullDatasetTimeout).
+     *
+     * <p>Když POST projde, projde rychle - naměřené úspěšné full-dataset náhledy končí v jednotkách
+     * sekund (CEN0101B 15 577 řádků za 2,7 s). Když neprojde, čeká se celý strop nadarmo a teprve
+     * pak se přepne na výběrový endpoint: s 30 s trval náhled CEN0204AT01 59 s a OBY01B01T01 68 s,
+     * přestože samotný výběr vrátí data za 0,5 s resp. 11 s. Nižší strop tedy nic použitelného
+     * neuřízne a u problémových datasetů ušetří skoro půl minuty.
+     */
+    private static final int CSU_PREVIEW_FULL_DATASET_TIMEOUT_SEC = 12;
 
     private Map<String, Object> buildCsu(Map<String, Object> common, String setId, Map<String, Object> params) {
         if (setId.isBlank()) {
