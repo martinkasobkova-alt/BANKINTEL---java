@@ -28,6 +28,7 @@ public class CsuConnector implements BaseConnector {
 
     private static final Logger log = LoggerFactory.getLogger(CsuConnector.class);
     private static final String CATALOG_BASE = "https://data.csu.gov.cz/api/katalog/v1";
+    private static final String SELECTION_ENDPOINT_PREFIX = "/api/dotaz/v1/data/vybery/";
     private static final long DATASET_META_TTL_MS = Duration.ofHours(12).toMillis();
 
     private final ConnectorHttpSupport http;
@@ -65,7 +66,17 @@ public class CsuConnector implements BaseConnector {
                     safeQuery,
                     Duration.ofMinutes(3));
             if (response.statusCode() != 200) {
-                return ConnectorFetchResult.error(response.statusCode(), Map.of("error", response.body()), source);
+                // `error` nese syrové tělo od ČSÚ (kvůli zpětné kompatibilitě), ale samo o sobě
+                // uživateli nic neřekne — viděl v UI holé {"error": "Interní chyba serveru"}.
+                return ConnectorFetchResult.error(
+                        response.statusCode(),
+                        Map.of(
+                                "error",
+                                response.body(),
+                                "detail_cs",
+                                "Data ČSÚ se teď nepodařilo načíst (odpověď " + response.statusCode()
+                                        + "). Zkuste to prosím znovu později."),
+                        source);
             }
             return ConnectorFetchResult.ok(Map.of("csv_text", response.body()), source);
         } catch (Exception ex) {
@@ -97,7 +108,7 @@ public class CsuConnector implements BaseConnector {
                         Map.of("Accept", "text/csv", "Accept-Language", "cs", "User-Agent", "BankIntel/1.0"),
                         queryParamsWithVersion(version),
                         bodyJson,
-                        Duration.ofMinutes(5));
+                        fullDatasetTimeout(source));
                 if (response.statusCode() == 200 && looksLikeCsv(response.body())) {
                     return ConnectorFetchResult.ok(Map.of("csv_text", response.body()), source);
                 }
@@ -109,11 +120,67 @@ public class CsuConnector implements BaseConnector {
             }
 
             log.warn("CSU full dataset POST failed for {} - fallback to selection", datasetCode);
-            return fetchSelection(source);
+            return fetchSelectionFallback(source);
         } catch (Exception ex) {
             log.warn("CSU full dataset fetch failed: {} - fallback to selection", ex.getMessage());
+            return fetchSelectionFallback(source);
+        }
+    }
+
+    /**
+     * Fallback po neúspěšném full-dataset POSTu musí jít na VÝBĚROVÝ endpoint, ne znovu na
+     * datasetový.
+     *
+     * <p>{@code InMemorySourceBuilder#buildCsu} staví pro full-dataset režim
+     * {@code endpoint = /api/dotaz/v1/data/sady/<datasetCode>/vlastni}, ale {@code set_id} nechává
+     * na kódu výběru. {@link #fetchSelection} přitom URL skládá z {@code endpoint}, takže fallback
+     * jen zopakoval GET na tentýž datasetový endpoint — a spadl na tomtéž.
+     *
+     * <p>Naměřeno na ČSÚ (WCEN04 / „Indexy cen nemovitostí - meziroční index"):
+     * {@code GET /api/dotaz/v1/data/sady/WCEN04} vrací HTTP 500
+     * {@code {"error": "Interní chyba serveru"}}, kdežto
+     * {@code GET /api/dotaz/v1/data/vybery/WCEN04T02} vrací HTTP 200 a data. Uživateli se proto
+     * zobrazila syrová hláška ČSÚ, přestože ta řada je dostupná — fallback byl neúčinný přesně
+     * v situaci, kvůli které existuje.
+     */
+    /**
+     * Jak dlouho čekat na full-dataset POST, než se přejde na výběrový endpoint.
+     *
+     * <p>Naměřeno na ČSÚ dataset CEN0101A: full-dataset POST doběhne až za 336 s (5 900 řádků),
+     * kdežto {@code GET /vybery/CEN0101AT01} vrátí použitelná data za 0,2 s. Pro náhled v UI je
+     * pětiminutové čekání k ničemu — panel se tváří zaseknutě. Náhled si proto přes
+     * {@code csu_full_dataset_timeout_sec} říká o kratší strop (nastavuje
+     * {@code InMemorySourceBuilder#buildCsu}); plánovaná synchronizace, která běží nad uloženým
+     * zdrojem a celý dataset opravdu chce, klíč neposílá a zůstává jí původních 5 minut.
+     */
+    private static Duration fullDatasetTimeout(Map<String, Object> source) {
+        String raw = string(source, "csu_full_dataset_timeout_sec");
+        if (!raw.isBlank()) {
+            try {
+                int seconds = Integer.parseInt(raw.trim());
+                if (seconds > 0) {
+                    return Duration.ofSeconds(seconds);
+                }
+            } catch (NumberFormatException ignored) {
+                // nečitelná hodnota - použije se výchozí strop
+            }
+        }
+        return Duration.ofMinutes(5);
+    }
+
+    private ConnectorFetchResult fetchSelectionFallback(Map<String, Object> source) {
+        String selectionCode = string(source, "csu_selection_code");
+        if (selectionCode.isBlank()) {
+            selectionCode = string(source, "set_id");
+        }
+        if (selectionCode.isBlank() || string(source, "endpoint").contains(SELECTION_ENDPOINT_PREFIX)) {
             return fetchSelection(source);
         }
+        Map<String, Object> selectionSource = new LinkedHashMap<>(source);
+        selectionSource.put("endpoint", SELECTION_ENDPOINT_PREFIX + selectionCode);
+        selectionSource.put("method", "GET");
+        selectionSource.put("query_params", Map.of("format", "CSV"));
+        return fetchSelection(selectionSource);
     }
 
     private CsuDatasetMeta fetchDatasetMeta(String datasetCode) {

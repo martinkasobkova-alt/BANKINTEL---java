@@ -237,6 +237,9 @@ public class InMemorySourceBuilder {
         return out;
     }
 
+    /** Strop pro full-dataset POST v náhledu; delší čekání panel jen zasekne (CsuConnector#fullDatasetTimeout). */
+    private static final int CSU_PREVIEW_FULL_DATASET_TIMEOUT_SEC = 30;
+
     private Map<String, Object> buildCsu(Map<String, Object> common, String setId, Map<String, Object> params) {
         if (setId.isBlank()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "missing set_id");
@@ -255,6 +258,9 @@ public class InMemorySourceBuilder {
             out.put("csu_dataset_code", datasetCode);
             out.put("endpoint", "/api/dotaz/v1/data/sady/" + datasetCode + "/vlastni");
             out.put("method", "POST");
+            // Náhled nemá čekat minuty na celý dataset, když výběrový endpoint dá použitelná data
+            // v řádu stovek ms - viz CsuConnector#fullDatasetTimeout.
+            out.put("csu_full_dataset_timeout_sec", String.valueOf(CSU_PREVIEW_FULL_DATASET_TIMEOUT_SEC));
             out.put("query_params", fullQuery);
         } else {
             out.put("endpoint", "/api/dotaz/v1/data/vybery/" + setId);
