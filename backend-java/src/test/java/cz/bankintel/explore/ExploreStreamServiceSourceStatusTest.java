@@ -25,7 +25,7 @@ import org.mockito.ArgumentCaptor;
  * (ok / empty / timeout), not a hardcoded "ok" regardless of what happened - and must emit
  * "source_started" for the sources that are genuinely running, and "source_timeout" for any
  * requested source that never produced a "source_finished" (cancelled by the shared lane wall
- * budget in CatalogDeepSearchService - see MANAGER_EXPLORER_AUDIT_V2.md section 4.1).
+ * budget in CatalogDeepSearchService - see docs/archive/MANAGER_EXPLORER_AUDIT_V2.md section 4.1).
  */
 class ExploreStreamServiceSourceStatusTest {
 

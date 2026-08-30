@@ -55,6 +55,23 @@ bankintel:
     search-v2-llm-connect-timeout-ms: ${SEARCH_V2_LLM_CONNECT_TIMEOUT_MS:3000}
     search-v2-llm-request-timeout-ms: ${SEARCH_V2_LLM_REQUEST_TIMEOUT_MS:12000}
     search-v2-llm-reasoning-effort: ${SEARCH_V2_LLM_REASONING_EFFORT:none}
+    # Hard ceiling on billed output per call. Chat synthesis ran uncapped until now.
+    max-completion-tokens-chat: ${OPENAI_MAX_COMPLETION_TOKENS_CHAT:4000}
+    max-completion-tokens-planner: ${OPENAI_MAX_COMPLETION_TOKENS_PLANNER:900}
+    max-completion-tokens-reranker: ${OPENAI_MAX_COMPLETION_TOKENS_RERANKER:3000}
+    max-output-tokens-web-search: ${OPENAI_MAX_OUTPUT_TOKENS_WEB_SEARCH:4000}
+  llm:
+    # Locally hosted fallback (Ollama / vLLM) used when OpenAI is unavailable. Off by default;
+    # base-url accepts "http://host:11434" or ".../v1". Web search has no local equivalent.
+    fallback:
+      enabled: ${BANKINTEL_LLM_FALLBACK_ENABLED:false}
+      base-url: ${BANKINTEL_LLM_FALLBACK_BASE_URL:}
+      api-key: ${BANKINTEL_LLM_FALLBACK_API_KEY:}
+      model-chat: ${BANKINTEL_LLM_FALLBACK_MODEL_CHAT:}
+      model-planner: ${BANKINTEL_LLM_FALLBACK_MODEL_PLANNER:}
+      model-reranker: ${BANKINTEL_LLM_FALLBACK_MODEL_RERANKER:}
+      connect-timeout-ms: ${BANKINTEL_LLM_FALLBACK_CONNECT_TIMEOUT_MS:2000}
+      request-timeout-ms: ${BANKINTEL_LLM_FALLBACK_REQUEST_TIMEOUT_MS:30000}
   cors:
     origins: ${CORS_ORIGINS:http://localhost:5173,http://localhost:5174,http://127.0.0.1:5173,http://127.0.0.1:5174,http://localhost:3000}
   cookie:

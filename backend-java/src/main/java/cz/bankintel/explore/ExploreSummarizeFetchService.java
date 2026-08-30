@@ -315,8 +315,8 @@ public class ExploreSummarizeFetchService {
      * (exploreSeriesCoverage.js, ExplorePage.jsx "Všechny řady ve zpracování" section) has always
      * expected {@code Array.isArray(series_coverage)} rows with title/series_id/status/reason,
      * but both summarize flows only ever sent a {loaded, failed, requested} COUNT object, so the
-     * array checks were always false and the section never rendered (see MANAGER_EXPLORER_AUDIT
-     * docs' P0 - the original crash there is separately already fixed by the ErrorBoundary +
+     * array checks were always false and the section never rendered (see the MANAGER_EXPLORER_AUDIT
+     * docs in docs/archive/, P0 - the original crash there is separately already fixed by the ErrorBoundary +
      * Array.isArray guards; this fixes the underlying always-empty DATA, not just the crash).
      */
     public static List<Map<String, Object>> buildSeriesCoverage(

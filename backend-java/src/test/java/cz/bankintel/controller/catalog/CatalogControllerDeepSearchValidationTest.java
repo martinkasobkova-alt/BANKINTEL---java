@@ -30,6 +30,7 @@ import cz.bankintel.search.v2.orchestration.SearchV2FeatureFlags;
 import cz.bankintel.search.v2.orchestration.SearchV2Service;
 import cz.bankintel.search.v2.sidecar.SearchCatalogSidecarIndex;
 import cz.bankintel.search.v2.vector.SearchVectorIndexBuilder;
+import cz.bankintel.security.AdminAccess;
 import cz.bankintel.security.AuthRateLimitFilter;
 import cz.bankintel.security.CsrfFilter;
 import cz.bankintel.security.CurrentUser;
@@ -99,6 +100,8 @@ class CatalogControllerDeepSearchValidationTest {
     private SearchVectorIndexBuilder searchVectorIndexBuilder;
     @MockitoBean
     private CurrentUser currentUser;
+    @MockitoBean
+    private AdminAccess adminAccess;
 
     @MockitoBean
     private JwtService jwtService;

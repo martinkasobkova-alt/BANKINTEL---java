@@ -23,6 +23,7 @@ import cz.bankintel.search.v2.orchestration.SearchV2FeatureFlags;
 import cz.bankintel.search.v2.orchestration.SearchV2Service;
 import cz.bankintel.search.v2.sidecar.SearchCatalogSidecarIndex;
 import cz.bankintel.search.v2.vector.SearchVectorIndexBuilder;
+import cz.bankintel.security.AdminAccess;
 import cz.bankintel.security.CurrentUser;
 import java.util.Arrays;
 import java.util.List;
@@ -75,6 +76,7 @@ public class CatalogController {
     private final SearchCatalogSidecarIndex searchCatalogSidecarIndex;
     private final SearchVectorIndexBuilder searchVectorIndexBuilder;
     private final CurrentUser currentUser;
+    private final AdminAccess adminAccess;
 
     @GetMapping("/suggest")
     public Map<String, Object> suggest(
@@ -171,8 +173,14 @@ public class CatalogController {
         return searchV2Evaluator.evaluate(body != null ? body : Map.of());
     }
 
+    /**
+     * Admin-only: a full sidecar rebuild walks the whole catalog and is one of the most expensive
+     * operations the backend can run. Neither this controller nor {@code SearchCatalogSidecarIndex}
+     * checked anything, and no UI calls it — so it was reachable by anyone able to reach the server.
+     */
     @PostMapping("/search-v2/sidecar/rebuild")
     public Map<String, Object> searchV2SidecarRebuild(@RequestBody(required = false) Map<String, Object> body) {
+        adminAccess.requireAdmin();
         Map<String, Object> payload = body != null ? body : Map.of();
         return searchCatalogSidecarIndex.rebuild(readSources(payload.get("sources")));
     }
@@ -182,8 +190,10 @@ public class CatalogController {
         return searchCatalogSidecarIndex.coverage();
     }
 
+    /** Admin-only for the same reason as the rebuild above. */
     @PostMapping("/search-v2/sidecar/optimize")
     public Map<String, Object> searchV2SidecarOptimize() {
+        adminAccess.requireAdmin();
         return searchCatalogSidecarIndex.optimize();
     }
 
@@ -192,8 +202,10 @@ public class CatalogController {
         return searchVectorIndexBuilder.status();
     }
 
+    /** Admin-only: re-embeds the whole catalog, the most expensive job in the search stack. */
     @PostMapping("/search-v2/vector/rebuild")
     public Map<String, Object> searchV2VectorRebuild() {
+        adminAccess.requireAdmin();
         return searchVectorIndexBuilder.rebuild();
     }
 

@@ -2,8 +2,8 @@
 
 Jak je řešený fulltextový katalogový index a jeho „sidecar". Tenhle dokument je psaný tak, aby
 technik uměl najít, kde v indexu/rankingu vzniká chyba. Navazuje na [SEARCH_MAP.md](SEARCH_MAP.md).
-Doplňkové (historické) audity: `docs/search_v2_fts_index_audit.md`,
-`docs/search_v2_sidecar_enrichment_changes.md`, `backend-java/docs/DEPLOY_DATA.md`.
+Doplňkové (historické) audity: `docs/archive/search_v2_fts_index_audit.md`,
+`docs/archive/search_v2_sidecar_enrichment_changes.md`, `backend-java/docs/DEPLOY_DATA.md`.
 
 ## 0. Důležité: index NENÍ v repozitáři
 

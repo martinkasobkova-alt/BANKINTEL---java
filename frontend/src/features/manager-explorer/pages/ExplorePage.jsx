@@ -454,7 +454,7 @@ function ExploreSectorScanLoader({ sourceStatuses, active, compact = false }) {
       : runningRows.length > 0
         ? "Prohledávám katalogy…"
         : "Zpracovávám výsledky…";
-  // Deliberately no fake ETA in seconds (see MANAGER_EXPLORER_AUDIT_V2.md section 4.1) - just
+  // Deliberately no fake ETA in seconds (see docs/archive/MANAGER_EXPLORER_AUDIT_V2.md section 4.1) - just
   // real elapsed time and real progress out of the real number of sources being searched.
   const countdownLabel = progressKnown
     ? `${finishedCount} z ${totalCount} zdrojů · ${elapsedSec} s`

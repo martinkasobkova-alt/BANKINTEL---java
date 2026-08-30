@@ -2,18 +2,33 @@
 
 Rychlá orientace v repozitáři. Originál (read-only): `Bankoapp-main/Bankoapp-main/`.
 
-## Je appka na 100 %?
+## Stav portu z původní Python aplikace
 
-**Ne.** Odhad funkční parity s originálem: **~70 % backend**, **~95 % UI (routy + vzhled)**.
+> **Ověřeno proti kódu 2026-08-21.** Dřívější verze této tabulky pocházela z auditu ze začátku
+> července a mezitím zestárla — moduly v ní vedené jako chybějící už existují. Když se údaj níže
+> rozchází s kódem, platí kód; ohlaste to a tabulka se opraví.
 
-| ✅ Hotovo | ⚠️ Částečně | ❌ Chybí |
-|-----------|-------------|----------|
-| UI port všech modulů | Explore backend | PDF archiv (`/api/magazines`) |
-| Auth, admin CRUD | Homepage datové widgety | Chat |
-| AI classic + deep search | Formula/computed engine | Trading Economics, commodities |
-| Live preview 9 zdrojů | Export PDF/Excel | Deep-search SSE follow-up |
-| 8+ katalog browserů + ECB | Dashboard share | Mobil Expo |
-| Sync arad/fred/eurostat/csu | | Background scheduler |
+| Modul | Stav | Kde v kódu |
+|-------|------|-----------|
+| UI port všech modulů | ✅ | `frontend/src/features/` |
+| Auth, admin CRUD | ✅ | `controller/admin/`, `security/` |
+| AI classic + deep search | ✅ | `search/CatalogDeepSearchService` |
+| Live preview konektorů | ✅ 12 typů | `connector/ConnectorFactory` |
+| Katalogové browsery | ✅ 8+ a ECB | `controller/sources/` |
+| Sync ARAD/FRED/Eurostat/ČSÚ | ✅ | `service/sync/` |
+| PDF archiv (`/api/magazines`) | ✅ 18 endpointů | `controller/magazine/MagazinesController` |
+| Chat | ✅ 13 endpointů | `controller/chat/ChatController` |
+| TradingEconomics, komodity | ✅ | `TradingEconomicsConnector`, `WorldbankPinkSheetConnector` |
+| Deep-search SSE | ✅ | `search/CatalogSearchStreamService` |
+| Background scheduler | ✅ 6 jobů | `config/BankIntelScheduler` |
+| Homepage datové widgety | ✅ 8 resolverů | `service/homepage/resolver/` |
+| Export PDF/Excel | ✅ | `service/export/` |
+| Dashboard share | ✅ | `controller/dashboard/DashboardShareController` |
+| Formula/computed engine | ✅ | `service/calculations/` |
+| Explore backend | ✅ | `explore/`, `controller/explore/` |
+| Mobilní aplikace (Expo) | ❌ neportováno | — |
+
+Jediné, co z původní aplikace vědomě nemá protějšek, je mobilní Expo klient.
 
 ---
 
@@ -28,7 +43,7 @@ Rychlá orientace v repozitáři. Originál (read-only): `Bankoapp-main/Bankoapp
 | `features/catalog-browsers/` | Stromy FRED, Eurostat, ARAD, … |
 | `features/arad-chart/` | ARAD widget (`AradView`) |
 | `features/manager-explorer/` | Explore (`/explore`) |
-| `features/archive-reader/` | PDF archiv — UI OK, backend stub |
+| `features/archive-reader/` | PDF archiv (`controller/magazine/`) |
 | `features/dashboard/` | Homepage, my-dashboard, widgety |
 | `features/admin/` | Sources, users, formulas |
 | `src/lib/previewNormalizer.js` | Normalizace `/api/catalog/preview` pro graf |
@@ -41,7 +56,6 @@ Detail: `frontend/docs/FEATURE_MODULES.md`
 |---------|--------|-------------|
 | `controller/` | REST API | `ControllerPackage.java` |
 | `controller/sources/` | Katalogové browsery | `*CatalogController.java` |
-| `controller/stub/` | Neportované moduly | `StubPackage.java` |
 | `connector/` | Live data z API | `ConnectorPackage.java` |
 | `search/` | Vyhledávání + preview | `SearchPackage.java` |
 | `sources/*/` | Logika katalogů | `SourcesPackage.java` |

@@ -18,7 +18,7 @@ import org.junit.jupiter.api.Test;
  * Regression test for the ETAPA 2 fix: {@code /explore/sector/stream} used to run discovery
  * TWICE per request - once via {@code discoverWithLanes} (for SSE progress, its result discarded)
  * and once more via {@code analyzeSector -> discover} for the real answer - live-measured at
- * ~157s combined for a single user query (see MANAGER_EXPLORER_AUDIT_V2.md section 1.1). This
+ * ~157s combined for a single user query (see docs/archive/MANAGER_EXPLORER_AUDIT_V2.md section 1.1). This
  * test drives a real {@link ExploreStreamService} against mocked collaborators and asserts
  * discovery runs exactly once.
  */

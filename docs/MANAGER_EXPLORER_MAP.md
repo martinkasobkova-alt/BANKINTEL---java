@@ -84,9 +84,9 @@ Cache plní/refreshuje `explore/manager/refresh/*` (scheduler + admin `/api/admi
 - Gold set benchmarku: `evaluation/manager-explorer-cold-path-gold.json`; registry
   `backend-java/src/main/resources/search_v2/*.json`.
 
-## 6. Pozor — audit v rootu je zastaralý
+## 6. Pozor — archivovaný audit je zastaralý
 
-`MANAGER_EXPLORER_AUDIT_V2.md` (root, 2026-08-03) popisuje blokery, které aktuální kód už **řeší**
+`docs/archive/MANAGER_EXPLORER_AUDIT_V2.md` (2026-08-03) popisuje blokery, které aktuální kód už **řeší**
 (v komentářích značené „ETAPA 7/8"): pole `series_coverage` je nyní pole (ne objekt),
 `ExploreErrorBoundary` existuje, `series_used`/coverage se plní, `use_ai_story:false`, fetch 14 řad je
 paralelní. Zbylá tvrzení auditu (nedeterminismus plánovače, kosmetický progress bar, debug telemetrie

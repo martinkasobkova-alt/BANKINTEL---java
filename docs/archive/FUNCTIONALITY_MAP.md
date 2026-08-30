@@ -57,7 +57,7 @@ Detail: `backend-java/docs/FEATURE_MODULES.md`
 
 ## 3. Automatické testy API (2026-07-04, backend :8081)
 
-Soubor: `docs/parity-test-results.json`
+Soubor: `docs/archive/parity-test-results.json`
 
 | Endpoint | Metoda | Auth | Výsledek | Poznámka |
 |----------|--------|------|----------|----------|

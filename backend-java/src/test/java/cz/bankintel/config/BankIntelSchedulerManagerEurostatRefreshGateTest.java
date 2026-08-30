@@ -4,6 +4,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
+import cz.bankintel.connector.health.ConnectorHealthService;
 import cz.bankintel.explore.manager.fetch.ManagerMirrorCacheRefreshService;
 import cz.bankintel.explore.manager.refresh.ManagerEurostatCacheRefreshService;
 import cz.bankintel.repository.RssFeedRepository;
@@ -36,7 +37,8 @@ class BankIntelSchedulerManagerEurostatRefreshGateTest {
                 mock(RssFeedSyncService.class),
                 mock(RssFeedRepository.class),
                 mock(BankIntelMaintenanceService.class),
-                refreshService);
+                refreshService,
+                mock(ConnectorHealthService.class));
     }
 
     @Test

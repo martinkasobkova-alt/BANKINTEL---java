@@ -22,7 +22,7 @@ import org.springframework.stereotype.Service;
  * sector, concept registry, exact entity resolver, geo detection) - never from the LLM planner's
  * own free-form search-term variants, which can differ between two calls for the identical query.
  *
- * <p>Confirmed live (MANAGER_EXPLORER_AUDIT.md, section P2): 6 back-to-back identical requests for
+ * <p>Confirmed live (docs/archive/MANAGER_EXPLORER_AUDIT.md, section P2): 6 back-to-back identical requests for
  * the same query returned {@code verified} counts of 6, 5, 4, 3, 3, 5 - the LLM planner's variant
  * search terms (and therefore the FTS candidate pool and preview verification outcome) are not
  * guaranteed identical run to run, even though the deterministic signals ARE. Caching on the

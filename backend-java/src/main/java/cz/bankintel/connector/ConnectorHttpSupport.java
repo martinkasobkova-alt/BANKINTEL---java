@@ -65,7 +65,7 @@ public class ConnectorHttpSupport {
      * future (e.g. {@code future.cancel(true)}) aborts the exchange — unlike the synchronous
      * {@link #get} path, where a timeout imposed by a caller cannot stop the blocking
      * {@code httpClient.send(...)} call underneath it (see
-     * {@code docs/search-v2-preview-cancellation-investigation.md} section 7).
+     * {@code docs/archive/search-v2-preview-cancellation-investigation.md} section 7).
      */
     public CompletableFuture<HttpResponse<String>> getAsync(
             String url, Map<String, String> headers, Map<String, Object> queryParams, Duration timeout) {

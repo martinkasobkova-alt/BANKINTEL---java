@@ -142,7 +142,7 @@ public class ExploreController {
     /**
      * ETAPA 7 decision (keep as public contract, mark clearly as unsupported - option C, NOT
      * deleted): repo-wide search of the BankIntel-v2 frontend found zero callers of this route,
-     * and both MANAGER_EXPLORER_AUDIT.md and MANAGER_EXPLORER_AUDIT_V2.md independently reached
+     * and both docs/archive/MANAGER_EXPLORER_AUDIT.md and docs/archive/MANAGER_EXPLORER_AUDIT_V2.md independently reached
      * the same conclusion. {@link ManagerAnalysisPlanService} itself is real, non-trivial logic
      * (not a stub), and the workspace also contains a same-named route in a separate, unrelated
      * Python experiment repo (Bankoapp-ai-latency-experiment) that this endpoint may have been

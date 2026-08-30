@@ -2,7 +2,7 @@
  * Real per-source discovery progress, built from SSE source_started/source_finished/
  * source_timeout/source_skipped/source_error events - replaces the old fake animation driven by
  * hardcoded source/category name lists with no connection to what the backend is actually doing
- * (see MANAGER_EXPLORER_AUDIT_V2.md section 4.1).
+ * (see docs/archive/MANAGER_EXPLORER_AUDIT_V2.md section 4.1).
  */
 
 /**

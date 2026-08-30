@@ -174,7 +174,7 @@ public class SearchV2PreviewVerifier {
      * identical to before this PR (same {@code supplyAsync(...).completeOnTimeout(...)} composition,
      * with its documented limitations). When on, dispatch goes through
      * {@link #dispatchCancellableAsync}, which never uses that composition at all — see
-     * {@code docs/search-v2-preview-cancellation-investigation.md}. The two mechanisms never run for
+     * {@code docs/archive/search-v2-preview-cancellation-investigation.md}. The two mechanisms never run for
      * the same request: this is a single top-level branch, not a race between two implementations.
      *
      * <p>PR-10: {@link SearchV2PreviewCircuitBreaker#allowRequest} gates admission here, above both
@@ -412,7 +412,7 @@ public class SearchV2PreviewVerifier {
 
     /**
      * Fallback path for connectors NOT converted to {@link cz.bankintel.connector.AsyncCancellableFetch}
-     * (see {@code docs/search-v2-preview-cancellation-investigation.md} section 9 for which and why).
+     * (see {@code docs/archive/search-v2-preview-cancellation-investigation.md} section 9 for which and why).
      * Runs the existing blocking {@link #doVerify} call, but as a raw {@link Runnable} submitted
      * directly to {@code executor} — NOT via {@code CompletableFuture.supplyAsync(...)} — specifically
      * so that {@code Thread.interrupt()} (this class's {@code Cancellable} for this path) actually
