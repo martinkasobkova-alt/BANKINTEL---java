@@ -282,8 +282,19 @@ public class BisCatalogService {
         return "BIS|" + validateFlowOrThrow(flow) + "|" + validateKeyOrThrow(key);
     }
 
+    /** Sufix, kterým katalog značí řádek celého dataflow (ne konkrétní časové řady). */
+    private static final String DATAFLOW_SET_ID_SUFFIX = "||DATAFLOW";
+
     public static ParsedSetId parseSetId(String rawSetId) {
         String setId = stringOrBlank(rawSetId);
+        // Katalog BIS vrací i řádky úrovně dataflow (kind=dataflow, set_id "<FLOW>||DATAFLOW").
+        // Náhled u nich nedává smysl - není to časová řada. Dosud spadly na "Neplatný BIS set_id",
+        // což vypadá jako chyba aplikace; uživatel potřebuje vědět, že si má vybrat konkrétní řadu.
+        if (setId.endsWith(DATAFLOW_SET_ID_SUFFIX)) {
+            throw new IllegalArgumentException(
+                    "Tohle je celá skupina dat BIS, ne konkrétní časová řada. Otevřete ji v katalogu "
+                            + "a vyberte konkrétní řadu.");
+        }
         if (setId.startsWith("BIS|")) {
             String rest = setId.substring(4);
             int pivot = rest.lastIndexOf('|');

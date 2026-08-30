@@ -683,6 +683,18 @@ public class InMemorySourceBuilder {
         return out;
     }
 
+    /**
+     * Strop stránek pro náhled Data360; plná synchronizace si bere celý indikátor.
+     *
+     * <p>Jedna stránka je 1 000 řádků — na graf i tabulku náhledu bohatě stačí. Data360 API
+     * odpovídá pomalu (naměřeno 19-25 s na tři stránky, u IMF_BOP 113 s), takže každá stránka
+     * navíc je přímo vidět jako čekání v UI.
+     */
+    private static final int DATA360_PREVIEW_MAX_PAGES = 1;
+
+    /** Strop čekání na jednu stránku Data360 v náhledu - viz Data360Connector#pageTimeout. */
+    private static final int DATA360_PREVIEW_TIMEOUT_SEC = 25;
+
     private Map<String, Object> buildData360(Map<String, Object> common, String setId, Map<String, Object> params) {
         Map<String, Object> qp = mergeData360QueryParams(setId, params);
         if (stringField(qp, "DATABASE_ID").isBlank()) {
@@ -700,6 +712,10 @@ public class InMemorySourceBuilder {
         out.put("set_id", setId);
         out.put("data360_database_id", qp.get("DATABASE_ID"));
         out.put("data360_indicator", qp.get("INDICATOR"));
+        // Náhled nemá stahovat celý globální indikátor přes všechny země a roky - viz
+        // Data360Connector#maxPages. Bez stropu trval náhled desítky sekund až přes dvě minuty.
+        out.put("data360_max_pages", String.valueOf(DATA360_PREVIEW_MAX_PAGES));
+        out.put("data360_timeout_sec", String.valueOf(DATA360_PREVIEW_TIMEOUT_SEC));
         return out;
     }
 

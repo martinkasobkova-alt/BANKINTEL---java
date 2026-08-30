@@ -1,6 +1,7 @@
 package cz.bankintel.connector;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import cz.bankintel.sources.ecb.EcbCuratedCatalog;
 import cz.bankintel.sources.eurostat.EurostatDimensionService;
@@ -30,6 +31,25 @@ class InMemorySourceBuilderData360Test {
     @BeforeEach
     void setUp() {
         builder = new InMemorySourceBuilder(ecbCuratedCatalog, eurostatDimensionService, oecd4BrowseService);
+    }
+
+    /**
+     * Plošný test náhledů přes všechny katalogy (20 vzorků na zdroj): data360 bylo jediné, kde
+     * náhled běžně trval desítky sekund a 3 z 10 vzorků nedoběhly ani do 120 s. Konektor stahoval
+     * až 50 stránek po 1 000 řádcích, každou s 60s limitem - tedy celý globální indikátor přes
+     * všechny země a roky, přestože na graf náhledu stačí jedna stránka.
+     */
+    @Test
+    void data360PreviewBoundsPagesAndPerPageWait() {
+        Map<String, Object> source = builder.build(
+                "world_bank_data360", Map.of("set_id", "IMF_BOP|IMF_BOP_BEFDDAAPI_BP6_USD"));
+
+        int maxPages = Integer.parseInt(String.valueOf(source.get("data360_max_pages")));
+        int timeoutSec = Integer.parseInt(String.valueOf(source.get("data360_timeout_sec")));
+        assertTrue(maxPages >= 1 && maxPages <= 3,
+                "náhled nemá stahovat celý indikátor, bylo " + maxPages + " stránek");
+        assertTrue(timeoutSec > 0 && timeoutSec <= 30,
+                "náhled nemá čekat na jednu stránku minutu, bylo " + timeoutSec + " s");
     }
 
     @Test
