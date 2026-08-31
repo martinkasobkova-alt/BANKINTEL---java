@@ -25,6 +25,13 @@ public class EcbApiClient {
     private static final Pattern YEAR_MONTH = Pattern.compile("(\\d{4})-(\\d{2})");
     private static final Pattern YEAR_ONLY = Pattern.compile("\\d{4}");
 
+    /**
+     * Kolik pozorování si vyžádat, když dotaz neurčuje časové rozpětí. Dřív 120, což u denní
+     * řady znamená poslední čtyři měsíce. Naměřeno na EXR/D.USD.EUR.SP00.A od 1999:
+     * 120 -> 120 řádků / 0,40 s, 20 000 -> 7 144 řádků / 0,92 s.
+     */
+    private static final String FULL_HISTORY_OBSERVATIONS = "20000";
+
     private final ObjectMapper objectMapper;
     private final HttpClient httpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(12)).build();
 
@@ -73,7 +80,7 @@ public class EcbApiClient {
             params.put("endPeriod", end.trim());
         }
         if ((start == null || start.isBlank()) && (end == null || end.isBlank())) {
-            params.put("lastNObservations", "120");
+            params.put("lastNObservations", FULL_HISTORY_OBSERVATIONS);
         }
         String url = buildUrl(flow, key, params);
         HttpRequest request = HttpRequest.newBuilder()
@@ -103,7 +110,7 @@ public class EcbApiClient {
                 && !params.containsKey("endPeriod")
                 && !params.containsKey("lastNObservations")
                 && !params.containsKey("firstNObservations")) {
-            params.put("lastNObservations", "120");
+            params.put("lastNObservations", FULL_HISTORY_OBSERVATIONS);
         }
         String url = buildUrl(flow, key, params);
         HttpRequest request = HttpRequest.newBuilder()

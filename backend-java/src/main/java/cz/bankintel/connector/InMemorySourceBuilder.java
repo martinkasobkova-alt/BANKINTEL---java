@@ -505,7 +505,7 @@ public class InMemorySourceBuilder {
 
         Map<String, Object> qp = new LinkedHashMap<>();
         qp.put("format", "csvfilewithlabels");
-        qp.put("startTime", "2010");
+        // Náhled OECD si dřív bral jen roky od 2010 - stejné oříznutí jako u uložených zdrojů.
         qp.put("dimensionAtObservation", "AllDimensions");
         // Stejna oprava jako u SDMX2 vetve vyse - 120 tise oriznulo "cele obdobi" na poslednich 120
         // pozorovani.

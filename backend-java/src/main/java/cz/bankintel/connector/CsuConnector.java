@@ -180,7 +180,17 @@ public class CsuConnector implements BaseConnector {
         selectionSource.put("endpoint", SELECTION_ENDPOINT_PREFIX + selectionCode);
         selectionSource.put("method", "GET");
         selectionSource.put("query_params", Map.of("format", "CSV"));
-        return fetchSelection(selectionSource);
+        ConnectorFetchResult result = fetchSelection(selectionSource);
+        if (result.isSuccess()) {
+            // Výběr u ČSÚ nese typicky jen poslední dostupné období - historii má celý dataset,
+            // který se právě nepodařilo načíst. Uživatel jinak vidí graf o jednom bodu a nemá
+            // jak poznat, jestli ta řada historii nemá, nebo jsme ji ztratili my.
+            source.put(
+                    "_preview_note_cs",
+                    "Celý dataset ČSÚ se teď nepodařilo načíst, zobrazeno jen poslední dostupné "
+                            + "období z výběru — vývoj v čase proto není k dispozici.");
+        }
+        return result;
     }
 
     private CsuDatasetMeta fetchDatasetMeta(String datasetCode) {

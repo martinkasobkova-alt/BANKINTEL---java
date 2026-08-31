@@ -40,6 +40,13 @@ public class EurostatConnector implements BaseConnector, AsyncCancellableFetch {
                 Map<String, Object> retryParams = withoutGeo(queryParams);
                 HttpResponse<String> retry = http.get(url, headers, retryParams, Duration.ofSeconds(120));
                 if (retry.statusCode() == 200) {
+                    // Dotaz prošel až bez geo filtru, takže výsledek je za všechna území datasetu,
+                    // ne za ČR. Doplnili jsme ho my (uživatel zemi nezadal), ale tiše mu podstrčit
+                    // celoevropská data místo českých by bylo zavádějící.
+                    source.put(
+                            "_preview_note_cs",
+                            "Tenhle dataset nepoužívá země jako území (jde o regiony nebo města), "
+                                    + "náhled proto ukazuje všechna území — ne jen ČR.");
                     Map<String, Object> json = http.parseJson(retry.body());
                     return ConnectorFetchResult.ok(json, source);
                 }

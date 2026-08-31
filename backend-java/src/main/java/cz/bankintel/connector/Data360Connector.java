@@ -51,8 +51,23 @@ public class Data360Connector implements BaseConnector {
         mergeHeaders(headers, source.get("headers"));
 
         try {
-            Map<String, Object> merged =
-                    fetchAllPages(url, headers, params, maxPages(source), pageTimeout(source));
+            int maxPages = maxPages(source);
+            Map<String, Object> merged = fetchAllPages(url, headers, params, maxPages, pageTimeout(source));
+            if (Boolean.TRUE.equals(merged.get("data360_relaxed_params_used"))) {
+                // Prázdná odpověď na původní filtry -> fetchAllPages je uvolní a zkusí to znovu.
+                // Uživatel pak vidí širší data, než o která si řekl, a nemá jak to poznat.
+                source.put(
+                        "_preview_note_cs",
+                        "Na zadané filtry Data360 nic nevrátilo, náhled proto ukazuje data "
+                                + "s uvolněnými filtry — nemusí odpovídat přesně tomu, co jste vybrali.");
+            } else if (Boolean.TRUE.equals(merged.get("data360_more_pages_available"))) {
+                // Náhled bere jen prvních pár stránek (viz maxPages) - ať je vidět, že to není
+                // celý indikátor, jinak uživatel čte zkrácenou řadu jako úplnou.
+                source.put(
+                        "_preview_note_cs",
+                        "Náhled Data360 je zkrácený na prvních " + (maxPages * PAGE_SIZE)
+                                + " řádků; celý indikátor se stáhne až při přidání zdroje.");
+            }
             return ConnectorFetchResult.ok(merged, source);
         } catch (Data360HttpStatusException ex) {
             Data360ErrorClassifier.Classification classification =
@@ -210,6 +225,9 @@ public class Data360Connector implements BaseConnector {
                 break;
             }
             skip += PAGE_SIZE;
+            if (page == maxPages - 1) {
+                meta.put("data360_more_pages_available", true);
+            }
         }
 
         Map<String, Object> out = new LinkedHashMap<>(meta);

@@ -175,8 +175,10 @@ public class OecdConnector implements BaseConnector, AsyncCancellableFetch {
         } else {
             out.putIfAbsent("format", "csvfilewithlabels");
             out.putIfAbsent("dimensionAtObservation", "AllDimensions");
-            out.putIfAbsent("startTime", "2010");
-            out.putIfAbsent("lastNObservations", 800);
+            // Celou historii chce uživatel vidět i u uložených zdrojů, nejen v náhledu.
+            // Dřív startTime=2010 + lastNObservations=800 řadu ořízlo na roky od 2010
+            // a nejvýš 800 bodů. 20 000 používá i náhled, EcbConnector a BisCatalogService.
+            out.putIfAbsent("lastNObservations", 20_000);
         }
         return out;
     }
