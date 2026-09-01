@@ -56,7 +56,23 @@ services:
     disk:
       name: bankintel-fts-index
       mountPath: /data
-      sizeGB: 20
+      # Naměřeno na produkčním datasetu (2026-09-01, `du` nad `data/`):
+      #   classic_catalog_search.sqlite   8,9 GB
+      #   search_v2_sidecar.sqlite       12,4 GB
+      #   per-source JSONL + metadata     ~3,2 GB
+      #   ---------------------------------------
+      #   nutné minimum                  24,5 GB   (bez vector-* částí, ty se
+      #                                              nepoužívají — SEARCH_SEMANTIC_RETRIEVAL_ENABLED=false)
+      #
+      # Noční přestavba (02:30 UTC, `scripts/build_classic_catalog_fts_index.py`) staví index
+      # do `classic_catalog_search.tmp.sqlite` VEDLE stávajícího a teprve pak ho přejmenuje.
+      # Po dobu přestavby tedy na disku leží obě kopie:
+      #   24,5 GB + 8,9 GB = 33,4 GB špička
+      #
+      # Dřív tu bylo 20 GB, což nestačilo ani na klidový stav — instance padala právě v noci
+      # při té přestavbě. 60 GB drží špičku i s rezervou na růst indexu.
+      # Pozor: Render umí disk jen zvětšit, ne zmenšit.
+      sizeGB: 60
 
 databases:
   - name: bankintel-db

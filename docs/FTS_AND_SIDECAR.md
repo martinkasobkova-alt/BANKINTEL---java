@@ -7,9 +7,9 @@ Doplňkové (historické) audity: `docs/archive/search_v2_fts_index_audit.md`,
 
 ## 0. Důležité: index NENÍ v repozitáři
 
-Katalogový index je **řádově gigabajty** (classic ~9,5 GB) a je záměrně mimo git (`data/` v
-`.gitignore`). Bez indexu aplikace naběhne, ale katalogové vyhledávání jede v omezeném/JSONL režimu.
-Jak ho získat:
+Katalogový index je **řádově gigabajty** (classic ~9 GB, celé `data/` 24,5 GB) a je záměrně mimo
+git (`data/` v `.gitignore`). Bez indexu aplikace naběhne, ale katalogové vyhledávání jede
+v omezeném/JSONL režimu. Kolik místa je potřeba na serveru → **§7**. Jak index získat:
 
 1. **Snapshot při prvním startu** — `search/FtsIndexBootstrapRunner.java` (`@Order(40)`): když
    `ftsDbPath()` chybí a je nastaveno `FTS_INDEX_SNAPSHOT_URL` (`.gz`/`.zip`), stáhne a nainstaluje
@@ -86,4 +86,47 @@ metadata doplní z metadatového sidecaru. „Chybí jednotka/území u výsledk
 5. **Stará data po reindexu** → `contentRevision` / `catalogVersion` v klíči cache.
 6. **Velké zdroje (ecb2/fred) pomalé/ořezané** → `resolveFtsQueryPlan` prahy v `CatalogIndexStore`.
 7. **Chybí geo/unit/freq** → metadatový sidecar rescue (§4).
+8. **Instance padá v noci, ne přes den** → došlo místo na disku při noční přestavbě indexu (§7).
 </content>
+
+## 7. Kolik to zabere místa na serveru
+
+Naměřeno `du` nad `data/` 2026-09-01:
+
+| Položka | Velikost | Potřeba |
+|--|--|--|
+| `search_v2_sidecar/search_v2_sidecar.sqlite` | 12,4 GB | ano (engine V2) |
+| `catalog_search_indexes/classic_catalog_search.sqlite` | 8,9 GB | ano (engine V1) |
+| per-source `*.jsonl` (`ecb2` 1,7 GB, `fred` 1,2 GB, …) + `catalog_search_metadata` | ~3,2 GB | ano (zdroj pro rebuild + metadata rescue §4) |
+| `search_v2_sidecar/vector-embedding-cache.sqlite` + `vector-lucene` | 4,8 GB | **ne**, dokud je `SEARCH_SEMANTIC_RETRIEVAL_ENABLED=false` |
+| **klidový stav bez vector částí** | **24,5 GB** | |
+
+### Špička při noční přestavbě
+
+`scripts/build_classic_catalog_fts_index.py` (spouští ho `BankIntelMaintenanceService`
+v 02:30 UTC, jen když je `BANKINTEL_MAINTENANCE_ENABLED`) **nestaví index na místě**:
+
+```python
+tmp = path.with_suffix(".tmp.sqlite")   # classic_catalog_search.tmp.sqlite
+conn = sqlite3.connect(str(tmp))
+```
+
+Nový index vzniká vedle starého a teprve hotový ho nahradí. Po dobu přestavby leží na disku
+obě kopie:
+
+```
+24,5 GB (klid) + 8,9 GB (tmp kopie classic indexu) = 33,4 GB špička
+```
+
+To je důvod, proč se instanci vyčerpá disk **v noci a ne přes den**, a proč `render.yaml` měl
+původně `sizeGB: 20` špatně — nestačilo to ani na klidový stav, natož na špičku. Teď je tam 60 GB.
+
+Kdo mění velikost disku, počítá **špičku, ne klid**. A pokud přibude další zdroj do
+`FTS_PILOT_SOURCES`, roste obojí — klidový stav i tmp kopie.
+
+### RAM
+
+Rychlost vyhledávání stojí a padá na tom, kolik indexu se vejde do page cache. Naměřený rozdíl
+mezi studeným a teplým dotazem je řádový (jednotky sekund vs stovky ms), protože jinak se
+čte z disku. Pro plnou rychlost chce stroj RAM ≥ velikost aktivní části indexu.
+
