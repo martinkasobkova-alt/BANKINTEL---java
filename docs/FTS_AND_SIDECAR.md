@@ -14,16 +14,18 @@ v omezeném/JSONL režimu. Kolik místa je potřeba na serveru → **§7**. Jak 
 1. **Snapshot při prvním startu** — `search/FtsIndexBootstrapRunner.java` (`@Order(40)`): když
    `ftsDbPath()` chybí a je nastaveno `FTS_INDEX_SNAPSHOT_URL` (`.gz`/`.zip`), stáhne a nainstaluje
    `classic_catalog_search.sqlite`. Bez URL jen zaloguje varování a nechá search na JSONL fallbacku.
-2. **Vlastní build** — classic index **nestaví Java**; staví ho Python skript
-   `scripts/build_classic_catalog_fts_index.py` (v referenčním repu, viz `backend-java/docs/DEPLOY_DATA.md`).
-   Sidecar naopak **staví Java** (viz §3).
+2. **Vlastní build** — oba indexy staví **Java**: classic
+   `search/ClassicCatalogFtsIndexBuilder.java` (port `scripts/build_classic_catalog_fts_index.py`),
+   sidecar `SearchCatalogSidecarBuilder` (viz §3). Na produkčním hostu proto kvůli indexu
+   nemusí být Python. **Než rebuild pustíte, přečtěte si §8** — rebuild z JSONL vrací
+   prořezané řady.
 
 ## 1. Dva indexy vedle sebe
 
 | | Classic (engine V1) | Sidecar (engine V2) |
 |--|--------------------|---------------------|
 | Soubor | `classic_catalog_search.sqlite` | `search_v2_sidecar.sqlite` |
-| Staví | Python skript (mimo Javu) | **Java** (`SearchCatalogSidecarBuilder`) |
+| Staví | **Java** (`ClassicCatalogFtsIndexBuilder`) | **Java** (`SearchCatalogSidecarBuilder`) |
 | FTS tabulka | `catalog_fts` (+ `catalog_rows_lookup`) | `sidecar_fts` (kanonické sloupce) |
 | Ranking | `bm25(catalog_fts)` — **bez vah** | `bm25(sidecar_fts, …)` — **explicitní váhy** |
 | Otevírá | `CatalogSqliteReadPool` (read-only) | `SearchCatalogSidecarIndex` (WAL, `busy_timeout`) |
@@ -109,15 +111,10 @@ Naměřeno `du` nad `data/` 2026-09-01:
 
 ### Špička při noční přestavbě
 
-`scripts/build_classic_catalog_fts_index.py` (spouští ho `BankIntelMaintenanceService`
-v 02:30 UTC, jen když je `BANKINTEL_MAINTENANCE_ENABLED`) **nestaví index na místě**:
-
-```python
-tmp = path.with_suffix(".tmp.sqlite")   # classic_catalog_search.tmp.sqlite
-conn = sqlite3.connect(str(tmp))
-```
-
-Nový index vzniká vedle starého a teprve hotový ho nahradí. Po dobu přestavby leží na disku
+`ClassicCatalogFtsIndexBuilder` (spouští ho `BankIntelMaintenanceService` v 02:30 UTC, jen když
+je `BANKINTEL_MAINTENANCE_ENABLED`) **nestaví index na místě** — stejně jako Python předloha:
+nový index vzniká v `classic_catalog_search.tmp.sqlite` vedle starého a teprve hotový ho nahradí.
+Kdyby se psalo do ostrého souboru a build spadl, zůstane rozbitý index a hledání je mrtvé. Po dobu přestavby leží na disku
 obě kopie:
 
 ```
@@ -135,4 +132,48 @@ Kdo mění velikost disku, počítá **špičku, ne klid**. A pokud přibude dal
 Rychlost vyhledávání stojí a padá na tom, kolik indexu se vejde do page cache. Naměřený rozdíl
 mezi studeným a teplým dotazem je řádový (jednotky sekund vs stovky ms), protože jinak se
 čte z disku. Pro plnou rychlost chce stroj RAM ≥ velikost aktivní části indexu.
+
+## 8. Rebuild vrací prořezané řady (číst před zapnutím noční údržby)
+
+Ostrý index **není** jen výstup buildu. Po něm ještě jedou nástroje, které řežou a obohacují
+řádky **přímo v indexu**, ne v JSONL:
+
+- `prune_fred_local_series.py`, `prune_ecb_stale_series.py`, `prune_data360_stale_series.py`,
+  `prune_stale_catalog_fts.py` — vyhazují mrtvé a lokální řady
+- `enrich_fts_dimensions_inplace.py` — dopočítá členy dimenzí a označí řádek `__dimx__`
+
+Build čte JSONL, takže **všechno prořezané vrátí zpátky**. Naměřeno 2026-09-01:
+
+| zdroj | řádků v JSONL | v indexu | prořezáno |
+|--|--|--|--|
+| fred | 844 759 | 261 602 | −583 157 (69 %) |
+| ecb2 | 544 001 | 424 536 | −119 465 |
+| imf | 27 647 | 19 464 | −8 183 |
+| eurostat | 8 446 | 5 854 | −2 592 |
+| data360 | 10 320 | 7 785 | −2 535 |
+| arad, bis, csu, oecd4 | — | — | 0 |
+
+Rebuild by tedy do hledání vrátil ~716 tisíc řad, které z něj někdo vědomě vyhodil.
+
+**Python skript to udělá mlčky.** `ClassicCatalogFtsIndexBuilder` se místo toho zastaví: když by
+build některý zdroj nafoukl o víc než 5 % (a zároveň o víc než 100 řádků), index **nevymění**,
+nechá hotový build jako `.tmp.sqlite` a vyhodí výjimku. Vědomé přepsání se povoluje
+`CATALOG_FTS_ALLOW_CURATION_RESET=1`.
+
+Praktický důsledek pro nasazení: `BANKINTEL_MAINTENANCE_ENABLED` **nezapínejte**, dokud není
+vyřešené, jak se po rebuildu zopakuje prune a enrich. Bez toho noční údržba zhorší hledání.
+
+### Parita s Python buildem
+
+`ClassicCatalogFtsIndexBuilderPythonParityTest` staví index v Javě z ostrých JSONL a porovnává
+ho proti ostrému indexu (arad 9 375, bis 850, csu 1 625 řádků) — `title`, `full_path`,
+`search_blob`, `territory` musí sedět znak po znaku. Dvě vědomé odchylky:
+
+- `row_json` — Jackson serializuje bez mezer, Python s nimi. Sloupec je `UNINDEXED`, nehledá se;
+  test porovnává rozparsovaný JSON.
+- `__dimx__` — značka idempotence z `enrich_fts_dimensions_inplace.py`. Build ji nepřidává,
+  protože členy dimenzí zapéká rovnou; test ji před porovnáním odstraní.
+
+Neportované: `CATALOG_FTS_PRUNE_STALE_BEFORE` (opt-in, nepoužívá se). Když je nastavené, build
+odmítne běžet, místo aby postavil jiný index než Python.
 

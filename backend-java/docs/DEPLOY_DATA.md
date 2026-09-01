@@ -24,12 +24,14 @@ BANKINTEL_SCHEDULER_LEADER=1
 
 ## 1. FTS index (9,5 GB SQLite)
 
-**Lokálně / CI:**
+**Build je od 2026-09-01 v Javě** (`search/ClassicCatalogFtsIndexBuilder`) — Python na hostu
+kvůli němu být nemusí. Pouští ho noční údržba (02:30 UTC pod `BANKINTEL_MAINTENANCE_ENABLED`).
 
-```powershell
-cd C:\Bankoapp-main\Bankoapp-main\backend
-python scripts/build_classic_catalog_fts_index.py
-```
+> **Než ho pustíte nad ostrým indexem:** rebuild čte JSONL, takže vrátí řady, které z indexu
+> vyřezaly prune skripty (~716 tis. řádků, hlavně FRED). Build se v takovém případě sám zastaví
+> a index nevymění — čísla a postup v `docs/FTS_AND_SIDECAR.md` §8.
+
+Původní Python skript v referenčním repu zůstává použitelný, ale žádnou takovou pojistku nemá.
 
 **Deploy (čistý disk):** Nahrajte komprimovaný snapshot do object storage a nastavte `FTS_INDEX_SNAPSHOT_URL`. Při startu `FtsIndexBootstrapRunner` stáhne archiv (`.zip` / `.gz`), rozbalí `classic_catalog_search.sqlite` do `CATALOG_SEARCH_INDEX_DIR` a zapíše na `CLASSIC_CATALOG_FTS_DB`.
 
