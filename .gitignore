@@ -1,9 +1,10 @@
 # === Secrets (NEVER commit) ===
+# Cokoli, co zacina .env - vcetne zaloh typu .env.bak_*. Dosud sedelo jen na presna
+# jmena, takze rucne udelana zaloha .env s API klici by se dala omylem commitnout.
 .env
-.env.local
-.env.*.local
-backend-java/.env
-frontend/.env.local
+.env.*
+**/.env
+**/.env.*
 *.pem
 *.key
 
