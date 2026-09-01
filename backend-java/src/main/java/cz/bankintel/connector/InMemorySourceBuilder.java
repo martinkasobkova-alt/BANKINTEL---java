@@ -12,7 +12,10 @@ import cz.bankintel.search.AradSeriesIdentity;
 import cz.bankintel.search.CatalogCountryIso3Registry;
 import cz.bankintel.search.CatalogGeoIntent;
 import java.util.List;
+import cz.bankintel.search.CatalogSearchMetadataSidecar;
 import java.util.Locale;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
@@ -32,17 +35,22 @@ import org.springframework.web.server.ResponseStatusException;
 @Component
 public class InMemorySourceBuilder {
 
+    private static final Logger log = LoggerFactory.getLogger(InMemorySourceBuilder.class);
+
     private final EcbCuratedCatalog ecbCuratedCatalog;
     private final EurostatDimensionService eurostatDimensionService;
     private final Oecd4BrowseService oecd4BrowseService;
+    private final CatalogSearchMetadataSidecar metadataSidecar;
 
     public InMemorySourceBuilder(
             EcbCuratedCatalog ecbCuratedCatalog,
             EurostatDimensionService eurostatDimensionService,
-            Oecd4BrowseService oecd4BrowseService) {
+            Oecd4BrowseService oecd4BrowseService,
+            CatalogSearchMetadataSidecar metadataSidecar) {
         this.ecbCuratedCatalog = ecbCuratedCatalog;
         this.eurostatDimensionService = eurostatDimensionService;
         this.oecd4BrowseService = oecd4BrowseService;
+        this.metadataSidecar = metadataSidecar;
     }
 
     private static final String ARAD_BASE_URL = "https://www.cnb.cz/aradb/api/v1";
@@ -62,7 +70,8 @@ public class InMemorySourceBuilder {
         if ("financial_markets".equals(st)) {
             st = "financial_markets_mirror";
         }
-        String setId = stringField(params, "set_id");
+        String requestedSetId = stringField(params, "set_id");
+        String setId = resolveFetchSetId(st, requestedSetId);
         if (st.isBlank()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "missing source_type");
         }
@@ -76,6 +85,9 @@ public class InMemorySourceBuilder {
         common.put("query_params", new LinkedHashMap<>());
         common.put("auth_type", "none");
         common.put("active", true);
+        if (!requestedSetId.equals(setId)) {
+            common.put("requested_set_id", requestedSetId);
+        }
 
         return switch (st) {
             case "arad" -> buildArad(common, setId);
@@ -95,6 +107,54 @@ public class InMemorySourceBuilder {
                 yield common;
             }
         };
+    }
+
+    /**
+     * Identita ŘADY versus kód DATASETU, který umí obsloužit upstream API.
+     *
+     * <p>Metadatový sidecar u některých zdrojů rozlišuje {@code series_id} a {@code dataset_id} —
+     * například Eurostat {@code prc_hicp_midx_hicp_all_items} je řada uvnitř datasetu
+     * {@code prc_hicp_midx}. Do upstreamu patří dataset; poslat celou složeninu znamená HTTP 404
+     * ({@code .../data/prc_hicp_midx_hicp_all_items} u Eurostatu neexistuje).
+     *
+     * <p>Řeší se to tady, před rozskokem na jednotlivé zdroje, protože tenhle rozdíl není
+     * vlastnost Eurostatu — je to vlastnost sidecaru a platí pro každý zdroj, který ho používá.
+     * Frontend má stejné pravidlo v {@code catalogPreviewBody.js:resolveCatalogRowSetId}, ale
+     * spolehnout se na něj nelze: složené {@code series_id} přichází i z cest, které tou funkcí
+     * neprojdou (V2 sidecar retrieval, uložené widgety, Manager Explorer).
+     *
+     * <p>Zúžení je schválně opatrné — dataset se použije, jen když je {@code set_id} jeho
+     * prefixem s oddělovačem. Nepodobné dvojice se nechávají být, ať se z nedorozumění
+     * v datech nestane tichá záměna řady.
+     */
+    private String resolveFetchSetId(String sourceType, String requestedSetId) {
+        String setId = requestedSetId == null ? "" : requestedSetId.trim();
+        if (setId.isBlank() || metadataSidecar == null) {
+            return setId;
+        }
+        // ECB flow/klíč (EXR/D.USD.EUR.SP00.A) je legitimně složený - nechat být.
+        if (setId.contains("/") && setId.contains(".")) {
+            return setId;
+        }
+        try {
+            Map<String, Object> record = metadataSidecar.getSearchMetadata(sourceType, setId, "");
+            if (record == null) {
+                return setId;
+            }
+            String datasetId = stringField(record, "dataset_id");
+            if (datasetId.isBlank() || datasetId.equalsIgnoreCase(setId)) {
+                return setId;
+            }
+            String dl = datasetId.toLowerCase(Locale.ROOT);
+            String sl = setId.toLowerCase(Locale.ROOT);
+            if (sl.startsWith(dl + "_") || sl.startsWith(dl + ":")) {
+                log.debug("preview set_id {} -> dataset {} (source={})", setId, datasetId, sourceType);
+                return datasetId;
+            }
+        } catch (Exception ex) {
+            log.debug("dataset_id resolution failed for {}/{}: {}", sourceType, setId, ex.getMessage());
+        }
+        return setId;
     }
 
     private Map<String, Object> buildArad(Map<String, Object> common, String setId) {

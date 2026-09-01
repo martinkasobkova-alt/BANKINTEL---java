@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.when;
 
+import cz.bankintel.search.CatalogSearchMetadataSidecar;
 import cz.bankintel.sources.ecb.EcbCuratedCatalog;
 import cz.bankintel.sources.eurostat.EurostatDimensionService;
 import cz.bankintel.sources.oecd4.Oecd4BrowseService;
@@ -27,11 +28,14 @@ class InMemorySourceBuilderOecd4Test {
     @Mock
     private Oecd4BrowseService oecd4BrowseService;
 
+    @Mock
+    private CatalogSearchMetadataSidecar metadataSidecar;
+
     private InMemorySourceBuilder builder;
 
     @BeforeEach
     void setUp() {
-        builder = new InMemorySourceBuilder(ecbCuratedCatalog, eurostatDimensionService, oecd4BrowseService);
+        builder = new InMemorySourceBuilder(ecbCuratedCatalog, eurostatDimensionService, oecd4BrowseService, metadataSidecar);
     }
 
     @Test

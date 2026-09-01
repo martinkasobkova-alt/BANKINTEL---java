@@ -1,0 +1,731 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#1e3a5f" />
+<meta name="description" content="BankIntel v2 - konsolidovana datova platforma pro bankovnictvi a makroekonomiku. 1 478 125 rad z 12 verejnych zdroju v jednom vyhledavani." />
+<meta property="og:type" content="website" />
+<meta property="og:locale" content="cs_CZ" />
+<meta property="og:site_name" content="Bankovnictvi" />
+<meta property="og:title" content="Bankovnictvi - konsolidovana datova platforma" />
+<meta property="og:description" content="CNB, CSU, Eurostat, ECB, IMF, BIS, OECD, World Bank i FRED v jednom katalogu. Hledate cesky, vysledek si otevrete jako graf." />
+<meta property="og:image" content="/favicon.png" />
+<meta name="twitter:card" content="summary" />
+<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+<link rel="icon" href="/favicon.png" type="image/png" sizes="any" />
+<title>BankIntel v2</title>
+<style>
+  @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap");
+  @import url("https://fonts.googleapis.com/css2?family=Manrope:wght@600;700;800&display=swap");
+  @import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap");
+
+  /* ------------------------------------------------------------------
+     Tokeny převzaté z frontend/src/index.css — stejné HSL trojice,
+     aby stránka seděla do vzhledu aplikace 1:1.
+     ------------------------------------------------------------------ */
+  :root {
+    --canvas:        205 70% 90%;
+    --canvas-deep:   205 62% 84%;
+    --card:            0  0% 100%;
+    --ink:           218 55% 16%;
+    --ink-muted:     218 32% 34%;
+    --ink-faint:     212 24% 46%;
+    --primary:       202 90% 52%;
+    --primary-ink:     0  0% 100%;
+    --primary-soft:  205 78% 88%;
+    --navy:          218 65% 18%;
+    --title:         208 80% 38%;
+    --border:        205 44% 74%;
+    --border-strong: 205 40% 62%;
+    --accent:         36 85% 90%;
+    --accent-ink:     28 55% 26%;
+    --accent-line:    36 70% 66%;
+
+    /* Sekvenční rampa pro pruh katalogu: světlá → tmavá podle velikosti. */
+    --seq-1:         218 72% 22%;
+    --seq-2:         202 95% 42%;
+    --seq-3:         205 70% 78%;
+
+    --shadow: 0 1px 2px hsl(215 40% 30% / 0.08), 0 8px 24px -12px hsl(215 45% 25% / 0.22);
+    --radius: 0.5rem;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --canvas:        218 45%  9%;
+      --canvas-deep:   218 48%  7%;
+      --card:          217 38% 13%;
+      --ink:           205 30% 94%;
+      --ink-muted:     208 22% 76%;
+      --ink-faint:     208 18% 62%;
+      --primary:       202 88% 62%;
+      --primary-ink:   218 50% 10%;
+      --primary-soft:  210 40% 22%;
+      --navy:          205 30% 94%;
+      --title:         200 82% 70%;
+      --border:        210 26% 26%;
+      --border-strong: 208 28% 36%;
+      --accent:         33 40% 20%;
+      --accent-ink:     36 70% 78%;
+      --accent-line:    33 45% 38%;
+
+      --seq-1:         202 88% 70%;
+      --seq-2:         205 65% 49%;
+      --seq-3:         210 45% 30%;
+
+      --shadow: 0 1px 2px hsl(220 60% 3% / 0.5), 0 10px 28px -14px hsl(220 60% 2% / 0.8);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --canvas:        218 45%  9%;
+    --canvas-deep:   218 48%  7%;
+    --card:          217 38% 13%;
+    --ink:           205 30% 94%;
+    --ink-muted:     208 22% 76%;
+    --ink-faint:     208 18% 62%;
+    --primary:       202 88% 62%;
+    --primary-ink:   218 50% 10%;
+    --primary-soft:  210 40% 22%;
+    --navy:          205 30% 94%;
+    --title:         200 82% 70%;
+    --border:        210 26% 26%;
+    --border-strong: 208 28% 36%;
+    --accent:         33 40% 20%;
+    --accent-ink:     36 70% 78%;
+    --accent-line:    33 45% 38%;
+
+    --seq-1:         202 88% 70%;
+    --seq-2:         205 65% 49%;
+    --seq-3:         210 45% 30%;
+
+    --shadow: 0 1px 2px hsl(220 60% 3% / 0.5), 0 10px 28px -14px hsl(220 60% 2% / 0.8);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: hsl(var(--canvas));
+    color: hsl(var(--ink));
+    font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
+    font-weight: 450;
+    font-size: 16.5px;
+    line-height: 1.6;
+    letter-spacing: -0.003em;
+    font-feature-settings: "ss01" on, "cv11" on;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+
+  .wrap { width: min(1080px, calc(100% - 2.5rem)); margin-inline: auto; }
+  .prose { max-width: 68ch; }
+
+  h1, h2, h3 {
+    font-family: "Manrope", "Inter", ui-sans-serif, system-ui, sans-serif;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+    text-wrap: balance;
+    margin: 0;
+  }
+  h2, h3 { color: hsl(var(--title)); }
+  p { margin: 0; }
+
+  .eyebrow {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 0.72rem;
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: hsl(var(--ink-faint));
+  }
+
+  .num {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-variant-numeric: tabular-nums;
+  }
+
+  a { color: hsl(var(--title)); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  a:focus-visible, button:focus-visible {
+    outline: 2px solid hsl(var(--primary));
+    outline-offset: 3px;
+    border-radius: 3px;
+  }
+
+  /* ---------- hlavička ---------- */
+  .site-head {
+    position: sticky; top: 0; z-index: 20;
+    background: hsl(var(--canvas) / 0.88);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid hsl(var(--border));
+  }
+  .site-head .wrap {
+    display: flex; align-items: center; gap: 1.5rem;
+    min-height: 60px; flex-wrap: wrap;
+  }
+  .wordmark {
+    font-family: "Manrope", sans-serif;
+    font-weight: 800; font-size: 1.18rem;
+    letter-spacing: -0.045em;
+    color: hsl(var(--navy));
+    text-decoration: none;
+  }
+  .head-nav { display: flex; gap: 1.25rem; margin-left: auto; flex-wrap: wrap; }
+  .head-nav a {
+    font-size: 0.88rem; color: hsl(var(--ink-muted));
+    text-decoration: none;
+  }
+  .head-nav a:hover { color: hsl(var(--title)); text-decoration: underline; }
+
+  /* Na úzkém displeji by se navigace zalomila do tří řádků a sticky hlavička
+     by sežrala třetinu viewportu — odkazy zůstávají v patičce. */
+  @media (max-width: 760px) {
+    .head-nav { display: none; }
+    .site-head .wrap > .btn { margin-left: auto; }
+  }
+
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    gap: 0.4rem;
+    padding: 0.55rem 1.1rem;
+    border-radius: var(--radius);
+    font-family: "Inter", sans-serif;
+    font-size: 0.92rem; font-weight: 600;
+    text-decoration: none;
+    border: 1px solid transparent;
+    transition: background-color 120ms ease, border-color 120ms ease;
+  }
+  .btn-primary {
+    background: hsl(var(--primary)); color: hsl(var(--primary-ink));
+    box-shadow: var(--shadow);
+  }
+  .btn-primary:hover { background: hsl(var(--primary) / 0.88); }
+  .btn-ghost {
+    background: hsl(var(--card)); color: hsl(var(--title));
+    border-color: hsl(var(--border-strong));
+  }
+  .btn-ghost:hover { background: hsl(var(--primary-soft)); }
+  .btn-sm { padding: 0.4rem 0.85rem; font-size: 0.85rem; }
+
+  /* ---------- sekce ---------- */
+  section { padding-block: 3.5rem; }
+  section.hero { padding-block: 4.5rem 3rem; }
+  .sec-head { display: flex; flex-direction: column; gap: 0.55rem; margin-bottom: 1.75rem; }
+  .sec-head h2 { font-size: clamp(1.5rem, 3.2vw, 2rem); }
+  .sec-head p { color: hsl(var(--ink-muted)); max-width: 62ch; }
+
+  .panel {
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--border));
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 1.5rem;
+  }
+
+  /* ---------- hero ---------- */
+  .hero h1 { font-size: clamp(2.1rem, 5.4vw, 3.35rem); margin-block: 0.8rem 1.1rem; }
+  .hero .lede { font-size: 1.08rem; color: hsl(var(--ink-muted)); max-width: 60ch; }
+  .cta-row { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-top: 1.75rem; }
+  .cta-note { margin-top: 0.9rem; font-size: 0.85rem; color: hsl(var(--ink-faint)); }
+
+  .stats {
+    display: grid; gap: 1rem; margin-top: 2.75rem;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  }
+  .stat { display: flex; flex-direction: column; gap: 0.3rem; }
+  .stat .v {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-variant-numeric: tabular-nums;
+    font-size: clamp(1.6rem, 3.6vw, 2.1rem);
+    font-weight: 500;
+    letter-spacing: -0.02em;
+    color: hsl(var(--navy));
+    line-height: 1.1;
+  }
+  .stat .k { font-size: 0.88rem; color: hsl(var(--ink-muted)); }
+
+  /* ---------- karty modulů ---------- */
+  .cards { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(268px, 1fr)); }
+  .card h3 { font-size: 1.06rem; margin-bottom: 0.5rem; }
+  .card p { font-size: 0.94rem; color: hsl(var(--ink-muted)); }
+  .card .tag {
+    display: inline-block; margin-bottom: 0.75rem;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 0.68rem; letter-spacing: 0.1em; text-transform: uppercase;
+    color: hsl(var(--ink-faint));
+  }
+
+  /* ---------- pruh katalogu ---------- */
+  figure { margin: 0; }
+  .ribbon {
+    display: flex; gap: 2px; width: 100%; height: 30px;
+    margin-block: 0.35rem 1rem;
+  }
+  .ribbon span {
+    display: block; height: 100%;
+    border-radius: 2px;
+  }
+  .ribbon span:first-child { border-radius: 4px 2px 2px 4px; }
+  .ribbon span:last-child  { border-radius: 2px 4px 4px 2px; }
+  .seq-1 { background: hsl(var(--seq-1)); }
+  .seq-2 { background: hsl(var(--seq-2)); }
+  .seq-3 { background: hsl(var(--seq-3)); }
+
+  .legend { display: flex; gap: 1.5rem; flex-wrap: wrap; }
+  .legend div { display: flex; align-items: baseline; gap: 0.5rem; font-size: 0.9rem; }
+  .swatch {
+    width: 10px; height: 10px; border-radius: 2px; flex: none;
+    transform: translateY(-1px);
+  }
+  .legend .who { color: hsl(var(--ink)); font-weight: 500; }
+  .legend .val { color: hsl(var(--ink-muted)); }
+
+  figcaption, .note {
+    font-size: 0.86rem; color: hsl(var(--ink-faint));
+    margin-top: 1rem; max-width: 62ch;
+  }
+
+  /* ---------- tabulka zdrojů ---------- */
+  .table-scroll { overflow-x: auto; margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; min-width: 420px; font-size: 0.92rem; }
+  caption {
+    text-align: left; padding-bottom: 0.75rem;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 0.68rem; letter-spacing: 0.1em; text-transform: uppercase;
+    color: hsl(var(--ink-faint));
+  }
+  th, td { padding: 0.5rem 0.75rem; text-align: left; }
+  thead th {
+    border-bottom: 1px solid hsl(var(--border-strong));
+    font-weight: 600; font-size: 0.82rem;
+    color: hsl(var(--ink-muted));
+  }
+  tbody td { border-bottom: 1px solid hsl(var(--border) / 0.55); }
+  tbody tr:last-child td { border-bottom: none; }
+  .n { text-align: right; font-family: "JetBrains Mono", monospace; font-variant-numeric: tabular-nums; }
+  .n-share { text-align: right; font-family: "JetBrains Mono", monospace; font-variant-numeric: tabular-nums; color: hsl(var(--ink-muted)); }
+  tfoot td { padding-top: 0.75rem; border-top: 1px solid hsl(var(--border-strong)); font-weight: 600; }
+
+  /* ---------- diagram ---------- */
+  .diagram { color: hsl(var(--ink-muted)); overflow-x: auto; }
+  .diagram svg { display: block; width: 100%; min-width: 620px; height: auto; }
+  .diagram .box-fill { fill: hsl(var(--card)); }
+  .diagram .box-line { stroke: hsl(var(--border-strong)); }
+  .diagram .t-title { fill: hsl(var(--ink)); font-family: "Inter", sans-serif; font-size: 13px; font-weight: 600; }
+  .diagram .t-sub   { fill: hsl(var(--ink-faint)); font-family: "Inter", sans-serif; font-size: 11px; }
+  .diagram .t-edge  { fill: hsl(var(--ink-faint)); font-family: "JetBrains Mono", monospace; font-size: 10.5px; }
+  .diagram .ext     { stroke: hsl(var(--primary)); }
+  .diagram .t-ext   { fill: hsl(var(--primary)); }
+
+  /* ---------- chips ---------- */
+  .chips { display: flex; flex-wrap: wrap; gap: 0.45rem; margin-top: 1.5rem; }
+  .chip {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 0.78rem;
+    padding: 0.28rem 0.6rem;
+    border-radius: 999px;
+    background: hsl(var(--primary-soft));
+    color: hsl(var(--title));
+    border: 1px solid hsl(var(--border));
+  }
+
+  /* ---------- provoz ---------- */
+  .ops { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); margin-top: 1.25rem; }
+  .ops .panel { border-left: 3px solid hsl(var(--accent-line)); }
+  .ops h3 { font-size: 0.98rem; margin-bottom: 0.5rem; }
+  .ops p { font-size: 0.92rem; color: hsl(var(--ink-muted)); }
+  .ops code {
+    font-family: "JetBrains Mono", monospace; font-size: 0.85em;
+    background: hsl(var(--accent)); color: hsl(var(--accent-ink));
+    padding: 0.1em 0.35em; border-radius: 3px;
+  }
+
+  /* ---------- závěrečná výzva ---------- */
+  .final {
+    background: hsl(var(--navy));
+    border-radius: var(--radius);
+    padding: clamp(2rem, 5vw, 3rem);
+    display: flex; flex-direction: column; gap: 1rem; align-items: flex-start;
+  }
+  .final h2 { color: hsl(0 0% 100%); font-size: clamp(1.5rem, 3.4vw, 2.1rem); }
+  .final p { color: hsl(205 40% 82%); max-width: 54ch; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .final { background: hsl(217 42% 16%); border: 1px solid hsl(var(--border-strong)); }
+    :root:not([data-theme="light"]) .final h2 { color: hsl(var(--ink)); }
+    :root:not([data-theme="light"]) .final p  { color: hsl(var(--ink-muted)); }
+  }
+  :root[data-theme="dark"] .final { background: hsl(217 42% 16%); border: 1px solid hsl(var(--border-strong)); }
+  :root[data-theme="dark"] .final h2 { color: hsl(var(--ink)); }
+  :root[data-theme="dark"] .final p  { color: hsl(var(--ink-muted)); }
+
+  /* ---------- patička ---------- */
+  footer {
+    border-top: 1px solid hsl(var(--border));
+    background: hsl(var(--canvas-deep));
+    padding-block: 2rem 2.5rem;
+    margin-top: 3.5rem;
+  }
+  footer .wrap { display: flex; flex-direction: column; gap: 1rem; }
+  footer p { font-size: 0.85rem; color: hsl(var(--ink-faint)); max-width: 78ch; }
+  footer .foot-links { display: flex; gap: 1.25rem; flex-wrap: wrap; font-size: 0.88rem; }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
+    html { scroll-behavior: auto; }
+  }
+  html { scroll-behavior: smooth; scroll-padding-top: 76px; }
+</style>
+</head>
+<body>
+<header class="site-head">
+  <div class="wrap">
+    <a class="wordmark" href="#top">Bankovnictví</a>
+    <nav class="head-nav" aria-label="Sekce stránky">
+      <a href="#moduly">Co to umí</a>
+      <a href="#zdroje">Zdroje dat</a>
+      <a href="#architektura">Jak je to postavené</a>
+      <a href="#provoz">Provoz</a>
+    </nav>
+    <a class="btn btn-primary btn-sm" href="/">Otevřít aplikaci</a>
+  </div>
+</header>
+
+<main id="top">
+
+  <section class="hero">
+    <div class="wrap">
+      <p class="eyebrow">BankIntel v2 &middot; konsolidovaná datová platforma</p>
+      <h1>Ekonomická data z dvanácti zdrojů, jedno vyhledávací pole.</h1>
+      <p class="lede">
+        ČNB, ČSÚ, Eurostat, ECB, IMF, BIS, OECD, World Bank, FRED i akcie jsou svedené
+        do jednoho katalogu. Hledáte česky, výsledek si rovnou otevřete jako graf,
+        poskládáte do dashboardu a necháte si ho vysvětlit.
+      </p>
+      <div class="cta-row">
+        <a class="btn btn-primary" href="/">Otevřít aplikaci</a>
+        <a class="btn btn-ghost" href="#architektura">Jak je to postavené</a>
+      </div>
+      <p class="cta-note">Aplikace běží na stejné doméně jako tahle stránka.</p>
+
+      <div class="stats">
+        <div class="stat panel">
+          <span class="v">1&nbsp;478&nbsp;125</span>
+          <span class="k">řad v katalogovém indexu</span>
+        </div>
+        <div class="stat panel">
+          <span class="v">12</span>
+          <span class="k">datových zdrojů v indexu</span>
+        </div>
+        <div class="stat panel">
+          <span class="v">35 GB</span>
+          <span class="k">index a zrcadla zdrojů na disku</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="moduly">
+    <div class="wrap">
+      <div class="sec-head">
+        <p class="eyebrow">Co to umí</p>
+        <h2>Od dotazu ke grafu, aniž byste věděli, kdo data vydává.</h2>
+        <p>
+          Každý zdroj má vlastní katalog, vlastní kódy řad a vlastní logiku. Aplikace to
+          schová a nechá vás pracovat s daty, ne s API.
+        </p>
+      </div>
+
+      <div class="cards">
+        <article class="card panel">
+          <span class="tag">Vyhledávání</span>
+          <h3>Katalogové hledání a AI deep-search</h3>
+          <p>
+            Fulltextový index (SQLite&nbsp;FTS5 + Lucene) nad všemi řadami. Nad ním AI vrstva,
+            která dotaz rozloží na plán, obvolá zdroje a výsledky přeřadí. Bez klíče
+            k modelu appka běží dál, jen se AI degraduje na heuristiky.
+          </p>
+        </article>
+
+        <article class="card panel">
+          <span class="tag">Manager Explorer</span>
+          <h3>Procházení od zdroje k řadě</h3>
+          <p>
+            Když nevíte, co hledat: zdroj → datová sada → konkrétní řada → graf. Načtené
+            řady se cachují v MongoDB, takže druhý průchod stromem je okamžitý.
+          </p>
+        </article>
+
+        <article class="card panel">
+          <span class="tag">Dashboardy</span>
+          <h3>Vlastní stránky a widgety</h3>
+          <p>
+            Grafy, tabulky, KPI dlaždice, výpočtové řady, vlastní nahraná data a RSS
+            monitoring na jedné stránce. Sdílení odkazem, embed jednotlivého widgetu,
+            export do PDF a Excelu.
+          </p>
+        </article>
+
+        <article class="card panel">
+          <span class="tag">AI nad daty</span>
+          <h3>Vysvětlení česky, ne jen čísla</h3>
+          <p>
+            Komentář ke grafu i k výsledkům hledání. Kromě toho čtečka PDF časopisu,
+            zprávy, podcasty a administrace zdrojů, uživatelů a nočních synchronizací.
+          </p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section id="zdroje">
+    <div class="wrap">
+      <div class="sec-head">
+        <p class="eyebrow">Zdroje dat</p>
+        <h2>Dva zdroje dělají 94&nbsp;% indexu. Zbylých deset ale rozhoduje.</h2>
+        <p>
+          FRED a ECB přinášejí obrovský objem světových řad. České a evropské zdroje jsou
+          řádově menší, ale právě kvůli nim tahle aplikace vznikla.
+        </p>
+      </div>
+
+      <div class="panel">
+        <figure>
+          <figcaption style="margin-top:0; margin-bottom:0.4rem;">
+            Rozdělení 1&nbsp;478&nbsp;125 indexovaných řad podle zdroje
+          </figcaption>
+          <div class="ribbon" role="img"
+               aria-label="Podíl zdrojů na katalogovém indexu: FRED 57,2 procenta, ECB 36,8 procenta, ostatních deset zdrojů 6,1 procenta.">
+            <span class="seq-1" style="width:57.15%"></span>
+            <span class="seq-2" style="width:36.80%"></span>
+            <span class="seq-3" style="width:6.05%"></span>
+          </div>
+          <div class="legend">
+            <div><span class="swatch seq-1"></span><span class="who">FRED</span><span class="val num">844&nbsp;760 &middot; 57,2&nbsp;%</span></div>
+            <div><span class="swatch seq-2"></span><span class="who">ECB</span><span class="val num">544&nbsp;005 &middot; 36,8&nbsp;%</span></div>
+            <div><span class="swatch seq-3"></span><span class="who">ostatních 10 zdrojů</span><span class="val num">89&nbsp;360 &middot; 6,1&nbsp;%</span></div>
+          </div>
+        </figure>
+
+        <div class="table-scroll">
+          <table>
+            <caption>Všech dvanáct zdrojů &middot; stav indexu k 30.&nbsp;8.&nbsp;2026</caption>
+            <thead>
+              <tr><th scope="col">Zdroj</th><th scope="col" class="n">Řad</th><th scope="col" class="n-share">Podíl</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>FRED &middot; Federal Reserve Bank of St. Louis</td><td class="n">844&nbsp;760</td><td class="n-share">57,15&nbsp;%</td></tr>
+              <tr><td>ECB Data Portal</td><td class="n">544&nbsp;005</td><td class="n-share">36,80&nbsp;%</td></tr>
+              <tr><td>World Bank</td><td class="n">29&nbsp;457</td><td class="n-share">1,99&nbsp;%</td></tr>
+              <tr><td>IMF</td><td class="n">27&nbsp;647</td><td class="n-share">1,87&nbsp;%</td></tr>
+              <tr><td>World Bank Data360</td><td class="n">10&nbsp;320</td><td class="n-share">0,70&nbsp;%</td></tr>
+              <tr><td>ČNB &middot; ARAD</td><td class="n">9&nbsp;548</td><td class="n-share">0,65&nbsp;%</td></tr>
+              <tr><td>Eurostat</td><td class="n">8&nbsp;831</td><td class="n-share">0,60&nbsp;%</td></tr>
+              <tr><td>ČSÚ</td><td class="n">1&nbsp;648</td><td class="n-share">0,11&nbsp;%</td></tr>
+              <tr><td>OECD</td><td class="n">998</td><td class="n-share">0,07&nbsp;%</td></tr>
+              <tr><td>BIS</td><td class="n">855</td><td class="n-share">0,06&nbsp;%</td></tr>
+              <tr><td>Komodity &middot; World Bank Pink Sheet</td><td class="n">46</td><td class="n-share">&lt;&nbsp;0,01&nbsp;%</td></tr>
+              <tr><td>Akcie</td><td class="n">10</td><td class="n-share">&lt;&nbsp;0,01&nbsp;%</td></tr>
+            </tbody>
+            <tfoot>
+              <tr><td>Celkem</td><td class="n">1&nbsp;478&nbsp;125</td><td class="n-share">100&nbsp;%</td></tr>
+            </tfoot>
+          </table>
+        </div>
+
+        <p class="note">
+          Čísla jsou spočítaná přímo z katalogového indexu (<span class="num">sidecar_doc</span>),
+          ne odhadnutá. Index se přestavuje v noci, takže se počty mění. Dostupnost zdrojů
+          hlídá zvlášť hodinová sonda &mdash; ta obvolává jedenáct veřejných API včetně
+          TradingEconomics, které se do katalogu neindexuje.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section id="architektura">
+    <div class="wrap">
+      <div class="sec-head">
+        <p class="eyebrow">Jak je to postavené</p>
+        <h2>Jeden origin, tři úložiště, zbytek za hranicí systému.</h2>
+        <p>
+          Caddy servíruje statický frontend i&nbsp;<span class="num">/api</span> na stejné doméně,
+          takže odpadá CORS i natvrdo zadaná adresa backendu v&nbsp;bundlu. Backend čte
+          a zapisuje do tří úložišť; všechno ostatní je HTTP ven.
+        </p>
+      </div>
+
+      <div class="panel">
+        <figure class="diagram">
+          <svg viewBox="0 0 900 436" role="img"
+               aria-label="Prohlížeč volá přes HTTPS Caddy na jednom originu. Caddy posílá /api na Spring Boot backend a zbytek na statický React frontend. Backend čte a zapisuje do PostgreSQL, SQLite FTS5 s Lucene a MongoDB, a přes HTTP ven volá dvanáct externích API a OpenAI se zálohou v lokálním modelu.">
+            <defs>
+              <marker id="ar" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                <path d="M0 0 L8 4 L0 8 z" fill="currentColor" />
+              </marker>
+              <marker id="ar-ext" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                <path d="M0 0 L8 4 L0 8 z" fill="hsl(var(--primary))" />
+              </marker>
+            </defs>
+
+            <!-- prohlížeč -->
+            <rect class="box-fill box-line" x="350" y="14" width="200" height="44" rx="6" stroke-width="1.25" />
+            <text class="t-title" x="450" y="41" text-anchor="middle">Prohlížeč</text>
+
+            <line x1="450" y1="58" x2="450" y2="96" stroke="currentColor" stroke-width="1.25" marker-end="url(#ar)" />
+            <text class="t-edge" x="460" y="81">HTTPS</text>
+
+            <!-- caddy -->
+            <rect class="box-fill box-line" x="150" y="96" width="600" height="52" rx="6" stroke-width="1.25" />
+            <text class="t-title" x="450" y="117" text-anchor="middle">Caddy &mdash; jeden origin</text>
+            <text class="t-sub"   x="450" y="135" text-anchor="middle">TLS, gzip/zstd, SPA fallback, dlouhé timeouty pro SSE</text>
+
+            <line x1="280" y1="148" x2="280" y2="200" stroke="currentColor" stroke-width="1.25" marker-end="url(#ar)" />
+            <text class="t-edge" x="289" y="178">/*</text>
+            <line x1="620" y1="148" x2="620" y2="200" stroke="currentColor" stroke-width="1.25" marker-end="url(#ar)" />
+            <text class="t-edge" x="629" y="178">/api/*</text>
+
+            <!-- frontend / backend -->
+            <rect class="box-fill box-line" x="150" y="200" width="260" height="56" rx="6" stroke-width="1.25" />
+            <text class="t-title" x="280" y="223" text-anchor="middle">React 19 + Vite</text>
+            <text class="t-sub"   x="280" y="241" text-anchor="middle">statický build, feature-based</text>
+
+            <rect class="box-fill box-line" x="490" y="200" width="260" height="56" rx="6" stroke-width="1.25" />
+            <text class="t-title" x="620" y="223" text-anchor="middle">Spring Boot 3.4 &middot; Java 21</text>
+            <text class="t-sub"   x="620" y="241" text-anchor="middle">controller → service → connector</text>
+
+            <!-- sběrnice -->
+            <line x1="620" y1="256" x2="620" y2="296" stroke="currentColor" stroke-width="1.25" />
+            <text class="t-edge" x="610" y="279" text-anchor="end">čte a zapisuje</text>
+            <line x1="124" y1="296" x2="668" y2="296" stroke="currentColor" stroke-width="1.25" />
+            <line x1="124" y1="296" x2="124" y2="344" stroke="currentColor" stroke-width="1.25" marker-end="url(#ar)" />
+            <line x1="341" y1="296" x2="341" y2="344" stroke="currentColor" stroke-width="1.25" marker-end="url(#ar)" />
+            <line x1="558" y1="296" x2="558" y2="344" stroke="currentColor" stroke-width="1.25" marker-end="url(#ar)" />
+
+            <!-- hranice systému -->
+            <line x1="668" y1="276" x2="668" y2="424" stroke="hsl(var(--primary))" stroke-width="1" stroke-dasharray="3 4" opacity="0.7" />
+            <line x1="668" y1="296" x2="775" y2="296" stroke="hsl(var(--primary))" stroke-width="1.25" />
+            <line x1="775" y1="296" x2="775" y2="344" stroke="hsl(var(--primary))" stroke-width="1.25" marker-end="url(#ar-ext)" />
+            <text class="t-ext" x="678" y="288">HTTP ven</text>
+
+            <!-- úložiště -->
+            <rect class="box-fill box-line" x="24" y="344" width="201" height="66" rx="6" stroke-width="1.25" />
+            <text class="t-title" x="124" y="368" text-anchor="middle">PostgreSQL</text>
+            <text class="t-sub"   x="124" y="386" text-anchor="middle">uživatelé, dashboardy</text>
+            <text class="t-sub"   x="124" y="400" text-anchor="middle">migrace Flyway</text>
+
+            <rect class="box-fill box-line" x="241" y="344" width="201" height="66" rx="6" stroke-width="1.25" />
+            <text class="t-title" x="341" y="368" text-anchor="middle">SQLite FTS5 + Lucene</text>
+            <text class="t-sub"   x="341" y="386" text-anchor="middle">katalogový index</text>
+            <text class="t-sub"   x="341" y="400" text-anchor="middle">1 478 125 řad</text>
+
+            <rect class="box-fill box-line" x="458" y="344" width="201" height="66" rx="6" stroke-width="1.25" />
+            <text class="t-title" x="558" y="368" text-anchor="middle">MongoDB</text>
+            <text class="t-sub"   x="558" y="386" text-anchor="middle">cache řad</text>
+            <text class="t-sub"   x="558" y="400" text-anchor="middle">Manager Exploreru</text>
+
+            <rect class="box-fill ext" x="675" y="344" width="201" height="66" rx="6" stroke-width="1.25" stroke-dasharray="5 4" />
+            <text class="t-title" x="775" y="368" text-anchor="middle">Externí API</text>
+            <text class="t-sub"   x="775" y="386" text-anchor="middle">12 zdrojů dat</text>
+            <text class="t-sub"   x="775" y="400" text-anchor="middle">OpenAI + lokální záloha</text>
+          </svg>
+          <figcaption>
+            Čárkovaná svislice je hranice systému: vlevo od ní jsou úložiště, která nasazení
+            drží samo, vpravo služby, na jejichž výpadek musí aplikace umět zareagovat.
+          </figcaption>
+        </figure>
+
+        <div class="chips" aria-label="Použité technologie">
+          <span class="chip">Java 21</span>
+          <span class="chip">Spring Boot 3.4</span>
+          <span class="chip">React 19</span>
+          <span class="chip">Vite</span>
+          <span class="chip">PostgreSQL + Flyway</span>
+          <span class="chip">SQLite FTS5</span>
+          <span class="chip">Lucene</span>
+          <span class="chip">MongoDB</span>
+          <span class="chip">Caddy</span>
+          <span class="chip">Docker</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="provoz">
+    <div class="wrap">
+      <div class="sec-head">
+        <p class="eyebrow">Provoz</p>
+        <h2>Dvě věci, které dřív selhávaly potichu.</h2>
+        <p>
+          Výpadek externího zdroje a útrata za AI se dřív poznaly až zpětně. Obojí má
+          dneska vlastní endpoint a vlastní zálohu.
+        </p>
+      </div>
+
+      <div class="ops">
+        <article class="panel">
+          <h3>Dostupnost zdrojů</h3>
+          <p>
+            Sonda každou hodinu obvolá jedenáct externích API a drží poslední známý stav
+            (<code>up</code> / <code>down</code> / <code>misconfigured</code>). Uptime
+            monitoring čte <code>/api/health/connectors</code> bez jediného volání ven.
+          </p>
+        </article>
+
+        <article class="panel">
+          <h3>Útrata za AI</h3>
+          <p>
+            Každé volání modelu má strop účtovaných tokenů, spotřeba se sleduje po úlohách
+            na <code>/api/health/ai-usage</code>. Když strop odpověď uřízne, zaloguje se to
+            &mdash; podle toho se pozná, že je nastavený moc nízko.
+          </p>
+        </article>
+
+        <article class="panel">
+          <h3>Když OpenAI vypadne</h3>
+          <p>
+            Volání se automaticky zopakuje na lokálním modelu (Ollama nebo vLLM). Řeší to
+            dostupnost, ne kvalitu &mdash; a spouští se jen u výpadkových chyb, ne
+            u&nbsp;chyb ve schématu, které na jiném modelu dopadnou stejně.
+          </p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <div class="final">
+        <h2>Zkuste si najít vlastní řadu.</h2>
+        <p>
+          Vyhledávání a náhledy grafů jsou veřejné. Účet potřebujete až na vlastní
+          dashboardy, nahraná data a sdílení.
+        </p>
+        <a class="btn btn-primary" href="/">Otevřít aplikaci</a>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <nav class="foot-links" aria-label="Sekce stránky">
+      <a href="#moduly">Co to umí</a>
+      <a href="#zdroje">Zdroje dat</a>
+      <a href="#architektura">Jak je to postavené</a>
+      <a href="#provoz">Provoz</a>
+    </nav>
+    <p>
+      Bankovnictví (BankIntel&nbsp;v2) je nástroj pro vyhledávání a zobrazování veřejných
+      ekonomických dat. Není investičním poradenstvím ani doporučením. Zobrazené hodnoty
+      pocházejí od jednotlivých vydavatelů dat &mdash; ČNB, ČSÚ, Eurostatu, ECB, IMF, BIS,
+      OECD, World Bank a FRED &mdash; a aplikace je nepřepočítává, pokud to u grafu
+      výslovně neuvádí. Počty řad na této stránce jsou spočítané z katalogového indexu
+      ke&nbsp;30.&nbsp;8.&nbsp;2026 a mění se s každou noční přestavbou.
+    </p>
+  </div>
+</footer>
+</body>
+</html>

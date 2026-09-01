@@ -3,6 +3,7 @@ package cz.bankintel.connector;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import cz.bankintel.search.CatalogSearchMetadataSidecar;
 import cz.bankintel.sources.ecb.EcbCuratedCatalog;
 import cz.bankintel.sources.eurostat.EurostatDimensionService;
 import cz.bankintel.sources.oecd4.Oecd4BrowseService;
@@ -27,12 +28,15 @@ class InMemorySourceBuilderImfTest {
     @Mock
     private Oecd4BrowseService oecd4BrowseService;
 
+    @Mock
+    private CatalogSearchMetadataSidecar metadataSidecar;
+
     private InMemorySourceBuilder builder;
 
     @BeforeEach
     void setUp() {
         System.setProperty("IMF_API_KEY", "test-key");
-        builder = new InMemorySourceBuilder(ecbCuratedCatalog, eurostatDimensionService, oecd4BrowseService);
+        builder = new InMemorySourceBuilder(ecbCuratedCatalog, eurostatDimensionService, oecd4BrowseService, metadataSidecar);
     }
 
     @AfterEach
