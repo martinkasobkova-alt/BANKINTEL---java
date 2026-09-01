@@ -98,8 +98,14 @@ Naměřeno `du` nad `data/` 2026-09-01:
 | `search_v2_sidecar/search_v2_sidecar.sqlite` | 12,4 GB | ano (engine V2) |
 | `catalog_search_indexes/classic_catalog_search.sqlite` | 8,9 GB | ano (engine V1) |
 | per-source `*.jsonl` (`ecb2` 1,7 GB, `fred` 1,2 GB, …) + `catalog_search_metadata` | ~3,2 GB | ano (zdroj pro rebuild + metadata rescue §4) |
-| `search_v2_sidecar/vector-embedding-cache.sqlite` + `vector-lucene` | 4,8 GB | **ne**, dokud je `SEARCH_SEMANTIC_RETRIEVAL_ENABLED=false` |
+| `search_v2_sidecar/vector-embedding-cache.sqlite` + `vector-lucene` | 4,8 GB | jen když `SEARCH_VECTOR_RETRIEVAL_ENABLED=true` (viz níže) |
 | **klidový stav bez vector částí** | **24,5 GB** | |
+
+> **Pozor na dva různé flagy.** Vector části gatuje `SEARCH_VECTOR_RETRIEVAL_ENABLED`
+> (`SearchVectorProperties#enabled`, default `"false"`), **ne** `SEARCH_SEMANTIC_RETRIEVAL_ENABLED`.
+> V dev `.env` je vector `true`, v `render.yaml` se nenastavuje → prod jede na default `false`.
+> Prod tedy hledá jinak než dev; kdo chce stejné chování, zapne flag a připočte 4,8 GB
+> (klid 29,3 GB, špička 38,2 GB).
 
 ### Špička při noční přestavbě
 

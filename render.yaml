@@ -61,13 +61,19 @@ services:
       #   search_v2_sidecar.sqlite       12,4 GB
       #   per-source JSONL + metadata     ~3,2 GB
       #   ---------------------------------------
-      #   nutné minimum                  24,5 GB   (bez vector-* částí, ty se
-      #                                              nepoužívají — SEARCH_SEMANTIC_RETRIEVAL_ENABLED=false)
+      #   nutné minimum                  24,5 GB
+      #
+      # K tomu vector-embedding-cache.sqlite + vector-lucene = 4,8 GB. Ty gatuje
+      # SEARCH_VECTOR_RETRIEVAL_ENABLED (SearchVectorProperties#enabled, default "false"),
+      # NE SEARCH_SEMANTIC_RETRIEVAL_ENABLED níž - to je jiný flag. Tady se nenastavuje,
+      # takže platí default false a těch 4,8 GB se nepoužije. Pozor: v dev .env je
+      # SEARCH_VECTOR_RETRIEVAL_ENABLED=true, takže prod hledá jinak než dev. Kdo to
+      # tu zapne, musí připočíst 4,8 GB (klid 29,3 GB, špička 38,2 GB).
       #
       # Noční přestavba (02:30 UTC, `scripts/build_classic_catalog_fts_index.py`) staví index
       # do `classic_catalog_search.tmp.sqlite` VEDLE stávajícího a teprve pak ho přejmenuje.
       # Po dobu přestavby tedy na disku leží obě kopie:
-      #   24,5 GB + 8,9 GB = 33,4 GB špička
+      #   24,5 GB + 8,9 GB = 33,4 GB špička   (38,2 GB s vector částmi)
       #
       # Dřív tu bylo 20 GB, což nestačilo ani na klidový stav — instance padala právě v noci
       # při té přestavbě. 60 GB drží špičku i s rezervou na růst indexu.
