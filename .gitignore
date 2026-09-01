@@ -5,6 +5,9 @@
 .env.*
 **/.env
 **/.env.*
+# Sablony bez tajnych hodnot naopak sledovane byt maji.
+!.env.example
+!**/.env.example
 *.pem
 *.key
 
@@ -20,7 +23,13 @@ target/
 
 # === Local data & indexes (multi-GB — never commit) ===
 # Optimized FTS index copy + per-source JSONL live here.
-data/
+#
+# Ukotveno lomitkem na ZACATKU: neukotvene "data/" chytalo jakykoli adresar toho jmena
+# kdekoli v repu, tedy i zdrojove soubory - frontend/src/data (bez nich vite build spadne
+# na UNLOADABLE_DEPENDENCY), frontend/public/data a backend-java/src/main/resources/data
+# (ctyri ECB soubory, ktere Java nacita pres ClassPathResource). Z cerstveho klonu tim
+# nesla aplikace postavit. Zjisteno pri nasazeni 2026-09-01.
+/data/
 backend-java/data/
 
 # === Logs & run artifacts ===

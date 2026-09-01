@@ -12,6 +12,14 @@ FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
 
 RUN addgroup -S bankintel && adduser -S bankintel -G bankintel
+
+# Adresar pro uzivatelsky obsah musi existovat UZ V OBRAZE a patrit neprivilegovanemu
+# uzivateli. Docker pri prvnim pripojeni prazdneho pojmenovaneho svazku prevezme obsah
+# i vlastnictvi z obrazu; bez toho svazek vznikne jako root:root a aplikace v nem neni
+# schopna zalozit podadresare (AccessDeniedException /srv/storage/magazines).
+# Konkretni podcesty nastavuje compose (MAGAZINE_STORAGE_DIR, CHAT_ATTACHMENT_DIR, ...).
+RUN mkdir -p /srv/storage && chown -R bankintel:bankintel /srv/storage
+
 USER bankintel
 
 COPY --from=build /app/build/libs/*.jar app.jar

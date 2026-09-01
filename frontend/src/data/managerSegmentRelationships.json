@@ -1,0 +1,1321 @@
+{
+  "generated_at": "2026-05-26T18:47:23+00:00",
+  "segments": [
+    {
+      "segment_id": "automotive",
+      "segment_name_cs": "Automobilový průmysl",
+      "default_related_segment_ids": [
+        "metals_mining",
+        "retail_consumer",
+        "energy",
+        "chemicals_materials",
+        "transport_logistics",
+        "banking_finance"
+      ],
+      "default_related_segment_names_cs": [
+        "Kovy, hutnictví a těžba",
+        "Maloobchod a spotřeba domácností",
+        "Energetika",
+        "Chemický průmysl a materiály",
+        "Doprava a logistika",
+        "Bankovnictví a finance"
+      ],
+      "conditional_related_segment_ids": [
+        "rubber_plastics"
+      ],
+      "conditional_related_segment_names_cs": [
+        "Gumárenský a plastikářský průmysl"
+      ],
+      "related_segments": [
+        {
+          "rank": 1,
+          "related_segment_id": "metals_mining",
+          "related_segment_name_cs": "Kovy, hutnictví a těžba",
+          "weight": 0.75,
+          "relationship_type": "supplier",
+          "direction": "mixed",
+          "default_use": "default_context",
+          "reason_cs": "Kovy a hutni materialy jsou klicovym vstupem pro vyrobu vozidel."
+        },
+        {
+          "rank": 2,
+          "related_segment_id": "retail_consumer",
+          "related_segment_name_cs": "Maloobchod a spotřeba domácností",
+          "weight": 0.7,
+          "relationship_type": "demand_driver",
+          "direction": "positive",
+          "default_use": "default_context",
+          "reason_cs": "Spotrebitelska poptavka, prijmy a uverove podminky ovlivnuji nakupy aut."
+        },
+        {
+          "rank": 3,
+          "related_segment_id": "energy",
+          "related_segment_name_cs": "Energetika",
+          "weight": 0.65,
+          "relationship_type": "cost_driver",
+          "direction": "negative",
+          "default_use": "default_context",
+          "reason_cs": "Energie ovlivnuje vyrobni naklady automotive i jeho dodavatelu."
+        },
+        {
+          "rank": 4,
+          "related_segment_id": "chemicals_materials",
+          "related_segment_name_cs": "Chemický průmysl a materiály",
+          "weight": 0.55,
+          "relationship_type": "supplier",
+          "direction": "mixed",
+          "default_use": "default_context",
+          "reason_cs": "Chemicke materialy a plasty vstupuji do vyroby vozidel."
+        },
+        {
+          "rank": 5,
+          "related_segment_id": "transport_logistics",
+          "related_segment_name_cs": "Doprava a logistika",
+          "weight": 0.55,
+          "relationship_type": "customer",
+          "direction": "positive",
+          "default_use": "default_context",
+          "reason_cs": "Doprava a logistika ovlivnuji poptavku po uzitkovych vozidlech a flotilach."
+        },
+        {
+          "rank": 6,
+          "related_segment_id": "banking_finance",
+          "related_segment_name_cs": "Bankovnictví a finance",
+          "weight": 0.55,
+          "relationship_type": "financial_channel",
+          "direction": "context_specific",
+          "default_use": "default_context",
+          "reason_cs": "Leasing, uvery a urokove sazby ovlivnuji prodeje vozidel a investice."
+        },
+        {
+          "rank": 7,
+          "related_segment_id": "rubber_plastics",
+          "related_segment_name_cs": "Gumárenský a plastikářský průmysl",
+          "weight": 0.5,
+          "relationship_type": "supplier",
+          "direction": "mixed",
+          "default_use": "conditional_context",
+          "reason_cs": "Gumarenske a plastikarske dily jsou soucasti automobiloveho dodavatelskeho retezce."
+        }
+      ]
+    },
+    {
+      "segment_id": "rubber_plastics",
+      "segment_name_cs": "Gumárenský a plastikářský průmysl",
+      "default_related_segment_ids": [
+        "automotive",
+        "energy",
+        "chemicals_materials",
+        "transport_logistics",
+        "manufacturing_general"
+      ],
+      "default_related_segment_names_cs": [
+        "Automobilový průmysl",
+        "Energetika",
+        "Chemický průmysl a materiály",
+        "Doprava a logistika",
+        "Zpracovatelský průmysl"
+      ],
+      "conditional_related_segment_ids": [
+        "banking_finance"
+      ],
+      "conditional_related_segment_names_cs": [
+        "Bankovnictví a finance"
+      ],
+      "related_segments": [
+        {
+          "rank": 1,
+          "related_segment_id": "automotive",
+          "related_segment_name_cs": "Automobilový průmysl",
+          "weight": 0.95,
+          "relationship_type": "demand_driver",
+          "direction": "positive",
+          "default_use": "default_context",
+          "reason_cs": "Poptavka po pneumatikach a gumarenskych/plastikarskych vyrobcich je silne navazana na automobilovy prumysl."
+        },
+        {
+          "rank": 2,
+          "related_segment_id": "energy",
+          "related_segment_name_cs": "Energetika",
+          "weight": 0.9,
+          "relationship_type": "cost_driver",
+          "direction": "negative",
+          "default_use": "default_context",
+          "reason_cs": "Elektrina a plyn jsou vyznamne vstupni naklady."
+        },
+        {
+          "rank": 3,
+          "related_segment_id": "chemicals_materials",
+          "related_segment_name_cs": "Chemický průmysl a materiály",
+          "weight": 0.85,
+          "relationship_type": "supplier",
+          "direction": "mixed",
+          "default_use": "default_context",
+          "reason_cs": "Chemicke a petrochemicke vstupy jsou vyznamne pro vyrobni naklady gumarenskeho a plastikarskeho prumyslu."
+        },
+        {
+          "rank": 4,
+          "related_segment_id": "transport_logistics",
+          "related_segment_name_cs": "Doprava a logistika",
+          "weight": 0.75,
+          "relationship_type": "demand_driver",
+          "direction": "positive",
+          "default_use": "default_context",
+          "reason_cs": "Nakladni a osobni doprava podporuji nahradni poptavku po pneumatikach a gumarenskych vyrobcich."
+        },
+        {
+          "rank": 5,
+          "related_segment_id": "manufacturing_general",
+          "related_segment_name_cs": "Zpracovatelský průmysl",
+          "weight": 0.6,
+          "relationship_type": "macro_context",
+          "direction": "context_specific",
+          "default_use": "default_context",
+          "reason_cs": "Obecny prumyslovy cyklus ovlivnuje poptavku po prumyslovych plastovych a gumarenskych vyrobcich."
+        },
+        {
+          "rank": 6,
+          "related_segment_id": "banking_finance",
+          "related_segment_name_cs": "Bankovnictví a finance",
+          "weight": 0.35,
+          "relationship_type": "financial_channel",
+          "direction": "context_specific",
+          "default_use": "conditional_context",
+          "reason_cs": "Financni podminky ovlivnuji investice, zasoby a provozni financovani."
+        }
+      ]
+    },
+    {
+      "segment_id": "energy",
+      "segment_name_cs": "Energetika",
+      "default_related_segment_ids": [
+        "esg_green_transition",
+        "manufacturing_general",
+        "public_sector_infrastructure",
+        "chemicals_materials",
+        "metals_mining"
+      ],
+      "default_related_segment_names_cs": [
+        "ESG, klima a zelená transformace",
+        "Zpracovatelský průmysl",
+        "Veřejný sektor a infrastruktura",
+        "Chemický průmysl a materiály",
+        "Kovy, hutnictví a těžba"
+      ],
+      "conditional_related_segment_ids": [],
+      "conditional_related_segment_names_cs": [],
+      "related_segments": [
+        {
+          "rank": 1,
+          "related_segment_id": "esg_green_transition",
+          "related_segment_name_cs": "ESG, klima a zelená transformace",
+          "weight": 0.85,
+          "relationship_type": "regulatory_context",
+          "direction": "context_specific",
+          "default_use": "default_context",
+          "reason_cs": "Zelena transformace, emisni povolenky a obnovitelne zdroje vyznamne ovlivnuji energetiku."
+        },
+        {
+          "rank": 2,
+          "related_segment_id": "manufacturing_general",
+          "related_segment_name_cs": "Zpracovatelský průmysl",
+          "weight": 0.75,
+          "relationship_type": "customer",
+          "direction": "positive",
+          "default_use": "default_context",
+          "reason_cs": "Prumysl je vyznamnym odberatelem energie."
+        },
+        {
+          "rank": 3,
+          "related_segment_id": "public_sector_infrastructure",
+          "related_segment_name_cs": "Veřejný sektor a infrastruktura",
+          "weight": 0.7,
+          "relationship_type": "regulatory_context",
+          "direction": "context_specific",
+          "default_use": "default_context",
+          "reason_cs": "Energetika je ovlivnena regulaci, verejnymi investicemi a infrastrukturou."
+        },
+        {
+          "rank": 4,
+          "related_segment_id": "chemicals_materials",
+          "related_segment_name_cs": "Chemický průmysl a materiály",
+          "weight": 0.65,
+          "relationship_type": "customer",
+          "direction": "positive",
+          "default_use": "default_context",
+          "reason_cs": "Chemicky prumysl je energeticky narocny zakaznik."
+        },
+        {
+          "rank": 5,
+          "related_segment_id": "metals_mining",
+          "related_segment_name_cs": "Kovy, hutnictví a těžba",
+          "weight": 0.65,
+          "relationship_type": "customer",
+          "direction": "positive",
+          "default_use": "default_context",
+          "reason_cs": "Hutnictvi a tezba maji vysokou spotrebu energie."
+        }
+      ]
+    },
+    {
+      "segment_id": "construction_real_estate",
+      "segment_name_cs": "Stavebnictví a nemovitosti",
+      "default_related_segment_ids": [
+        "banking_finance",
+        "public_sector_infrastructure",
+        "metals_mining",
+        "energy",
+        "retail_consumer"
+      ],
+      "default_related_segment_names_cs": [
+        "Bankovnictví a finance",
+        "Veřejný sektor a infrastruktura",
+        "Kovy, hutnictví a těžba",
+        "Energetika",
+        "Maloobchod a spotřeba domácností"
+      ],
+      "conditional_related_segment_ids": [
+        "chemicals_materials"
+      ],
+      "conditional_related_segment_names_cs": [
+        "Chemický průmysl a materiály"
+      ],
+      "related_segments": [
+        {
+          "rank": 1,
+          "related_segment_id": "banking_finance",
+          "related_segment_name_cs": "Bankovnictví a finance",
+          "weight": 0.95,
+          "relationship_type": "financial_channel",
+          "direction": "negative",
+          "default_use": "default_context",
+          "reason_cs": "Hypoteky, urokove sazby a uverove podminky jsou klicove pro stavebnictvi a nemovitosti."
+        },
+        {
+          "rank": 2,
+          "related_segment_id": "public_sector_infrastructure",
+          "related_segment_name_cs": "Veřejný sektor a infrastruktura",
+          "weight": 0.65,
+          "relationship_type": "demand_driver",
+          "direction": "positive",
+          "default_use": "default_context",
+          "reason_cs": "Verejne investice a infrastruktura podporuji stavebni aktivitu."
+        },
+        {
+          "rank": 3,
+          "related_segment_id": "metals_mining",
+          "related_segment_name_cs": "Kovy, hutnictví a těžba",
+          "weight": 0.6,
+          "relationship_type": "supplier",
+          "direction": "mixed",
+          "default_use": "default_context",
+          "reason_cs": "Kovy a stavebni materialy ovlivnuji naklady vystavby."
+        },
+        {
+          "rank": 4,
+          "related_segment_id": "energy",
+          "related_segment_name_cs": "Energetika",
+          "weight": 0.55,
+          "relationship_type": "cost_driver",
+          "direction": "negative",
+          "default_use": "default_context",
+          "reason_cs": "Energie ovlivnuje stavebni naklady a provoz budov."
+        },
+        {
+          "rank": 5,
+          "related_segment_id": "retail_consumer",
+          "related_segment_name_cs": "Maloobchod a spotřeba domácností",
+          "weight": 0.55,
+          "relationship_type": "demand_driver",
+          "direction": "positive",
+          "default_use": "default_context",
+          "reason_cs": "Prijmy domacnosti a spotrebitelska duvera ovlivnuji poptavku po bydleni."
+        },
+        {
+          "rank": 6,
+          "related_segment_id": "chemicals_materials",
+          "related_segment_name_cs": "Chemický průmysl a materiály",
+          "weight": 0.45,
+          "relationship_type": "supplier",
+          "direction": "mixed",
+          "default_use": "conditional_context",
+          "reason_cs": "Chemicke a materialove vstupy ovlivnuji stavebni naklady."
+        }
+      ]
+    },
+    {
+      "segment_id": "banking_finance",
+      "segment_name_cs": "Bankovnictví a finance",
+      "default_related_segment_ids": [
+        "construction_real_estate",
+        "manufacturing_general",
+        "retail_consumer"
+      ],
+      "default_related_segment_names_cs": [
+        "Stavebnictví a nemovitosti",
+        "Zpracovatelský průmysl",
+        "Maloobchod a spotřeba domácností"
+      ],
+      "conditional_related_segment_ids": [
+        "public_sector_infrastructure"
+      ],
+      "conditional_related_segment_names_cs": [
+        "Veřejný sektor a infrastruktura"
+      ],
+      "related_segments": [
+        {
+          "rank": 1,
+          "related_segment_id": "construction_real_estate",
+          "related_segment_name_cs": "Stavebnictví a nemovitosti",
+          "weight": 0.75,
+          "relationship_type": "customer",
+          "direction": "context_specific",
+          "default_use": "default_context",
+          "reason_cs": "Hypoteky a nemovitostni trh jsou vyznamne pro bankovni uvery a riziko."
+        },
+        {
+          "rank": 2,
+          "related_segment_id": "manufacturing_general",
+          "related_segment_name_cs": "Zpracovatelský průmysl",
+          "weight": 0.6,
+          "relationship_type": "customer",
+          "direction": "context_specific",
+          "default_use": "default_context",
+          "reason_cs": "Firemni investice a prumyslovy cyklus ovlivnuji podnikove uvery."
+        },
+        {
+          "rank": 3,
+          "related_segment_id": "retail_consumer",
+          "related_segment_name_cs": "Maloobchod a spotřeba domácností",
+          "weight": 0.55,
+          "relationship_type": "customer",
+          "direction": "positive",
+          "default_use": "default_context",
+          "reason_cs": "Spotreba domacnosti ovlivnuje poptavku po spotrebitelskych uverech."
+        },
+        {
+          "rank": 4,
+          "related_segment_id": "public_sector_infrastructure",
+          "related_segment_name_cs": "Veřejný sektor a infrastruktura",
+          "weight": 0.45,
+          "relationship_type": "macro_context",
+          "direction": "context_specific",
+          "default_use": "conditional_context",
+          "reason_cs": "Verejne finance a statni dluh ovlivnuji financni trhy a rizikove prostredi."
+        }
+      ]
+    },
+    {
+      "segment_id": "insurance",
+      "segment_name_cs": "Pojišťovnictví",
+      "default_related_segment_ids": [
+        "banking_finance",
+        "construction_real_estate"
+      ],
+      "default_related_segment_names_cs": [
+        "Bankovnictví a finance",
+        "Stavebnictví a nemovitosti"
+      ],
+      "conditional_related_segment_ids": [
+        "retail_consumer",
+        "healthcare_pharma"
+      ],
+      "conditional_related_segment_names_cs": [
+        "Maloobchod a spotřeba domácností",
+        "Zdravotnictví a farmacie"
+      ],
+      "related_segments": [
+        {
+          "rank": 1,
+          "related_segment_id": "banking_finance",
+          "related_segment_name_cs": "Bankovnictví a finance",
+          "weight": 0.7,
+          "relationship_type": "financial_channel",
+          "direction": "context_specific",
+          "default_use": "default_context",
+          "reason_cs": "Vynosova krivka, sazby a kreditni cyklus ovlivnuji investicni vysledky pojistoven."
+        },
+        {
+          "rank": 2,
+          "related_segment_id": "construction_real_estate",
+          "related_segment_name_cs": "Stavebnictví a nemovitosti",
+          "weight": 0.55,
+          "relationship_type": "customer",
+          "direction": "context_specific",
+          "default_use": "default_context",
+          "reason_cs": "Nemovitosti a stavebnictvi ovlivnuji majetkove pojisteni a skodni prubeh."
+        },
+        {
+          "rank": 3,
+          "related_segment_id": "retail_consumer",
+          "related_segment_name_cs": "Maloobchod a spotřeba domácností",
+          "weight": 0.5,
+          "relationship_type": "customer",
+          "direction": "positive",
+          "default_use": "conditional_context",
+          "reason_cs": "Spotrebitelska poptavka ovlivnuje poptavku po zivotnim a nezivotnim pojisteni."
+        },
+        {
+          "rank": 4,
+          "related_segment_id": "healthcare_pharma",
+          "related_segment_name_cs": "Zdravotnictví a farmacie",
+          "weight": 0.45,
+          "relationship_type": "customer",
+          "direction": "context_specific",
+          "default_use": "conditional_context",
+          "reason_cs": "Naklady zdravotni pece a demografie ovlivnuji zdravotni a zivotni pojisteni."
+        }
+      ]
+    },
+    {
+      "segment_id": "retail_consumer",
+      "segment_name_cs": "Maloobchod a spotřeba domácností",
+      "default_related_segment_ids": [
+        "agriculture_food"
+      ],
+      "default_related_segment_names_cs": [
+        "Zemědělství a potravinářství"
+      ],
+      "conditional_related_segment_ids": [
+        "banking_finance",
+        "energy"
+      ],
+      "conditional_related_segment_names_cs": [
+        "Bankovnictví a finance",
+        "Energetika"
+      ],
+      "related_segments": [
+        {
+          "rank": 1,
+          "related_segment_id": "agriculture_food",
+          "related_segment_name_cs": "Zemědělství a potravinářství",
+          "weight": 0.55,
+          "relationship_type": "supplier",
+          "direction": "mixed",
+          "default_use": "default_context",
+          "reason_cs": "Potraviny a zemedelstvi ovlivnuji ceny zakladni spotreby."
+        },
+        {
+          "rank": 2,
+          "related_segment_id": "banking_finance",
+          "related_segment_name_cs": "Bankovnictví a finance",
+          "weight": 0.5,
+          "relationship_type": "financial_channel",
+          "direction": "context_specific",
+          "default_use": "conditional_context",
+          "reason_cs": "Spotrebitelske uvery, sazby a hypoteky ovlivnuji disponibilni prijem a spotrebu."
+        },
+        {
+          "rank": 3,
+          "related_segment_id": "energy",
+          "related_segment_name_cs": "Energetika",
+          "weight": 0.45,
+          "relationship_type": "cost_driver",
+          "direction": "negative",
+          "default_use": "conditional_context",
+          "reason_cs": "Ceny energii ovlivnuji disponibilni prijem domacnosti i naklady obchodniku."
+        }
+      ]
+    },
+    {
+      "segment_id": "manufacturing_general",
+      "segment_name_cs": "Zpracovatelský průmysl",
+      "default_related_segment_ids": [
+        "energy",
+        "machinery_engineering",
+        "transport_logistics",
+        "banking_finance"
+      ],
+      "default_related_segment_names_cs": [
+        "Energetika",
+        "Strojírenství",
+        "Doprava a logistika",
+        "Bankovnictví a finance"
+      ],
+      "conditional_related_segment_ids": [],
+      "conditional_related_segment_names_cs": [],
+      "related_segments": [
+        {
+          "rank": 1,
+          "related_segment_id": "energy",
+          "related_segment_name_cs": "Energetika",
+          "weight": 0.8,
+          "relationship_type": "cost_driver",
+          "direction": "negative",
+          "default_use": "default_context",
+          "reason_cs": "Ceny energii ovlivnuji prumyslove naklady."
+        },
+        {
+          "rank": 2,
+          "related_segment_id": "machinery_engineering",
+          "related_segment_name_cs": "Strojírenství",
+          "weight": 0.55,
+          "relationship_type": "supplier",
+          "direction": "positive",
+          "default_use": "default_context",
+          "reason_cs": "Strojirenstvi dodava investicni a vyrobni vybaveni."
+        },
+        {
+          "rank": 3,
+          "related_segment_id": "transport_logistics",
+          "related_segment_name_cs": "Doprava a logistika",
+          "weight": 0.55,
+          "relationship_type": "supplier",
+          "direction": "context_specific",
+          "default_use": "default_context",
+          "reason_cs": "Logistika ovlivnuje dodavatelske retezce a export."
+        },
+        {
+          "rank": 4,
+          "related_segment_id": "banking_finance",
+          "related_segment_name_cs": "Bankovnictví a finance",
+          "weight": 0.55,
+          "relationship_type": "financial_channel",
+          "direction": "context_specific",
+          "default_use": "default_context",
+          "reason_cs": "Uvery a sazby ovlivnuji investice a provozni financovani."
+        }
+      ]
+    },
+    {
+      "segment_id": "machinery_engineering",
+      "segment_name_cs": "Strojírenství",
+      "default_related_segment_ids": [
+        "manufacturing_general",
+        "metals_mining",
+        "energy",
+        "automotive",
+        "banking_finance"
+      ],
+      "default_related_segment_names_cs": [
+        "Zpracovatelský průmysl",
+        "Kovy, hutnictví a těžba",
+        "Energetika",
+        "Automobilový průmysl",
+        "Bankovnictví a finance"
+      ],
+      "conditional_related_segment_ids": [],
+      "conditional_related_segment_names_cs": [],
+      "related_segments": [
+        {
+          "rank": 1,
+          "related_segment_id": "manufacturing_general",
+          "related_segment_name_cs": "Zpracovatelský průmysl",
+          "weight": 0.75,
+          "relationship_type": "demand_driver",
+          "direction": "positive",
+          "default_use": "default_context",
+          "reason_cs": "Strojirenstvi je citlive na investicni cyklus prumyslu."
+        },
+        {
+          "rank": 2,
+          "related_segment_id": "metals_mining",
+          "related_segment_name_cs": "Kovy, hutnictví a těžba",
+          "weight": 0.65,
+          "relationship_type": "supplier",
+          "direction": "mixed",
+          "default_use": "default_context",
+          "reason_cs": "Kovy jsou vyznamnym vstupem pro strojirenstvi."
+        },
+        {
+          "rank": 3,
+          "related_segment_id": "energy",
+          "related_segment_name_cs": "Energetika",
+          "weight": 0.65,
+          "relationship_type": "cost_driver",
+          "direction": "negative",
+          "default_use": "default_context",
+          "reason_cs": "Energie ovlivnuje vyrobni naklady."
+        },
+        {
+          "rank": 4,
+          "related_segment_id": "automotive",
+          "related_segment_name_cs": "Automobilový průmysl",
+          "weight": 0.6,
+          "relationship_type": "customer",
+          "direction": "positive",
+          "default_use": "default_context",
+          "reason_cs": "Automotive vytvari poptavku po strojirenskych a vyrobnich technologiich."
+        },
+        {
+          "rank": 5,
+          "related_segment_id": "banking_finance",
+          "related_segment_name_cs": "Bankovnictví a finance",
+          "weight": 0.6,
+          "relationship_type": "financial_channel",
+          "direction": "context_specific",
+          "default_use": "default_context",
+          "reason_cs": "Investice do stroju jsou citlive na sazby a uverove podminky."
+        }
+      ]
+    },
+    {
+      "segment_id": "chemicals_materials",
+      "segment_name_cs": "Chemický průmysl a materiály",
+      "default_related_segment_ids": [
+        "energy",
+        "manufacturing_general",
+        "rubber_plastics"
+      ],
+      "default_related_segment_names_cs": [
+        "Energetika",
+        "Zpracovatelský průmysl",
+        "Gumárenský a plastikářský průmysl"
+      ],
+      "conditional_related_segment_ids": [
+        "agriculture_food",
+        "construction_real_estate"
+      ],
+      "conditional_related_segment_names_cs": [
+        "Zemědělství a potravinářství",
+        "Stavebnictví a nemovitosti"
+      ],
+      "related_segments": [
+        {
+          "rank": 1,
+          "related_segment_id": "energy",
+          "related_segment_name_cs": "Energetika",
+          "weight": 0.95,
+          "relationship_type": "cost_driver",
+          "direction": "negative",
+          "default_use": "default_context",
+          "reason_cs": "Chemicky prumysl je silne citlivy na ceny elektriny, plynu a ropnych vstupu."
+        },
+        {
+          "rank": 2,
+          "related_segment_id": "manufacturing_general",
+          "related_segment_name_cs": "Zpracovatelský průmysl",
+          "weight": 0.75,
+          "relationship_type": "demand_driver",
+          "direction": "positive",
+          "default_use": "default_context",
+          "reason_cs": "Prumyslova aktivita ovlivnuje poptavku po chemickych materialech."
+        },
+        {
+          "rank": 3,
+          "related_segment_id": "rubber_plastics",
+          "related_segment_name_cs": "Gumárenský a plastikářský průmysl",
+          "weight": 0.55,
+          "relationship_type": "customer",
+          "direction": "positive",
+          "default_use": "default_context",
+          "reason_cs": "Gumarensky a plastikarsky prumysl odebiraji chemicke a petrochemicke vstupy."
+        },
+        {
+          "rank": 4,
+          "related_segment_id": "agriculture_food",
+          "related_segment_name_cs": "Zemědělství a potravinářství",
+          "weight": 0.45,
+          "relationship_type": "customer",
+          "direction": "positive",
+          "default_use": "conditional_context",
+          "reason_cs": "Zemedelstvi vyuziva hnojiva a chemicke produkty."
+        },
+        {
+          "rank": 5,
+          "related_segment_id": "construction_real_estate",
+          "related_segment_name_cs": "Stavebnictví a nemovitosti",
+          "weight": 0.45,
+          "relationship_type": "customer",
+          "direction": "positive",
+          "default_use": "conditional_context",
+          "reason_cs": "Stavebnictvi vyuziva radu chemickych a materialovych vstupu."
+        }
+      ]
+    },
+    {
+      "segment_id": "healthcare_pharma",
+      "segment_name_cs": "Zdravotnictví a farmacie",
+      "default_related_segment_ids": [
+        "public_sector_infrastructure",
+        "chemicals_materials"
+      ],
+      "default_related_segment_names_cs": [
+        "Veřejný sektor a infrastruktura",
+        "Chemický průmysl a materiály"
+      ],
+      "conditional_related_segment_ids": [
+        "energy",
+        "banking_finance"
+      ],
+      "conditional_related_segment_names_cs": [
+        "Energetika",
+        "Bankovnictví a finance"
+      ],
+      "related_segments": [
+        {
+          "rank": 1,
+          "related_segment_id": "public_sector_infrastructure",
+          "related_segment_name_cs": "Veřejný sektor a infrastruktura",
+          "weight": 0.65,
+          "relationship_type": "regulatory_context",
+          "direction": "context_specific",
+          "default_use": "default_context",
+          "reason_cs": "Verejne zdravotnictvi, regulace a statni nakupy silne ovlivnuji sektor."
+        },
+        {
+          "rank": 2,
+          "related_segment_id": "chemicals_materials",
+          "related_segment_name_cs": "Chemický průmysl a materiály",
+          "weight": 0.55,
+          "relationship_type": "supplier",
+          "direction": "mixed",
+          "default_use": "default_context",
+          "reason_cs": "Chemicke meziprodukty a specialni materialy vstupuji do farmaceuticke vyroby."
+        },
+        {
+          "rank": 3,
+          "related_segment_id": "energy",
+          "related_segment_name_cs": "Energetika",
+          "weight": 0.4,
+          "relationship_type": "cost_driver",
+          "direction": "negative",
+          "default_use": "conditional_context",
+          "reason_cs": "Energie ovlivnuje naklady vyroby i nemocnicniho provozu."
+        },
+        {
+          "rank": 4,
+          "related_segment_id": "banking_finance",
+          "related_segment_name_cs": "Bankovnictví a finance",
+          "weight": 0.4,
+          "relationship_type": "financial_channel",
+          "direction": "context_specific",
+          "default_use": "conditional_context",
+          "reason_cs": "Kapitalove trhy a financovani vyzkumu jsou relevantni pro farmaceuticky segment."
+        }
+      ]
+    },
+    {
+      "segment_id": "ict_digital",
+      "segment_name_cs": "ICT, software, telco, fintech a digitální ekonomika",
+      "default_related_segment_ids": [
+        "energy",
+        "retail_consumer"
+      ],
+      "default_related_segment_names_cs": [
+        "Energetika",
+        "Maloobchod a spotřeba domácností"
+      ],
+      "conditional_related_segment_ids": [
+        "public_sector_infrastructure",
+        "banking_finance"
+      ],
+      "conditional_related_segment_names_cs": [
+        "Veřejný sektor a infrastruktura",
+        "Bankovnictví a finance"
+      ],
+      "related_segments": [
+        {
+          "rank": 1,
+          "related_segment_id": "energy",
+          "related_segment_name_cs": "Energetika",
+          "weight": 0.8,
+          "relationship_type": "cost_driver",
+          "direction": "negative",
+          "default_use": "default_context",
+          "reason_cs": "U datacenter a cloudovych sluzeb je elektrina vyznamnym nakladovym faktorem."
+        },
+        {
+          "rank": 2,
+          "related_segment_id": "public_sector_infrastructure",
+          "related_segment_name_cs": "Veřejný sektor a infrastruktura",
+          "weight": 0.45,
+          "relationship_type": "customer",
+          "direction": "positive",
+          "default_use": "conditional_context",
+          "reason_cs": "Verejny sektor a digitalizace statu vytvareji poptavku po ICT."
+        },
+        {
+          "rank": 3,
+          "related_segment_id": "banking_finance",
+          "related_segment_name_cs": "Bankovnictví a finance",
+          "weight": 0.35,
+          "relationship_type": "customer",
+          "direction": "positive",
+          "default_use": "conditional_context",
+          "reason_cs": "Financni sektor je vyznamnym odberatelem IT sluzeb."
+        }
+      ]
+    },
+    {
+      "segment_id": "transport_logistics",
+      "segment_name_cs": "Doprava a logistika",
+      "default_related_segment_ids": [
+        "energy",
+        "manufacturing_general",
+        "retail_consumer",
+        "automotive"
+      ],
+      "default_related_segment_names_cs": [
+        "Energetika",
+        "Zpracovatelský průmysl",
+        "Maloobchod a spotřeba domácností",
+        "Automobilový průmysl"
+      ],
+      "conditional_related_segment_ids": [
+        "banking_finance"
+      ],
+      "conditional_related_segment_names_cs": [
+        "Bankovnictví a finance"
+      ],
+      "related_segments": [
+        {
+          "rank": 1,
+          "related_segment_id": "energy",
+          "related_segment_name_cs": "Energetika",
+          "weight": 0.95,
+          "relationship_type": "cost_driver",
+          "direction": "negative",
+          "default_use": "default_context",
+          "reason_cs": "Paliva a energie jsou klicovym nakladovym driverem dopravy a logistiky."
+        },
+        {
+          "rank": 2,
+          "related_segment_id": "manufacturing_general",
+          "related_segment_name_cs": "Zpracovatelský průmysl",
+          "weight": 0.75,
+          "relationship_type": "customer",
+          "direction": "positive",
+          "default_use": "default_context",
+          "reason_cs": "Vyroba a export vytvareji objemy pro logistiku a prepravu."
+        },
+        {
+          "rank": 3,
+          "related_segment_id": "retail_consumer",
+          "related_segment_name_cs": "Maloobchod a spotřeba domácností",
+          "weight": 0.6,
+          "relationship_type": "demand_driver",
+          "direction": "positive",
+          "default_use": "default_context",
+          "reason_cs": "Spotrebitelska poptavka ovlivnuje e-commerce a distribuci."
+        },
+        {
+          "rank": 4,
+          "related_segment_id": "automotive",
+          "related_segment_name_cs": "Automobilový průmysl",
+          "weight": 0.55,
+          "relationship_type": "customer",
+          "direction": "positive",
+          "default_use": "default_context",
+          "reason_cs": "Automotive vytvari poptavku po inbound a outbound logistice."
+        },
+        {
+          "rank": 5,
+          "related_segment_id": "banking_finance",
+          "related_segment_name_cs": "Bankovnictví a finance",
+          "weight": 0.35,
+          "relationship_type": "financial_channel",
+          "direction": "context_specific",
+          "default_use": "conditional_context",
+          "reason_cs": "Financovani vozoveho parku a provozni kapital ovlivnuji sektor."
+        }
+      ]
+    },
+    {
+      "segment_id": "tourism_hospitality",
+      "segment_name_cs": "Cestovní ruch, hotely a gastronomie",
+      "default_related_segment_ids": [
+        "retail_consumer",
+        "transport_logistics"
+      ],
+      "default_related_segment_names_cs": [
+        "Maloobchod a spotřeba domácností",
+        "Doprava a logistika"
+      ],
+      "conditional_related_segment_ids": [
+        "banking_finance",
+        "ict_digital"
+      ],
+      "conditional_related_segment_names_cs": [
+        "Bankovnictví a finance",
+        "ICT, software, telco, fintech a digitální ekonomika"
+      ],
+      "related_segments": [
+        {
+          "rank": 1,
+          "related_segment_id": "retail_consumer",
+          "related_segment_name_cs": "Maloobchod a spotřeba domácností",
+          "weight": 0.7,
+          "relationship_type": "demand_driver",
+          "direction": "positive",
+          "default_use": "default_context",
+          "reason_cs": "Disponibilni prijmy a spotrebitelska duvera ovlivnuji utraty za cestovani a sluzby."
+        },
+        {
+          "rank": 2,
+          "related_segment_id": "transport_logistics",
+          "related_segment_name_cs": "Doprava a logistika",
+          "weight": 0.65,
+          "relationship_type": "supplier",
+          "direction": "positive",
+          "default_use": "default_context",
+          "reason_cs": "Letecka, silnicni a kolejova doprava podporuji turistickou poptavku."
+        },
+        {
+          "rank": 3,
+          "related_segment_id": "banking_finance",
+          "related_segment_name_cs": "Bankovnictví a finance",
+          "weight": 0.35,
+          "relationship_type": "financial_channel",
+          "direction": "context_specific",
+          "default_use": "conditional_context",
+          "reason_cs": "Sazby a financovani ovlivnuji investice do hotelu a provozni financovani."
+        },
+        {
+          "rank": 4,
+          "related_segment_id": "ict_digital",
+          "related_segment_name_cs": "ICT, software, telco, fintech a digitální ekonomika",
+          "weight": 0.35,
+          "relationship_type": "complement",
+          "direction": "positive",
+          "default_use": "conditional_context",
+          "reason_cs": "Digitalni marketing a platformy podporuji obsazenost a viditelnost."
+        }
+      ]
+    },
+    {
+      "segment_id": "agriculture_food",
+      "segment_name_cs": "Zemědělství a potravinářství",
+      "default_related_segment_ids": [
+        "energy",
+        "retail_consumer",
+        "chemicals_materials"
+      ],
+      "default_related_segment_names_cs": [
+        "Energetika",
+        "Maloobchod a spotřeba domácností",
+        "Chemický průmysl a materiály"
+      ],
+      "conditional_related_segment_ids": [
+        "transport_logistics"
+      ],
+      "conditional_related_segment_names_cs": [
+        "Doprava a logistika"
+      ],
+      "related_segments": [
+        {
+          "rank": 1,
+          "related_segment_id": "energy",
+          "related_segment_name_cs": "Energetika",
+          "weight": 0.75,
+          "relationship_type": "cost_driver",
+          "direction": "negative",
+          "default_use": "default_context",
+          "reason_cs": "Energie a paliva ovlivnuji vyrobni i logisticke naklady agri-food sektoru."
+        },
+        {
+          "rank": 2,
+          "related_segment_id": "retail_consumer",
+          "related_segment_name_cs": "Maloobchod a spotřeba domácností",
+          "weight": 0.75,
+          "relationship_type": "customer",
+          "direction": "positive",
+          "default_use": "default_context",
+          "reason_cs": "Maloobchod a spotreba domacnosti jsou klicovou odbytovou vazbou."
+        },
+        {
+          "rank": 3,
+          "related_segment_id": "chemicals_materials",
+          "related_segment_name_cs": "Chemický průmysl a materiály",
+          "weight": 0.6,
+          "relationship_type": "supplier",
+          "direction": "mixed",
+          "default_use": "default_context",
+          "reason_cs": "Hnojiva, chemie a obalove materialy jsou dulezite vstupy."
+        },
+        {
+          "rank": 4,
+          "related_segment_id": "transport_logistics",
+          "related_segment_name_cs": "Doprava a logistika",
+          "weight": 0.5,
+          "relationship_type": "supplier",
+          "direction": "context_specific",
+          "default_use": "conditional_context",
+          "reason_cs": "Logistika ovlivnuje distribuci a export potravin."
+        }
+      ]
+    },
+    {
+      "segment_id": "metals_mining",
+      "segment_name_cs": "Kovy, hutnictví a těžba",
+      "default_related_segment_ids": [
+        "energy",
+        "construction_real_estate",
+        "automotive",
+        "machinery_engineering"
+      ],
+      "default_related_segment_names_cs": [
+        "Energetika",
+        "Stavebnictví a nemovitosti",
+        "Automobilový průmysl",
+        "Strojírenství"
+      ],
+      "conditional_related_segment_ids": [],
+      "conditional_related_segment_names_cs": [],
+      "related_segments": [
+        {
+          "rank": 1,
+          "related_segment_id": "energy",
+          "related_segment_name_cs": "Energetika",
+          "weight": 0.95,
+          "relationship_type": "cost_driver",
+          "direction": "negative",
+          "default_use": "default_context",
+          "reason_cs": "Hutnictvi a tezba jsou energeticky narocne sektory."
+        },
+        {
+          "rank": 2,
+          "related_segment_id": "construction_real_estate",
+          "related_segment_name_cs": "Stavebnictví a nemovitosti",
+          "weight": 0.8,
+          "relationship_type": "demand_driver",
+          "direction": "positive",
+          "default_use": "default_context",
+          "reason_cs": "Stavebnictvi je klicovym odberatelem kovu a stavebnich materialu."
+        },
+        {
+          "rank": 3,
+          "related_segment_id": "automotive",
+          "related_segment_name_cs": "Automobilový průmysl",
+          "weight": 0.7,
+          "relationship_type": "demand_driver",
+          "direction": "positive",
+          "default_use": "default_context",
+          "reason_cs": "Automotive vyuziva kovy a hutni vyrobky."
+        },
+        {
+          "rank": 4,
+          "related_segment_id": "machinery_engineering",
+          "related_segment_name_cs": "Strojírenství",
+          "weight": 0.7,
+          "relationship_type": "demand_driver",
+          "direction": "positive",
+          "default_use": "default_context",
+          "reason_cs": "Strojirenstvi vytvari poptavku po kovech."
+        }
+      ]
+    },
+    {
+      "segment_id": "defense_security",
+      "segment_name_cs": "Obranný a bezpečnostní průmysl",
+      "default_related_segment_ids": [
+        "public_sector_infrastructure"
+      ],
+      "default_related_segment_names_cs": [
+        "Veřejný sektor a infrastruktura"
+      ],
+      "conditional_related_segment_ids": [
+        "metals_mining",
+        "ict_digital",
+        "chemicals_materials",
+        "energy"
+      ],
+      "conditional_related_segment_names_cs": [
+        "Kovy, hutnictví a těžba",
+        "ICT, software a digitální ekonomika",
+        "Chemický průmysl a materiály",
+        "Energetika"
+      ],
+      "related_segments": [
+        {
+          "rank": 1,
+          "related_segment_id": "public_sector_infrastructure",
+          "related_segment_name_cs": "Veřejný sektor a infrastruktura",
+          "weight": 0.8,
+          "relationship_type": "customer",
+          "direction": "positive",
+          "default_use": "default_context",
+          "reason_cs": "Verejne zakazky, obranny rozpocet a infrastruktura jsou hlavnim poptavkovym driverem."
+        },
+        {
+          "rank": 2,
+          "related_segment_id": "metals_mining",
+          "related_segment_name_cs": "Kovy, hutnictví a těžba",
+          "weight": 0.5,
+          "relationship_type": "supplier",
+          "direction": "mixed",
+          "default_use": "conditional_context",
+          "reason_cs": "Kovy a specialni materialy jsou dulezitymi vstupy."
+        },
+        {
+          "rank": 3,
+          "related_segment_id": "ict_digital",
+          "related_segment_name_cs": "ICT, software a digitální ekonomika",
+          "weight": 0.5,
+          "relationship_type": "supplier",
+          "direction": "positive",
+          "default_use": "conditional_context",
+          "reason_cs": "Software, senzory a digitalni systemy jsou stale dulezitejsi casti sektoru."
+        },
+        {
+          "rank": 4,
+          "related_segment_id": "chemicals_materials",
+          "related_segment_name_cs": "Chemický průmysl a materiály",
+          "weight": 0.45,
+          "relationship_type": "supplier",
+          "direction": "mixed",
+          "default_use": "conditional_context",
+          "reason_cs": "Chemicke materialy vstupuji do specializovanych aplikaci."
+        },
+        {
+          "rank": 5,
+          "related_segment_id": "energy",
+          "related_segment_name_cs": "Energetika",
+          "weight": 0.4,
+          "relationship_type": "cost_driver",
+          "direction": "negative",
+          "default_use": "conditional_context",
+          "reason_cs": "Energie ovlivnuje naklady vyroby a provozu."
+        }
+      ]
+    },
+    {
+      "segment_id": "public_sector_infrastructure",
+      "segment_name_cs": "Veřejný sektor a infrastruktura",
+      "default_related_segment_ids": [
+        "construction_real_estate",
+        "banking_finance",
+        "metals_mining"
+      ],
+      "default_related_segment_names_cs": [
+        "Stavebnictví a nemovitosti",
+        "Bankovnictví a finance",
+        "Kovy, hutnictví a těžba"
+      ],
+      "conditional_related_segment_ids": [
+        "energy",
+        "ict_digital"
+      ],
+      "conditional_related_segment_names_cs": [
+        "Energetika",
+        "ICT, software a digitální ekonomika"
+      ],
+      "related_segments": [
+        {
+          "rank": 1,
+          "related_segment_id": "construction_real_estate",
+          "related_segment_name_cs": "Stavebnictví a nemovitosti",
+          "weight": 0.7,
+          "relationship_type": "customer",
+          "direction": "positive",
+          "default_use": "default_context",
+          "reason_cs": "Verejne investice vytvareji poptavku po stavebnich a inzenyrskych sluzbach."
+        },
+        {
+          "rank": 2,
+          "related_segment_id": "banking_finance",
+          "related_segment_name_cs": "Bankovnictví a finance",
+          "weight": 0.55,
+          "relationship_type": "financial_channel",
+          "direction": "context_specific",
+          "default_use": "default_context",
+          "reason_cs": "Financni podminky a verejne finance ovlivnuji investicni prostor."
+        },
+        {
+          "rank": 3,
+          "related_segment_id": "metals_mining",
+          "related_segment_name_cs": "Kovy, hutnictví a těžba",
+          "weight": 0.55,
+          "relationship_type": "supplier",
+          "direction": "mixed",
+          "default_use": "default_context",
+          "reason_cs": "Kovy a stavebni materialy ovlivnuji naklady infrastruktury."
+        },
+        {
+          "rank": 4,
+          "related_segment_id": "energy",
+          "related_segment_name_cs": "Energetika",
+          "weight": 0.45,
+          "relationship_type": "supplier",
+          "direction": "positive",
+          "default_use": "conditional_context",
+          "reason_cs": "Energeticka infrastruktura je soucasti verejnych investic a provozu."
+        },
+        {
+          "rank": 5,
+          "related_segment_id": "ict_digital",
+          "related_segment_name_cs": "ICT, software a digitální ekonomika",
+          "weight": 0.45,
+          "relationship_type": "customer",
+          "direction": "positive",
+          "default_use": "conditional_context",
+          "reason_cs": "Digitalizace statu vytvari poptavku po ICT a sitich."
+        }
+      ]
+    },
+    {
+      "segment_id": "esg_green_transition",
+      "segment_name_cs": "ESG, klima a zelená transformace",
+      "default_related_segment_ids": [
+        "energy"
+      ],
+      "default_related_segment_names_cs": [
+        "Energetika"
+      ],
+      "conditional_related_segment_ids": [
+        "public_sector_infrastructure",
+        "banking_finance",
+        "automotive",
+        "chemicals_materials"
+      ],
+      "conditional_related_segment_names_cs": [
+        "Veřejný sektor a infrastruktura",
+        "Bankovnictví a finance",
+        "Automobilový průmysl",
+        "Chemický průmysl a materiály"
+      ],
+      "related_segments": [
+        {
+          "rank": 1,
+          "related_segment_id": "energy",
+          "related_segment_name_cs": "Energetika",
+          "weight": 0.85,
+          "relationship_type": "regulatory_context",
+          "direction": "context_specific",
+          "default_use": "default_context",
+          "reason_cs": "Energetika a emisni politika jsou jadrem zelene transformace."
+        },
+        {
+          "rank": 2,
+          "related_segment_id": "public_sector_infrastructure",
+          "related_segment_name_cs": "Veřejný sektor a infrastruktura",
+          "weight": 0.5,
+          "relationship_type": "customer",
+          "direction": "positive",
+          "default_use": "conditional_context",
+          "reason_cs": "Verejne investice do siti a infrastruktury podporuji transformaci."
+        },
+        {
+          "rank": 3,
+          "related_segment_id": "banking_finance",
+          "related_segment_name_cs": "Bankovnictví a finance",
+          "weight": 0.5,
+          "relationship_type": "financial_channel",
+          "direction": "context_specific",
+          "default_use": "conditional_context",
+          "reason_cs": "Zelene financovani a sazby ovlivnuji investicni projekty."
+        },
+        {
+          "rank": 4,
+          "related_segment_id": "automotive",
+          "related_segment_name_cs": "Automobilový průmysl",
+          "weight": 0.45,
+          "relationship_type": "regulatory_context",
+          "direction": "context_specific",
+          "default_use": "conditional_context",
+          "reason_cs": "Automotive je ovlivnovano emisnimi normami a elektrifikaci."
+        },
+        {
+          "rank": 5,
+          "related_segment_id": "chemicals_materials",
+          "related_segment_name_cs": "Chemický průmysl a materiály",
+          "weight": 0.4,
+          "relationship_type": "supplier",
+          "direction": "positive",
+          "default_use": "conditional_context",
+          "reason_cs": "Materialy pro baterie, izolace a technologie jsou relevantni vstupy."
+        }
+      ]
+    }
+  ]
+}
