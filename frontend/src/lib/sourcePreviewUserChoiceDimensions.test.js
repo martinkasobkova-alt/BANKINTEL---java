@@ -80,6 +80,34 @@ describe("sourcePreviewUserChoiceDimensions", () => {
     expect(items[0].label).toBe("Odvětví");
   });
 
+  it("exposes nace_r2 for plain by-industry datasets, not just env/sbs ones", () => {
+    // Živě zjištěno: "nama_10_a64_e" (Employment by detailed industry, NACE Rev.2) mělo
+    // ve výběru zemi/ukazatel/jednotku, ale žádné odvětví - přestože nace_r2 v datasetu
+    // reálně existuje se 96 hodnotami. isIndustryDimensionSelectable dřív nace_r2 povolovala
+    // jen pro datasety odpovídající environmentálnímu vzoru (sbs_env/env_/cepa), takže tenhle
+    // úplně běžný "podle odvětví" dataset spadl skrz.
+    const items = buildUserChoiceDimensions(
+      {
+        nace_r2: {
+          sample_options: [
+            { code: "TOTAL", label: "Total" },
+            { code: "C", label: "Manufacturing" },
+          ],
+        },
+      },
+      {
+        datasetId: "nama_10_a64_e",
+        appliedFilters: { nace_r2: "TOTAL" },
+        selectableDimensions: [
+          { field: "nace_r2", options: [{ code: "TOTAL", label: "Total" }, { code: "C", label: "Manufacturing" }] },
+        ],
+      },
+    );
+    expect(items).toHaveLength(1);
+    expect(items[0].field).toBe("nace_r2");
+    expect(items[0].label).toBe("Odvětví");
+  });
+
   it("picks nace over ceparema for sbs_env", () => {
     const items = buildUserChoiceDimensions(
       {
