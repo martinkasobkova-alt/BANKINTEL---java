@@ -7,6 +7,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import cz.bankintel.domain.entity.UserEntity;
+import cz.bankintel.security.ApiKeyAuthFilter;
+import cz.bankintel.security.ApiKeyRateLimitFilter;
 import cz.bankintel.security.AuthRateLimitFilter;
 import cz.bankintel.security.CsrfFilter;
 import cz.bankintel.security.CurrentUser;
@@ -64,6 +66,12 @@ class HomepageControllerKpisTest {
 
     @MockitoBean
     private CsrfFilter csrfFilter;
+
+    @MockitoBean
+    private ApiKeyAuthFilter apiKeyAuthFilter;
+
+    @MockitoBean
+    private ApiKeyRateLimitFilter apiKeyRateLimitFilter;
 
     @Test
     void updateKpisRequiresEditorAndDelegatesToService() throws Exception {

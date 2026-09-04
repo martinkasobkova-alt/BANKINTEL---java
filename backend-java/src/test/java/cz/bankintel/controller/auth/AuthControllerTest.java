@@ -6,6 +6,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import cz.bankintel.security.AuthCookieService;
+import cz.bankintel.security.ApiKeyAuthFilter;
+import cz.bankintel.security.ApiKeyRateLimitFilter;
 import cz.bankintel.security.AuthRateLimitFilter;
 import cz.bankintel.security.CsrfFilter;
 import cz.bankintel.security.CurrentUser;
@@ -50,6 +52,12 @@ class AuthControllerTest {
 
     @MockitoBean
     private CsrfFilter csrfFilter;
+
+    @MockitoBean
+    private ApiKeyAuthFilter apiKeyAuthFilter;
+
+    @MockitoBean
+    private ApiKeyRateLimitFilter apiKeyRateLimitFilter;
 
     @Test
     void loginRejectsBlankEmail() throws Exception {

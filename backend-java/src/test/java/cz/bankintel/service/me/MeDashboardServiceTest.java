@@ -1,12 +1,16 @@
 package cz.bankintel.service.me;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 
 import cz.bankintel.domain.entity.DashboardPageEntity;
+import cz.bankintel.domain.entity.DashboardWidgetEntity;
 import cz.bankintel.domain.entity.UserEntity;
 import cz.bankintel.repository.DashboardPageRepository;
 import cz.bankintel.repository.DashboardWidgetRepository;
@@ -22,6 +26,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.web.server.ResponseStatusException;
 
 /**
  * Regression test for GET /api/me/dashboard/default returning HTTP 500 for a user without any
@@ -80,5 +85,31 @@ class MeDashboardServiceTest {
 
         assertTrue(result.get("page") instanceof Map<?, ?>);
         assertTrue(((List<?>) result.get("widgets")).isEmpty());
+    }
+
+    @Test
+    void pushWidgetDataStoresTheGivenPayloadAsAReadySnapshot() {
+        DashboardWidgetEntity widget = new DashboardWidgetEntity();
+        widget.setId("widget-1");
+        widget.setUserId("user-1");
+        widget.setWidgetType("api_push_chart");
+        when(widgetRepository.findByIdAndUserId("widget-1", "user-1")).thenReturn(Optional.of(widget));
+        when(widgetRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        Map<String, Object> result =
+                service.pushWidgetData(subscriber, "widget-1", Map.of("rows", List.of(Map.of("x", "2026", "y", 1))));
+
+        assertThat(widget.getDataSnapshot()).containsKey("data");
+        assertThat(widget.getSnapshotStatus()).isEqualTo("ready");
+        assertThat(widget.getLastFetchedAt()).isNotNull();
+        assertThat(result.get("data_snapshot")).isNotNull();
+    }
+
+    @Test
+    void pushWidgetDataRejectsAWidgetTheCallerDoesNotOwn() {
+        when(widgetRepository.findByIdAndUserId("widget-1", "user-1")).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.pushWidgetData(subscriber, "widget-1", Map.of("rows", List.of())))
+                .isInstanceOf(ResponseStatusException.class);
     }
 }

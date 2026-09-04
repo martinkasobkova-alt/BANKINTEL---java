@@ -2,6 +2,8 @@ package cz.bankintel.service.dashboard;
 
 import cz.bankintel.domain.entity.DashboardPageEntity;
 import cz.bankintel.domain.entity.UserEntity;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -50,7 +52,7 @@ public class DashboardPageAccessService {
         }
         String token = shareToken != null ? shareToken.strip() : "";
         String pageToken = page.getShareToken() != null ? page.getShareToken().strip() : "";
-        if (!token.isEmpty() && token.equals(pageToken) && page.isShareEnabled()) {
+        if (!token.isEmpty() && tokensMatch(token, pageToken) && page.isShareEnabled()) {
             return ViewRole.VIEWER;
         }
         return ViewRole.DENIED;
@@ -58,6 +60,11 @@ public class DashboardPageAccessService {
 
     public ViewRole resolvePageViewRole(DashboardPageEntity page, UserEntity user) {
         return resolvePageViewRole(page, user, null);
+    }
+
+    /** Constant-time comparison — a share token is a bearer secret, not just an identifier. */
+    private static boolean tokensMatch(String a, String b) {
+        return MessageDigest.isEqual(a.getBytes(StandardCharsets.UTF_8), b.getBytes(StandardCharsets.UTF_8));
     }
 
     private static Set<String> allowedUserIds(DashboardPageEntity page) {

@@ -2,6 +2,7 @@ package cz.bankintel.service.homepage;
 
 import cz.bankintel.domain.entity.UserEntity;
 import cz.bankintel.service.homepage.resolver.AdminChartWidgetResolver;
+import cz.bankintel.service.homepage.resolver.ApiPushChartWidgetResolver;
 import cz.bankintel.service.homepage.resolver.CatalogLiveWidgetResolver;
 import cz.bankintel.service.homepage.resolver.ComputedViewWidgetResolver;
 import cz.bankintel.service.homepage.resolver.ExternalCatalogChartWidgetResolver;
@@ -38,6 +39,7 @@ public class WidgetRenderService {
     private final CatalogLiveWidgetResolver catalogLiveWidgetResolver;
     private final ExternalCatalogChartWidgetResolver externalCatalogChartWidgetResolver;
     private final RssMonitoringWidgetResolver rssMonitoringWidgetResolver;
+    private final ApiPushChartWidgetResolver apiPushChartWidgetResolver;
 
     public WidgetRenderService(
             KpiWidgetResolver kpiWidgetResolver,
@@ -47,7 +49,8 @@ public class WidgetRenderService {
             UserUploadChartWidgetResolver userUploadChartWidgetResolver,
             CatalogLiveWidgetResolver catalogLiveWidgetResolver,
             ExternalCatalogChartWidgetResolver externalCatalogChartWidgetResolver,
-            RssMonitoringWidgetResolver rssMonitoringWidgetResolver) {
+            RssMonitoringWidgetResolver rssMonitoringWidgetResolver,
+            ApiPushChartWidgetResolver apiPushChartWidgetResolver) {
         this.kpiWidgetResolver = kpiWidgetResolver;
         this.sourceRecordsWidgetResolver = sourceRecordsWidgetResolver;
         this.computedViewWidgetResolver = computedViewWidgetResolver;
@@ -56,6 +59,7 @@ public class WidgetRenderService {
         this.catalogLiveWidgetResolver = catalogLiveWidgetResolver;
         this.externalCatalogChartWidgetResolver = externalCatalogChartWidgetResolver;
         this.rssMonitoringWidgetResolver = rssMonitoringWidgetResolver;
+        this.apiPushChartWidgetResolver = apiPushChartWidgetResolver;
     }
 
     public Map<String, Object> resolve(String widgetType, Map<String, Object> config, UserEntity user) {
@@ -77,6 +81,7 @@ public class WidgetRenderService {
             case "user_upload_chart", "uploaded_data_chart" -> userUploadChartWidgetResolver.resolve(cfg);
             case "external_catalog_chart" -> externalCatalogChartWidgetResolver.resolve(cfg, user);
             case "rss_monitoring" -> rssMonitoringWidgetResolver.resolve(cfg, user);
+            case "api_push_chart" -> apiPushChartWidgetResolver.resolve();
             default -> resolveDatasetFamily(type, cfg, user);
         };
     }

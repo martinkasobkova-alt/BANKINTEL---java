@@ -1,5 +1,7 @@
 package cz.bankintel.config;
 
+import cz.bankintel.security.ApiKeyAuthFilter;
+import cz.bankintel.security.ApiKeyRateLimitFilter;
 import cz.bankintel.security.AuthRateLimitFilter;
 import cz.bankintel.security.CsrfFilter;
 import cz.bankintel.security.JwtAuthFilter;
@@ -38,6 +40,8 @@ public class SecurityConfig {
             HttpSecurity http,
             AuthRateLimitFilter authRateLimitFilter,
             JwtAuthFilter jwtAuthFilter,
+            ApiKeyAuthFilter apiKeyAuthFilter,
+            ApiKeyRateLimitFilter apiKeyRateLimitFilter,
             CsrfFilter csrfFilter)
             throws Exception {
         http.cors(Customizer.withDefaults())
@@ -53,9 +57,11 @@ public class SecurityConfig {
                 // Vlastní filtry se kotví ke standardnímu UsernamePasswordAuthenticationFilter,
                 // ne jeden k druhému — Spring Security neumí seřadit filtr relativně k jinému
                 // vlastnímu filtru (JwtAuthFilter nemá registrované pořadí) → jinak pád při startu.
-                // Pořadí vložení = pořadí vykonání: rate-limit → jwt → csrf.
+                // Pořadí vložení = pořadí vykonání: rate-limit → jwt/api-key → csrf.
                 .addFilterBefore(authRateLimitFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(apiKeyRateLimitFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(apiKeyAuthFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(csrfFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }

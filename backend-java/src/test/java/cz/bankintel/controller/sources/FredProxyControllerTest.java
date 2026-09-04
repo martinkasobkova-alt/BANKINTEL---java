@@ -8,6 +8,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import cz.bankintel.sources.fred.FredCatalogService;
+import cz.bankintel.security.ApiKeyAuthFilter;
+import cz.bankintel.security.ApiKeyRateLimitFilter;
 import cz.bankintel.security.AuthRateLimitFilter;
 import cz.bankintel.security.CsrfFilter;
 import cz.bankintel.security.JwtAuthFilter;
@@ -42,6 +44,12 @@ class FredProxyControllerTest {
 
     @MockitoBean
     private CsrfFilter csrfFilter;
+
+    @MockitoBean
+    private ApiKeyAuthFilter apiKeyAuthFilter;
+
+    @MockitoBean
+    private ApiKeyRateLimitFilter apiKeyRateLimitFilter;
 
     @Test
     void metaEndpointReturnsMappedEndpoints() throws Exception {

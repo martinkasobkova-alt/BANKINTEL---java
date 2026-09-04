@@ -31,6 +31,8 @@ import cz.bankintel.search.v2.orchestration.SearchV2Service;
 import cz.bankintel.search.v2.sidecar.SearchCatalogSidecarIndex;
 import cz.bankintel.search.v2.vector.SearchVectorIndexBuilder;
 import cz.bankintel.security.AdminAccess;
+import cz.bankintel.security.ApiKeyAuthFilter;
+import cz.bankintel.security.ApiKeyRateLimitFilter;
 import cz.bankintel.security.AuthRateLimitFilter;
 import cz.bankintel.security.CsrfFilter;
 import cz.bankintel.security.CurrentUser;
@@ -114,6 +116,12 @@ class CatalogControllerDeepSearchValidationTest {
 
     @MockitoBean
     private CsrfFilter csrfFilter;
+
+    @MockitoBean
+    private ApiKeyAuthFilter apiKeyAuthFilter;
+
+    @MockitoBean
+    private ApiKeyRateLimitFilter apiKeyRateLimitFilter;
 
     @Test
     void deepSearchStreamRejectsShortQuery() throws Exception {

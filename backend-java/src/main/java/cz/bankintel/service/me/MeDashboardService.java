@@ -275,6 +275,26 @@ public class MeDashboardService {
         return serializeWidget(widget);
     }
 
+    /**
+     * Stores externally-supplied chart data directly as the widget's snapshot — for
+     * {@code api_push_chart} widgets pushed through {@code /api/connect/v1}, there is nothing to
+     * live-fetch, the push itself is the data. Reuses the same ownership/entitlement gates
+     * {@link #createWidget} and {@link #patchWidget} already enforce.
+     */
+    @Transactional
+    public Map<String, Object> pushWidgetData(UserEntity user, String widgetId, Object data) {
+        requireSubscriberDashboard(user);
+        requireSaveWidget(user);
+        DashboardWidgetEntity widget = requireOwnedWidget(user.getId(), widgetId);
+        Map<String, Object> snapshot = new LinkedHashMap<>();
+        snapshot.put("data", data);
+        widget.setDataSnapshot(snapshot);
+        widget.setLastFetchedAt(Instant.now());
+        widget.setSnapshotStatus("ready");
+        widget = widgetRepository.save(widget);
+        return serializeWidget(widget);
+    }
+
     @Transactional
     public Map<String, Object> patchWidget(UserEntity user, String widgetId, DashboardWidgetPatchRequest body) {
         requireSubscriberDashboard(user);

@@ -6,6 +6,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import cz.bankintel.config.BankIntelProperties;
+import cz.bankintel.security.ApiKeyAuthFilter;
+import cz.bankintel.security.ApiKeyRateLimitFilter;
 import cz.bankintel.security.AuthRateLimitFilter;
 import cz.bankintel.security.CsrfFilter;
 import cz.bankintel.security.JwtAuthFilter;
@@ -51,6 +53,12 @@ class HealthVersionControllerCorsTest {
 
     @MockitoBean
     private CsrfFilter csrfFilter;
+
+    @MockitoBean
+    private ApiKeyAuthFilter apiKeyAuthFilter;
+
+    @MockitoBean
+    private ApiKeyRateLimitFilter apiKeyRateLimitFilter;
 
     @Test
     void corsNormalizesTrailingSlashAndCaseBeforeComparing() throws Exception {

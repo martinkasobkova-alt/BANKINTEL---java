@@ -8,6 +8,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import cz.bankintel.config.BankIntelProperties;
 import cz.bankintel.service.platform.BankIntelMaintenanceService;
 import cz.bankintel.service.platform.MirrorDataHealthService;
+import cz.bankintel.security.ApiKeyAuthFilter;
+import cz.bankintel.security.ApiKeyRateLimitFilter;
 import cz.bankintel.security.AuthRateLimitFilter;
 import cz.bankintel.security.CsrfFilter;
 import cz.bankintel.security.JwtAuthFilter;
@@ -47,6 +49,12 @@ class HealthVersionControllerTest {
 
     @MockitoBean
     private CsrfFilter csrfFilter;
+
+    @MockitoBean
+    private ApiKeyAuthFilter apiKeyAuthFilter;
+
+    @MockitoBean
+    private ApiKeyRateLimitFilter apiKeyRateLimitFilter;
 
     @Test
     void versionReturnsOkAndStartedAt() throws Exception {
