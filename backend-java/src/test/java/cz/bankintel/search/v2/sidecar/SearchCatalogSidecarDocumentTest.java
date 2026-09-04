@@ -90,4 +90,83 @@ class SearchCatalogSidecarDocumentTest {
         assertThat(row.get("full_path")).isEqualTo("");
         assertThat(row.get("catalog_path")).isEqualTo("");
     }
+
+    /**
+     * Živě zjištěno na produkci (bankoapp.cz): opravu duplicitních "Annual rate of change ·
+     * Austria" karet jsem nejdřív zapojila jen do EcbSeriesAvailabilityService (browse strom) -
+     * search V2 v tomhle prostředí čte řady přes sidecar index (`catalog index=sidecar`), který
+     * je z browse stromu úplně nedosažitelný. Bez tohohle dodatku přímo v {@code toSearchRow}
+     * by výsledky hledání dál ukazovaly nerozlišitelné duplicity, i když strom už byl opravený.
+     */
+    @Test
+    void toSearchRowAppendsItemCodeHintForUnresolvedOwnerOccupiedHousingIcpItems() {
+        Map<String, Object> raw = Map.of(
+                "ecb_flow", "ICP",
+                "ecb_series_key", "Q.AT.N.OH1100.4.QUR");
+
+        Map<String, Object> row = doc(raw).toSearchRow(0.5, "q", List.of());
+
+        assertThat(row.get("title"))
+                .isEqualTo("HICP - Secondary education · Netherlands (Index) — vlastnické bydlení (OH1100)");
+        assertThat(row.get("name")).isEqualTo(row.get("title"));
+    }
+
+    @Test
+    void toSearchRowLeavesResolvedIcpItemsUnchanged() {
+        Map<String, Object> raw = Map.of(
+                "ecb_flow", "ICP",
+                "ecb_series_key", "M.PL.N.000000.4.ANR");
+
+        Map<String, Object> row = doc(raw).toSearchRow(0.5, "q", List.of());
+
+        assertThat(row.get("title")).isEqualTo("HICP - Secondary education · Netherlands (Index)");
+    }
+
+    @Test
+    void toSearchRowLeavesNonEcbSourcesUnchangedEvenWithMatchingSeriesKeyShape() {
+        SearchCatalogSidecarDocument nonEcbDoc = new SearchCatalogSidecarDocument(
+                "FRED/OH1100", // seriesId
+                "fred", // source
+                "", // dataset
+                "Some FRED series", // originalTitle
+                "", // originalDescription
+                "", // canonicalTitleCs
+                "", // canonicalTitleEn
+                "", // canonicalDescriptionCs
+                "", // canonicalDescriptionEn
+                "", // primaryConcept
+                List.of(), // secondaryConcepts
+                "", // measureType
+                "", // economicObject
+                "", // institutionalSector
+                "", // counterpartSector
+                "", // instrument
+                "", // priceType
+                "", // flowStock
+                "", // industrySector
+                "", // nominalReal
+                "", // scope
+                "US", // geo
+                "", // frequency
+                "", // unit
+                "", // seasonalAdjustment
+                "", // priceBasis
+                "", // datasetFamily
+                "", // catalogFamily
+                List.of(), // aliasesCs
+                List.of(), // aliasesEn
+                List.of(), // abbreviations
+                List.of(), // negativeConcepts
+                0.7, // metadataQualityScore
+                "sidecar-v2-test", // enrichmentVersion
+                "raw_catalog+taxonomy", // enrichmentSource
+                "", // updatedAt
+                "", // searchTextCs
+                "", // searchTextEn
+                Map.of("ecb_flow", "ICP", "ecb_series_key", "Q.AT.N.OH1100.4.QUR"));
+
+        Map<String, Object> row = nonEcbDoc.toSearchRow(0.5, "q", List.of());
+
+        assertThat(row.get("title")).isEqualTo("Some FRED series");
+    }
 }
