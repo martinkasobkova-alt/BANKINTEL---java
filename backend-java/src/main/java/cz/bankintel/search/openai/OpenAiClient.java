@@ -51,12 +51,14 @@ public class OpenAiClient {
     private final HttpClient chatHttpClient = buildHttpClient(15_000L);
     private final OpenAiUsageMeter usageMeter;
     private final LocalLlmFallbackClient localFallback;
+    private final AnthropicClient anthropicClient;
     private volatile HttpClient plannerHttpClient;
     private volatile long plannerHttpClientConnectTimeoutMs = -1L;
 
-    public OpenAiClient(OpenAiUsageMeter usageMeter, LocalLlmFallbackClient localFallback) {
+    public OpenAiClient(OpenAiUsageMeter usageMeter, LocalLlmFallbackClient localFallback, AnthropicClient anthropicClient) {
         this.usageMeter = usageMeter;
         this.localFallback = localFallback;
+        this.anthropicClient = anthropicClient;
     }
 
     @Value("${OPENAI_API_KEY:}")
@@ -109,7 +111,7 @@ public class OpenAiClient {
         if (BankIntelEnvVars.isFalsy("OPENAI_COMMENTARY")) {
             return false;
         }
-        return isOpenAiConfigured() || localFallback.isConfigured();
+        return isPrimaryConfigured() || localFallback.isConfigured();
     }
 
     /** Whether OpenAI specifically can be called. {@link #webSearch} has no local equivalent. */
@@ -120,7 +122,28 @@ public class OpenAiClient {
         return apiKey != null && !apiKey.isBlank();
     }
 
+    /**
+     * Deployment-time primary provider, chosen via {@code BANKINTEL_LLM_PROVIDER}. Independent of the
+     * always-available {@link #localFallback} resilience layer.
+     */
+    private LlmProviderKind primaryProvider() {
+        return LlmProviderKind.resolve();
+    }
+
+    /** Whether the currently selected primary provider (OpenAI or Anthropic) can be called. */
+    private boolean isPrimaryConfigured() {
+        if (BankIntelEnvVars.isFalsy("OPENAI_COMMENTARY")) {
+            return false;
+        }
+        return primaryProvider() == LlmProviderKind.ANTHROPIC
+                ? anthropicClient.isConfigured()
+                : isOpenAiConfigured();
+    }
+
     public String modelFor(OpenAiModelTask task) {
+        if (primaryProvider() == LlmProviderKind.ANTHROPIC) {
+            return anthropicClient.modelFor(task);
+        }
         if (legacyModel != null && !legacyModel.isBlank()) {
             return legacyModel.trim();
         }
@@ -205,12 +228,15 @@ public class OpenAiClient {
      * Responses payload because callers need both generated text and first-party URL citations.
      */
     public JsonNode webSearch(String instructions, String input) {
-        // Deliberately gated on OpenAI alone: hosted web search has no local-model equivalent, so
-        // there is nothing to fail over to.
-        if (!isOpenAiConfigured()) {
+        // Deliberately gated on the primary provider alone: hosted web search has no local-model
+        // equivalent, so there is nothing to fail over to.
+        if (!isPrimaryConfigured()) {
             throw new OpenAiClientException(
                     OpenAiErrorType.LLM_NOT_CONFIGURED,
-                    "OPENAI_API_KEY is not configured or OpenAI is disabled");
+                    "No primary LLM provider is configured or it is disabled");
+        }
+        if (primaryProvider() == LlmProviderKind.ANTHROPIC) {
+            return anthropicClient.webSearch(instructions, input, configuredWebSearchMaxOutputTokens());
         }
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("model", webSearchModel == null || webSearchModel.isBlank() ? chatModel : webSearchModel.trim());
@@ -269,9 +295,9 @@ public class OpenAiClient {
         if (!isConfigured()) {
             throw new OpenAiClientException(OpenAiErrorType.LLM_NOT_CONFIGURED, "OPENAI_API_KEY is not configured or OpenAI is disabled");
         }
-        if (!isOpenAiConfigured()) {
-            // No OpenAI key at all but a local model is configured — run entirely on the fallback
-            // rather than pretending the AI layer is off.
+        if (!isPrimaryConfigured()) {
+            // No primary-provider key at all but a local model is configured — run entirely on the
+            // fallback rather than pretending the AI layer is off.
             Map<String, Object> directTrace = baseTrace(
                     localFallback.modelFor(task),
                     jsonSchema != null ? "json_schema" : (jsonMode ? "json_object" : "raw"),
@@ -279,11 +305,16 @@ public class OpenAiClient {
                     localFallback.configuredRequestTimeoutMs());
             return completeViaFallback(systemPrompt, userPrompt, task, jsonSchema, jsonMode, directTrace, null);
         }
+        LlmProviderKind provider = primaryProvider();
         String model = modelFor(task);
         boolean latencySensitive = task == OpenAiModelTask.PLANNER || task == OpenAiModelTask.RERANKER;
         long connectMs = latencySensitive ? configuredConnectTimeoutMs() : 15000L;
         long requestBudgetMs = latencySensitive ? configuredPlannerRequestTimeoutMs() : DEFAULT_CHAT_REQUEST_TIMEOUT_MS;
         Map<String, Object> trace = baseTrace(model, jsonSchema != null ? "json_schema" : (jsonMode ? "json_object" : "raw"), connectMs, requestBudgetMs);
+        if (provider == LlmProviderKind.ANTHROPIC) {
+            trace.put("provider", AnthropicClient.PROVIDER);
+            trace.put("endpoint", anthropicClient.messagesUri().toString());
+        }
         long started = System.nanoTime();
         OpenAiClientException lastError = null;
         int attempt = 0;
@@ -300,7 +331,8 @@ public class OpenAiClient {
                 throw ex.withTrace(trace);
             }
             try {
-                LlmAttempt result = sendOnce(
+                LlmAttempt result = sendPrimary(
+                        provider,
                         model,
                         systemPrompt,
                         userPrompt,
@@ -428,6 +460,32 @@ public class OpenAiClient {
                     fallbackError.errorType());
             throw surfaced.withTrace(trace);
         }
+    }
+
+    /** Dispatches a single attempt to whichever provider is configured as primary. */
+    private LlmAttempt sendPrimary(
+            LlmProviderKind provider,
+            String model,
+            String systemPrompt,
+            String userPrompt,
+            OpenAiModelTask task,
+            Map<String, Object> jsonSchema,
+            boolean jsonMode,
+            long connectMs,
+            long requestTimeoutMs) {
+        if (provider == LlmProviderKind.ANTHROPIC) {
+            return anthropicClient.complete(
+                    model,
+                    systemPrompt,
+                    userPrompt,
+                    task,
+                    jsonSchema,
+                    jsonMode,
+                    maxCompletionTokensFor(task),
+                    connectMs,
+                    requestTimeoutMs);
+        }
+        return sendOnce(model, systemPrompt, userPrompt, task, jsonSchema, jsonMode, connectMs, requestTimeoutMs);
     }
 
     private LlmAttempt sendOnce(

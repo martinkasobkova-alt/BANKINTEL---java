@@ -11,7 +11,8 @@ import org.junit.jupiter.api.Test;
  */
 class OpenAiCompletionCapTest {
 
-    private final OpenAiClient client = new OpenAiClient(new OpenAiUsageMeter(), new LocalLlmFallbackClient());
+    private final OpenAiClient client =
+            new OpenAiClient(new OpenAiUsageMeter(), new LocalLlmFallbackClient(), new AnthropicClient());
 
     @Test
     void everyTaskHasAPositiveCompletionCap() {
