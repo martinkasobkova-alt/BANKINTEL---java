@@ -25,6 +25,7 @@ import cz.bankintel.search.model.CatalogHit;
 import cz.bankintel.search.model.CatalogMapSupport;
 import cz.bankintel.search.model.CatalogRawRow;
 import cz.bankintel.search.scoring.CatalogScoringPipeline;
+import cz.bankintel.sources.ecb.EcbItemCodeHints;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.env.Environment;
@@ -1370,6 +1371,7 @@ public class CatalogIndexStore {
                     continue;
                 }
                 Map<String, Object> row = objectMapper.readValue(line, MAP_TYPE);
+                applyEcbUnresolvedItemHint(row);
                 String sid = String.valueOf(row.getOrDefault("set_id", row.getOrDefault("id", ""))).trim();
                 if (!sid.isBlank() && sid.equalsIgnoreCase(target)) {
                     return Optional.of(row);
@@ -1403,6 +1405,7 @@ public class CatalogIndexStore {
                     continue;
                 }
                 Map<String, Object> row = objectMapper.readValue(line, MAP_TYPE);
+                applyEcbUnresolvedItemHint(row);
                 String sid = String.valueOf(row.getOrDefault("set_id", row.getOrDefault("id", ""))).trim();
                 if (sid.isBlank()) {
                     continue;
@@ -1467,9 +1470,34 @@ public class CatalogIndexStore {
             return null;
         }
         try {
-            return objectMapper.readValue(raw, MAP_TYPE);
+            Map<String, Object> parsed = objectMapper.readValue(raw, MAP_TYPE);
+            applyEcbUnresolvedItemHint(parsed);
+            return parsed;
         } catch (Exception ex) {
             return null;
+        }
+    }
+
+    /**
+     * Stejny dodatek pro 11 ICP polozkovych kodu bez lidskeho nazvu jako v
+     * {@code EcbSeriesAvailabilityService} (browse strom) - tady se tyka VSECH konzumentu
+     * teto tridy (klasicke i AI katalogove hledani), ktere ctou syrovy `name` primo z
+     * ecb2.jsonl a nikdy neprochazi browse-strom kod.
+     */
+    private void applyEcbUnresolvedItemHint(Map<String, Object> row) {
+        if (row == null || !"ecb2".equals(row.get("source"))) {
+            return;
+        }
+        Object nameObj = row.get("name");
+        Object flowObj = row.get("ecb_flow");
+        Object seriesKeyObj = row.get("ecb_series_key");
+        if (!(nameObj instanceof String name) || !(flowObj instanceof String flow)
+                || !(seriesKeyObj instanceof String seriesKey)) {
+            return;
+        }
+        String hinted = EcbItemCodeHints.withUnresolvedItemHint(name, flow, seriesKey);
+        if (!hinted.equals(name)) {
+            row.put("name", hinted);
         }
     }
 

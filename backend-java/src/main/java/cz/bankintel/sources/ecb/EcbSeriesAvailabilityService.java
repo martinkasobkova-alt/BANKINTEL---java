@@ -35,20 +35,9 @@ public class EcbSeriesAvailabilityService {
             "EXR", "ICP", "MIR", "BSI", "MNA", "BPS", "LFSI", "STBS", "GFS", "EDP", "FM", "BOP", "RESH", "RAS", "RTD",
             "E11", "LCI", "AME", "CBD2", "SEC");
 
-    /**
-     * Živě zjištěno (sqlite): těchto 11 ICP "item" kódů (1987 řad napříč všemi zeměmi) nemá v
-     * obohaceném indexu žádný specifický lidský název - vždy spadnou na obecný fallback podle
-     * typu míry ("Annual rate of change · Rakousko" apod.), takže 10 různě RŮZNÝCH položek pod
-     * jednou zemí vypadá jako 10 duplicit. Předpona "OH" odpovídá ECB experimentálním řadám k
-     * vlastnickému bydlení (owner-occupied housing) v rámci HICP - ověřeno webovým hledáním
-     * (ECB Economic Bulletin, "Owner-occupied housing and inflation measurement"), přesný český
-     * název KAŽDÉHO z 11 kódů se ale nepodařilo dohledat (ECB SDMX API i Data Portal odmítly
-     * request s HTTP 503, opakovaně, na více cestách). Dokud se nenajde spolehlivý zdroj přesných
-     * názvů, aspoň se řady odliší kódem - to je pořád lepší než 10 vizuálně nerozlišitelných karet.
-     */
-    private static final Set<String> ICP_ITEMS_WITHOUT_SPECIFIC_LABEL = Set.of(
-            "OH1000", "OH1100", "OH1110", "OH1111", "OH1112", "OH1120", "OH1130",
-            "OH1200", "OH1210", "OH1220", "OH1230");
+    // Dodatek pro 11 ICP polozkovych kodu bez specifickeho lidskeho nazvu presunut do sdilene
+    // EcbItemCodeHints (pouziva i CatalogIndexStore pro katalogove hledani, ne jen tenhle browse
+    // strom) - viz jeji javadoc pro puvod/historii tehle konstanty.
 
     private static final Map<String, String> FLOW_LABELS = Map.ofEntries(
             Map.entry("EXR", "Směnné kurzy"),
@@ -268,7 +257,7 @@ public class EcbSeriesAvailabilityService {
                     "name",
                     enrichedName.isBlank()
                             ? ref.seriesKey()
-                            : withUnresolvedItemHint(enrichedName, ref.flowRef(), ref.seriesKey()));
+                            : EcbItemCodeHints.withUnresolvedItemHint(enrichedName, ref.flowRef(), ref.seriesKey()));
             row.put("kind", "selection");
             row.put("item_kind", "selection");
             row.put("ecb_flow", ref.flowRef());
@@ -293,26 +282,6 @@ public class EcbSeriesAvailabilityService {
         return rows;
     }
 
-    /**
-     * ICP "item" segment je čtvrtý tečkovaný segment série (FREQ.REF_AREA.ADJUSTMENT.ITEM....) -
-     * ověřeno na reálných datech (`ecb_series_explanation` obohaceného řádku pro "OH1000" apod.).
-     * Platí jen pro flow ICP - u jiných flow může mít klíč jinou strukturu, proto se mimo ICP
-     * vůbec nezkouší.
-     */
-    private static String withUnresolvedItemHint(String name, String flow, String seriesKey) {
-        if (!"ICP".equals(flow)) {
-            return name;
-        }
-        String[] parts = seriesKey.split("\\.");
-        if (parts.length < 4) {
-            return name;
-        }
-        String item = parts[3];
-        if (!ICP_ITEMS_WITHOUT_SPECIFIC_LABEL.contains(item)) {
-            return name;
-        }
-        return name + " — vlastnické bydlení (" + item + ")";
-    }
 
     private Map<String, Map<String, Object>> lookupEnrichedRows(List<String> setIds) {
         if (setIds.isEmpty()) {
