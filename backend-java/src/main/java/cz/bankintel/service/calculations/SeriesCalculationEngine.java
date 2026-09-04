@@ -25,12 +25,54 @@ public final class SeriesCalculationEngine {
         };
     }
 
+    /**
+     * Hláška o prázdném průniku období.
+     *
+     * Řady se spojují přesnou shodou textu období, takže měsíční „2024-01" a čtvrtletní „2024-Q1"
+     * se nikdy nepotkají. Dřív se v takovém případě hlásilo jen „žádné společné období" a uživatel
+     * neměl jak zjistit, že problém je v rozdílné frekvenci, ne v datech.
+     */
+    static String noCommonPeriodMessage(Map<String, Double> left, Map<String, Double> right) {
+        String leftShape = periodShape(left);
+        String rightShape = periodShape(right);
+        if (!leftShape.isBlank() && !rightShape.isBlank() && !leftShape.equals(rightShape)) {
+            return "Řady mají různou frekvenci (" + leftShape + " vs " + rightShape
+                    + "), takže nemají společná období. Sjednoťte frekvenci obou řad.";
+        }
+        return "Žádné společné období mezi řadami po zarovnání.";
+    }
+
+    /** Lidský popis tvaru období — slouží jen k vysvětlení, proč se řady nepotkaly. */
+    private static String periodShape(Map<String, Double> series) {
+        if (series == null || series.isEmpty()) {
+            return "";
+        }
+        String sample = series.keySet().iterator().next();
+        if (sample == null) {
+            return "";
+        }
+        String p = sample.trim();
+        if (p.matches("\\d{4}")) {
+            return "ročně";
+        }
+        if (p.matches("(?i)\\d{4}[-_ ]?Q[1-4]")) {
+            return "čtvrtletně";
+        }
+        if (p.matches("(?i)\\d{4}[-_ ]?M?(0[1-9]|1[0-2])")) {
+            return "měsíčně";
+        }
+        if (p.matches("\\d{4}-\\d{2}-\\d{2}")) {
+            return "denně";
+        }
+        return "";
+    }
+
     public static CalculationResult computeBinaryScaled(
             Map<String, Double> left, Map<String, Double> right, String op, double leftMultiplier, double rightMultiplier) {
         List<String> warnings = new ArrayList<>();
         List<String> common = PeriodAlignment.sortedCommonPeriods(left, right);
         if (common.isEmpty()) {
-            return new CalculationResult(List.of(), List.of("Žádné společné období mezi řadami po zarovnání."));
+            return new CalculationResult(List.of(), List.of(noCommonPeriodMessage(left, right)));
         }
         List<Map<String, Object>> rows = new ArrayList<>();
         for (String period : common) {

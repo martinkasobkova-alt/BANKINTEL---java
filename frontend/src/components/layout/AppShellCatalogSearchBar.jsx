@@ -5,6 +5,11 @@ import { ChevronDown, PanelLeftOpen, Search, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/lib/api";
 import CatalogHeaderFiltersMenu from "@/components/layout/CatalogHeaderFiltersMenu";
+import {
+  CATALOG_HEADER_FILTERS_EVENT,
+  isStockSearchSelected,
+  loadCatalogHeaderFilters,
+} from "@/lib/catalogHeaderFilters";
 import VoiceInputButton from "@/components/common/VoiceInputButton";
 import { getCatalogBrowseDropdownLabel } from "@/lib/catalogBrowseStatusRegistry";
 import { buildCatalogChartPageShareUrl } from "@/lib/catalogChartShare";
@@ -29,11 +34,31 @@ const scopeForSource = (s) => SOURCE_TO_SCOPE[s] || s;
  * Globální katalogové hledání v horní liště — navigace na /search/catalog.
  * Při psaní (debounced) ukazuje našeptávač přes všechny zdroje (GET /api/catalog/suggest).
  */
+const STOCKS_SEARCH_PATH = "/search/stocks";
+
 export default function AppShellCatalogSearchBar({ className = "", inputClassName = "" }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
   const onCatalogHub = location.pathname === CATALOG_HUB_PATH;
+  /**
+   * Stránka Akcie má vlastní backend (Yahoo/Alpha Vantage) i vlastní podobu výsledků.
+   * Enter v horním poli odsud dřív odnavigoval do katalogu, takže na Akciích muselo být
+   * druhé hledací pole jen proto, aby se dalo hledat a zůstat na stránce. Dvě pole vedle
+   * sebe mátla; tady se místo toho horní pole přizpůsobí stránce, na které stojíš.
+   */
+  const onStocksPage = location.pathname.startsWith(STOCKS_SEARCH_PATH);
+  /** Akcie ve filtru: když si je uživatel odškrtne, našeptávač je nemá proč tahat. */
+  const [stocksSelected, setStocksSelected] = useState(() =>
+    isStockSearchSelected(loadCatalogHeaderFilters().selectedIds),
+  );
+  useEffect(() => {
+    const apply = (prefs) =>
+      setStocksSelected(isStockSearchSelected((prefs || loadCatalogHeaderFilters()).selectedIds));
+    const onHeaderFilters = (event) => apply(event?.detail);
+    window.addEventListener(CATALOG_HEADER_FILTERS_EVENT, onHeaderFilters);
+    return () => window.removeEventListener(CATALOG_HEADER_FILTERS_EVENT, onHeaderFilters);
+  }, []);
 
   const parsedFromUrl = useMemo(
     () => (onCatalogHub ? parseCatalogHeaderFromLocation(location.search) : null),
@@ -65,6 +90,20 @@ export default function AppShellCatalogSearchBar({ className = "", inputClassNam
   useEffect(() => {
     aiScopeRef.current = aiScope;
   }, [aiScope]);
+
+  // Na Akciích drží dotaz URL (?q=), takže pole musí ukazovat to, co je právě vyhledané —
+  // jinak by po zrušení druhého pole zůstalo prázdné nad plnými výsledky.
+  useEffect(() => {
+    if (!onStocksPage) return;
+    if (suppressUrlSyncRef.current) {
+      suppressUrlSyncRef.current = false;
+      return;
+    }
+    const q = new URLSearchParams(location.search).get("q") || "";
+    if (!q) return;
+    suppressFetchRef.current = true;
+    setQuery((prev) => (q !== prev ? q : prev));
+  }, [onStocksPage, location.search]);
 
   useEffect(() => {
     if (!onCatalogHub || !parsedFromUrl) return;
@@ -113,7 +152,10 @@ export default function AppShellCatalogSearchBar({ className = "", inputClassNam
           if (err?.name !== "CanceledError" && err?.code !== "ERR_CANCELED") setSuggestions([]);
         });
 
-      api
+      if (!stocksSelected) {
+        setStockSuggestions([]);
+      } else {
+        api
         .post("/stocks/search", { query: q, limit: 4, allow_llm: false }, { signal: controller.signal, timeout: 6000 })
         .then(({ data }) => {
           const stockItems = Array.isArray(data?.results) ? data.results : [];
@@ -123,9 +165,10 @@ export default function AppShellCatalogSearchBar({ className = "", inputClassNam
         .catch((err) => {
           if (err?.name !== "CanceledError" && err?.code !== "ERR_CANCELED") setStockSuggestions([]);
         });
+      }
     }, 250);
     return () => window.clearTimeout(timer);
-  }, [query, focused]);
+  }, [query, focused, stocksSelected]);
 
   // Zavřít našeptávač při kliku mimo.
   useEffect(() => {
@@ -204,9 +247,13 @@ export default function AppShellCatalogSearchBar({ className = "", inputClassNam
       }
       dismissedRef.current = true;
       setShowDropdown(false);
+      if (onStocksPage) {
+        navigate(`${STOCKS_SEARCH_PATH}?q=${encodeURIComponent(q)}`);
+        return;
+      }
       navigateToSearch(q);
     },
-    [navigateToSearch, query, t],
+    [navigate, navigateToSearch, onStocksPage, query, t],
   );
 
   const selectStockSuggestion = useCallback(
@@ -341,7 +388,7 @@ export default function AppShellCatalogSearchBar({ className = "", inputClassNam
           aria-autocomplete="list"
           aria-controls="app-shell-catalog-suggest-list"
           className={`h-9 w-full min-w-0 rounded-full border border-[hsl(var(--border)/0.75)] bg-[hsl(var(--card)/0.88)] pl-8 pr-11 text-sm shadow-sm outline-none transition focus:border-[hsl(var(--primary)/0.65)] focus:bg-[hsl(var(--card))] placeholder:text-muted-foreground/85 ${inputClassName}`.trim()}
-          placeholder={t("shell.catalogSearchPlaceholder")}
+          placeholder={onStocksPage ? "Hledat akcii, ETF nebo index · Apple, AAPL, ČEZ, SPY…" : t("shell.catalogSearchPlaceholder")}
           autoComplete="off"
           enterKeyHint="search"
           data-testid="app-shell-catalog-search-input"

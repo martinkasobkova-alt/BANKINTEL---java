@@ -7,32 +7,45 @@ import ArchivePdfRegionOverlay from "@/components/archive/ArchivePdfRegionOverla
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
 
-const pdfDocumentCache = new Map();
+/**
+ * Cache jednotlivých STRÁNEK, ne celého čísla.
+ *
+ * Dřív si čtečka stáhla celý PDF soubor jedním požadavkem — u osmdesátimegového čísla to
+ * znamenalo čekat na celý soubor před vykreslením první stránky a hlavně to znamenalo, že
+ * kompletní číslo skončilo v prohlížeči a dalo se uložit. Archiv je přitom předplatitelský.
+ * Backend umí vrátit jednu stránku (`?reader_page=N`), takže se stahuje jen to, co je vidět.
+ */
+const pdfPageCache = new Map();
 const SMALL_PAGE_RENDER_SCALE = 2;
 const LARGE_PAGE_RENDER_SCALE = 1.5;
 
-function getCachedPdfDocument(issueId) {
-  const key = String(issueId || "").trim();
-  if (!key) return Promise.reject(new Error("Chybí ID čísla."));
-  const cached = pdfDocumentCache.get(key);
+function getCachedPdfPage(issueId, page) {
+  const id = String(issueId || "").trim();
+  if (!id) return Promise.reject(new Error("Chybí ID čísla."));
+  const pageNum = Math.max(1, Number(page) || 1);
+  const key = `${id}#${pageNum}`;
+  const cached = pdfPageCache.get(key);
   if (cached) return cached;
   const promise = api
-    .get(`/magazines/issues/${encodeURIComponent(key)}/file`, { responseType: "blob" })
+    .get(`/magazines/issues/${encodeURIComponent(id)}/file`, {
+      params: { reader_page: pageNum },
+      responseType: "blob",
+    })
     .then(async ({ data }) => {
       const blob = data instanceof Blob ? data : new Blob([data], { type: "application/pdf" });
       const buf = await blob.arrayBuffer();
       return pdfjsLib.getDocument({ data: buf }).promise;
     })
     .catch((e) => {
-      pdfDocumentCache.delete(key);
+      pdfPageCache.delete(key);
       throw e;
     });
-  pdfDocumentCache.set(key, promise);
+  pdfPageCache.set(key, promise);
   return promise;
 }
 
-export function preloadArchivePdfDocument(issueId) {
-  return getCachedPdfDocument(issueId).catch(() => null);
+export function preloadArchivePdfDocument(issueId, page = 1) {
+  return getCachedPdfPage(issueId, page).catch(() => null);
 }
 
 function selectionInsideRoot(sel, root) {
@@ -58,9 +71,9 @@ function normalizePdfTextContent(textContent) {
 }
 
 export async function getArchivePdfPageText(issueId, page) {
-  const pdf = await getCachedPdfDocument(issueId);
-  const pageNum = Math.max(1, Math.min(Number(page) || 1, pdf.numPages || 1));
-  const pdfPage = await pdf.getPage(pageNum);
+  // Výřez má jedinou stránku, takže se v něm sahá vždy na první.
+  const pdf = await getCachedPdfPage(issueId, page);
+  const pdfPage = await pdf.getPage(1);
   const textContent = await pdfPage.getTextContent();
   return normalizePdfTextContent(textContent);
 }
@@ -167,8 +180,8 @@ export default function ArchivePdfJsViewer({
       renderTaskRef.current = null;
     }
 
-    const pageNum = Math.max(1, Math.min(Number(page) || 1, pdf.numPages || 1));
-    const pdfPage = await pdf.getPage(pageNum);
+    const pageNum = Math.max(1, Number(page) || 1);
+    const pdfPage = await pdf.getPage(1);
     if (isStale()) return;
     const baseViewport = pdfPage.getViewport({ scale: 1 });
     const targetWidth = Math.max(320, Math.min(2400, renderWidth || baseViewport.width));
@@ -247,7 +260,7 @@ export default function ArchivePdfJsViewer({
 
     pdfDocRef.current = null;
 
-    getCachedPdfDocument(issueId)
+    getCachedPdfPage(issueId, page)
       .then((pdf) => {
         if (cancelled) return;
         pdfDocRef.current = pdf;
@@ -277,7 +290,9 @@ export default function ArchivePdfJsViewer({
       }
       pdfDocRef.current = null;
     };
-  }, [issueId]);
+    // Stránka je součástí klíče, protože se načítá po jedné — při přelistování se musí
+    // stáhnout nový výřez, ne sáhnout do už načteného celého dokumentu.
+  }, [issueId, page]);
 
   useEffect(() => {
     if (!pdfDocRef.current || loading || error || renderWidth < 220) return;

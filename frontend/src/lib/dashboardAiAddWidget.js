@@ -44,6 +44,11 @@ export async function addDashboardWidgetFromChatAction(action, pageId) {
     name,
     selected_indicator: selectedIndicator,
     indicator_id: selectedIndicator,
+    // Bez query_params ověří /catalog/preview jen "nějaká data pro tenhle set_id existují", ne
+    // konkrétní dimenzi (zemi/měřítko/frekvenci), kterou AI vybrala - u OECD4/Eurostat/World Bank
+    // to preview nechává projít, zatímco finální widget na stejné (chybějící) dimenzi selže.
+    query_params:
+      action?.query_params && typeof action.query_params === "object" ? action.query_params : undefined,
   };
 
   try {

@@ -2,8 +2,7 @@
   "nav": {
     "overview": "Overview",
     "subscription": "Subscription",
-    "catalogSearch": "Catalogs (search)",
-    "stockSearch": "Stocks",
+    "catalogSearch": "Catalogs (Economy / Stocks)",
     "managerExplorer": "Manager Explorer",
     "reader": "Reader",
     "podcasts": "Podcasts",
@@ -233,7 +232,7 @@
       "intro": "Enter segment, geography, question and optional files, select series and run the analysis.",
       "newQuery": "New query",
       "step1": "Input, question and series",
-      "step2": "Result and score",
+      "step2": "Analysis result",
       "step1Title": "Step 1 — Segment, question, files and series",
       "analysisType": "1. Analysis type",
       "sectorAnalysis": "Sector analysis"

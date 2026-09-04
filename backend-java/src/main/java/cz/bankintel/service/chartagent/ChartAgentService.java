@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -376,6 +377,7 @@ public class ChartAgentService {
 
         String deterministicAnswer = String.join(" ", answerParts);
         String answerCz = deterministicAnswer;
+        boolean answerFromLlm = false;
 
         Set<String> privateIds = new java.util.LinkedHashSet<>();
         Object privateIdsObj = privacyAudit.get("private_series_ids");
@@ -391,26 +393,65 @@ public class ChartAgentService {
                         .toList();
 
         if (!publicSeries.isEmpty()) {
+            // Primární řada může být sama privátní (soukromé řady se do promptu vůbec nedostanou) —
+            // pak se přesné období nedohledává vůbec, aby se jeho hodnota neprozradila anonymizovaným
+            // kontextem oklikou přes requested_period_lookup.
+            boolean primaryIsPrivate =
+                    primary != null && privateIds.contains(ChartContractParser.str(primary.get("id")));
+            Map<String, Object> periodLookup =
+                    primaryIsPrivate ? Map.of() : requestedPeriodLookup(question, primary);
             String llmAnswer;
             if (!privateIds.isEmpty()) {
                 llmAnswer = economistService.economistAnswer(
-                        question, plannerContract, publicSeries, List.of(), plan, "", conversationHistory);
+                        question, plannerContract, publicSeries, List.of(), plan, "", conversationHistory,
+                        periodLookup);
             } else {
                 llmAnswer = economistService.economistAnswer(
-                        question, contract, seriesList, calculations, plan, deterministicAnswer, conversationHistory);
+                        question, contract, seriesList, calculations, plan, deterministicAnswer, conversationHistory,
+                        periodLookup);
             }
             if (llmAnswer != null && !llmAnswer.isBlank()) {
                 answerCz = llmAnswer;
+                answerFromLlm = true;
+                List<String> unverifiedNumbers =
+                        ChartAgentNumberFactCheck.unverifiedNumbers(llmAnswer, seriesList, calculations);
+                if (!unverifiedNumbers.isEmpty()) {
+                    warnings.add(
+                            "Odpověď zmiňuje čísla, která se nepodařilo dohledat v datech grafu ani ve "
+                                    + "výpočtech: "
+                                    + String.join(", ", unverifiedNumbers)
+                                    + ". Může jít o legitimní odvozenou hodnotu i o chybu modelu — než číslo "
+                                    + "použijete, ověřte ho v grafu nebo tabulce.");
+                }
+                String periodWarning = ChartAgentNumberFactCheck.misattributedPeriodWarning(llmAnswer, periodLookup);
+                if (periodWarning != null) {
+                    warnings.add(periodWarning);
+                }
             }
         }
 
-        String methodology =
-                "Dotaz je převeden na výpočetní plán a všechny hodnoty jsou spočítané deterministicky "
+        // Cedulka pod odpovědí nesmí slibovat determinismus tam, kde text napsal jazykový model.
+        // Deterministicky spočítané zůstávají výpočty (`calculations`), ale samotné znění odpovědi
+        // je formulace modelu nad nimi — uživatel to musí vědět, jinak nemá důvod čísla ověřovat.
+        String methodology = answerFromLlm
+                ? "Výpočty nad daty grafu proběhly deterministicky na serveru; znění odpovědi nad "
+                        + "nimi formuloval jazykový model, proto si konkrétní čísla ověřte v grafu "
+                        + "nebo v tabulce."
+                : "Dotaz je převeden na výpočetní plán a všechny hodnoty jsou spočítané deterministicky "
                         + "z aktuálního ChartDataContractu grafu.";
         if (Boolean.TRUE.equals(privacyAudit.get("contains_private_series"))) {
-            methodology +=
-                    " Režim Strict private: privátní/nahrané řady zůstaly pro výpočty na backendu; "
-                            + "pro AI plánování je připravená jen anonymizovaná metadata bez raw hodnot.";
+            // Dřív odpověď o soukromých řadách jen mlčky zmizela: deterministický návrh je mohl
+            // pokrývat, ale LLM odpověď (postavená jen na veřejných řadách) ho bez varování
+            // přepsala. Věta teď říká přímo, že text výše je z hlediska soukromých řad neúplný -
+            // ne jen že se s daty "zacházelo opatrně".
+            int privateCount = privateIds.size();
+            methodology += privateCount == 1
+                    ? " Režim Strict private: 1 privátní/nahraná řada v grafu se do znění odpovědi "
+                            + "výše vůbec nedostala (AI dostala jen anonymizovaná metadata bez hodnot) — "
+                            + "její čísla najdete ve výpočtech nebo v tabulce grafu."
+                    : " Režim Strict private: " + privateCount + " privátních/nahraných řad v grafu se do "
+                            + "znění odpovědi výše vůbec nedostalo (AI dostala jen anonymizovaná metadata "
+                            + "bez hodnot) — jejich čísla najdete ve výpočtech nebo v tabulce grafu.";
         }
         if (!olapCube.isEmpty()) {
             Map<String, Object> counts = olapTableCounts(olapCube);
@@ -549,6 +590,89 @@ public class ChartAgentService {
         return LABEL_TOKEN_SPLIT.splitAsStream(label.toLowerCase(Locale.ROOT))
                 .filter(t -> t.length() >= 3 && !t.chars().allMatch(Character::isDigit))
                 .toList();
+    }
+
+    private static final Pattern YEAR_IN_QUESTION = Pattern.compile("\\b(19\\d{2}|20\\d{2})\\b");
+
+    /**
+     * Když se dotaz ptá na konkrétní rok, model dřív dostal jen vzorkovaný `series_points` a
+     * pokyn "najdi nejbližší bod" — v praxi si tak nejbližší dostupnou hodnotu tiše přivlastnil
+     * pro rok, na který se ptal. Tahle metoda rok v otázce deterministicky dohledá v PLNÉ (ne
+     * vzorkované) řadě a výsledek ({@code exact_matches}, nebo když rok v datech chybí,
+     * {@code nearest_available} s VLASTNÍM obdobím) jde do promptu jako hotové zadání — model tak
+     * nemá prostor si "nejbližší bod" domyslet sám a vydat ho za jiné období.
+     */
+    @SuppressWarnings("unchecked")
+    static Map<String, Object> requestedPeriodLookup(String question, Map<String, Object> primary) {
+        if (primary == null || question == null) {
+            return Map.of();
+        }
+        Matcher m = YEAR_IN_QUESTION.matcher(question);
+        if (!m.find()) {
+            return Map.of();
+        }
+        String year = m.group(1);
+        Object pointsObj = primary.get("points");
+        if (!(pointsObj instanceof List<?> points)) {
+            return Map.of();
+        }
+        List<Map<String, Object>> exact = new ArrayList<>();
+        Map<String, Object> nearestBefore = null;
+        Map<String, Object> nearestAfter = null;
+        for (Object ptObj : points) {
+            if (!(ptObj instanceof Map<?, ?> raw)) {
+                continue;
+            }
+            Map<String, Object> pt = (Map<String, Object>) raw;
+            if (ChartContractParser.num(pt.get("value")) == null) {
+                continue;
+            }
+            String period = ChartContractParser.str(pt.get("period"));
+            if (period.isBlank()) {
+                continue;
+            }
+            if (period.startsWith(year)) {
+                exact.add(Map.of("period", period, "value", pt.get("value")));
+            } else if (period.compareTo(year) < 0) {
+                nearestBefore = pt;
+            } else if (nearestAfter == null) {
+                nearestAfter = pt;
+            }
+        }
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("requested_year", year);
+        out.put("exact_matches", exact);
+        if (exact.isEmpty()) {
+            Map<String, Object> nearest = closerYear(year, nearestBefore, nearestAfter);
+            if (nearest != null) {
+                out.put(
+                        "nearest_available",
+                        Map.of("period", nearest.get("period"), "value", nearest.get("value")));
+            }
+        }
+        return out;
+    }
+
+    private static Map<String, Object> closerYear(String year, Map<String, Object> before, Map<String, Object> after) {
+        if (before == null) {
+            return after;
+        }
+        if (after == null) {
+            return before;
+        }
+        int target = Integer.parseInt(year);
+        int distBefore = target - yearOf(before);
+        int distAfter = yearOf(after) - target;
+        return distBefore <= distAfter ? before : after;
+    }
+
+    private static int yearOf(Map<String, Object> point) {
+        String period = ChartContractParser.str(point.get("period"));
+        try {
+            return Integer.parseInt(period.substring(0, 4));
+        } catch (Exception ex) {
+            return 0;
+        }
     }
 
     private static String resolvedQuestion(Map<String, Object> plan, String originalQuestion) {

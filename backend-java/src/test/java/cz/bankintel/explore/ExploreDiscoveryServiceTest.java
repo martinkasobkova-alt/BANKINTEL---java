@@ -182,6 +182,60 @@ class ExploreDiscoveryServiceTest {
         assertTrue(indicator.containsKey("canonical_metadata_provenance"));
     }
 
+    /**
+     * Živě zjištěno: multi-rozměrné zdroje (oecd4, data360, eurostat, imf, ecb) potřebují k
+     * načtení KONKRÉTNÍ řady query_params (measure/REF_AREA/DATABASE_ID/dimenze) navíc k
+     * holému set_id/dataset_id - ale {@code toIndicator} je dřív ze search hitu vůbec
+     * nekopírovalo, takže i pro reálný, katalogem ověřený hit skončila navržená řada bez
+     * parametrů, které její vlastní konektor vyžaduje (viz oecd4/data360 katalogový nález:
+     * skutečné řádky nesou {@code query_params} typu {"oecd4_measure":"...", "ref_area":"..."}
+     * nebo {"DATABASE_ID":"...", "INDICATOR":"..."}).
+     */
+    @Test
+    void discoverCopiesRealQueryParamsFromTheCatalogHitOntoTheIndicator() {
+        CatalogDeepSearchService deepSearch = mock(CatalogDeepSearchService.class);
+        Map<String, Object> oecdHit = hit("oecd4", "economic_outlook_118/CZE/UNR/_/A", "Míra nezaměstnanosti");
+        oecdHit.put("query_params", Map.of("oecd4_measure", "UNR", "ref_area", "CZE", "freq", "A"));
+        when(deepSearch.deepSearch(anyMap()))
+                .thenReturn(Map.of("verified", List.of(oecdHit), "possible", List.of()));
+
+        ExploreDiscoveryService service =
+                new ExploreDiscoveryService(deepSearch, noopCache(), canonicalMetadataService(), v1Flags(), mock(SearchV2Service.class));
+        ExploreDiscoveryService.IndicatorBundle bundle = service.discover("nezaměstnanost", "macro_economy", false);
+        Map<String, Object> indicator = java.util.stream.Stream
+                .concat(bundle.sectorIndicators().stream(), bundle.macroIndicators().stream())
+                .filter(row -> "economic_outlook_118/CZE/UNR/_/A".equals(row.get("set_id")))
+                .findFirst()
+                .orElseThrow();
+
+        assertEquals(
+                Map.of("oecd4_measure", "UNR", "ref_area", "CZE", "freq", "A"), indicator.get("query_params"));
+    }
+
+    /**
+     * Živě zjištěno: appka slibovala 8 report sekcí, ale jen sector_indicators/macro_indicators
+     * se kdy naplnily. Ne-makro hit dostane teď jemnější manager_category podle vlastního obsahu
+     * ({@link ExploreManagerDiscoveryTerms#reportSectionFor}) místo natvrdo "sector_indicators".
+     */
+    @Test
+    void discoverAssignsAFinerManagerCategoryToOnTopicNonMacroHits() {
+        CatalogDeepSearchService deepSearch = mock(CatalogDeepSearchService.class);
+        Map<String, Object> exportsHit = hit("eurostat", "ext_st_eu27_2020sitc", "Exports of goods and services");
+        when(deepSearch.deepSearchWithLanes(anyMap(), any()))
+                .thenReturn(Map.of("verified", List.of(exportsHit), "possible", List.of()));
+
+        ExploreDiscoveryService service =
+                new ExploreDiscoveryService(deepSearch, noopCache(), canonicalMetadataService(), v1Flags(), mock(SearchV2Service.class));
+        ExploreDiscoveryService.IndicatorBundle bundle =
+                service.discoverWithLanes("export", "trade", false, (source, lane) -> {});
+
+        Map<String, Object> indicator = bundle.sectorIndicators().stream()
+                .filter(row -> "ext_st_eu27_2020sitc".equals(row.get("set_id")))
+                .findFirst()
+                .orElseThrow();
+        assertEquals("external_indicators", indicator.get("manager_category"));
+    }
+
     // The following three tests cover the fix for a real relevance bug: sector-vs-macro bucketing
     // used to be decided purely by which catalog source a hit came from (isMacroSource), and every
     // source Explorer queries (arad/csu/eurostat/ecb/fred/imf/oecd/bis/data360) counted as "macro" -

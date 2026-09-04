@@ -76,6 +76,7 @@ public class CatalogController {
     private final SearchCatalogSidecarIndex searchCatalogSidecarIndex;
     private final SearchVectorIndexBuilder searchVectorIndexBuilder;
     private final CurrentUser currentUser;
+    private final cz.bankintel.service.access.FeatureAccessService featureAccessService;
     private final AdminAccess adminAccess;
 
     @GetMapping("/suggest")
@@ -116,18 +117,27 @@ public class CatalogController {
         return chartDataQualityService.assess(body != null ? body : Map.of());
     }
 
+
+    /** AI nad grafem (vysvětlení řady, navazující dotazy, související řady) — až po registraci. */
+    private void requireChartAi() {
+        featureAccessService.requireFeature(currentUser.optionalUserEntity(), "chart_ai");
+    }
+
     @PostMapping("/explain-series")
     public Map<String, Object> explainSeries(@RequestBody(required = false) Map<String, Object> body) {
+        requireChartAi();
         return catalogSeriesExplainService.explainSeries(body != null ? body : Map.of());
     }
 
     @PostMapping("/explain-series/ask")
     public Map<String, Object> explainSeriesAsk(@RequestBody(required = false) Map<String, Object> body) {
+        requireChartAi();
         return catalogSeriesExplainService.askFollowup(body != null ? body : Map.of());
     }
 
     @PostMapping("/related-series")
     public Map<String, Object> relatedSeries(@RequestBody(required = false) Map<String, Object> body) {
+        requireChartAi();
         return catalogRelatedSeriesService.findRelated(body != null ? body : Map.of());
     }
 

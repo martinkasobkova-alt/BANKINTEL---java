@@ -136,6 +136,14 @@ public record SearchCatalogSidecarDocument(
         out.put("_matched_query", matchedQuery);
         out.put("_matched_fields", matchedFields);
         out.put("_catalog_index", "sidecar");
+        // Živě zjištěno: appka na detailu řady z AI/deep hledání neuměla ukázat klikací cestu v
+        // katalogu (breadcrumb) - `full_path` v datech reálně existuje, jenže jen zanořený uvnitř
+        // `raw` (řádek 139 níže), ne na vrchní úrovni téhle mapy. `SearchV2CandidateNormalizer`
+        // (a `SearchCandidate`'s RAW_PASSTHROUGH_KEYS) čtou `full_path`/`catalog_path` jen z vrchní
+        // úrovně - proto se dřív ke kandidátovi z V2 enginu nikdy nedostaly, přestože klasické
+        // hledání (`/api/catalog/suggest`) tutéž cestu bez problému vrací.
+        out.put("full_path", rawString("full_path", rawString("path", "")));
+        out.put("catalog_path", rawString("catalog_path", rawString("full_path", rawString("path", ""))));
         out.put("raw", raw);
         return out;
     }

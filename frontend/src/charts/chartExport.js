@@ -13,7 +13,6 @@ import {
 
 const DEFAULT_WIDE_LOCALE = "cs-CZ";
 const DEFAULT_WIDE_DELIMITER = ";";
-const DEFAULT_LONG_LOCALE = "en-US";
 const DEFAULT_LONG_DELIMITER = ",";
 
 export const EXPORT_LONG_COLUMNS = [
@@ -61,7 +60,14 @@ function formatWideRowCell(value, column, periodHeader, locale) {
   return value ?? "";
 }
 
-function rowsToCsv(columns, rows, delimiter = ";", { periodHeader = null, locale = null } = {}) {
+/**
+ * @param {object} [opts]
+ * @param {string|null} [opts.periodHeader] Sloupec s obdobím — čísla se formátují jen v ostatních.
+ * @param {string|null} [opts.locale] Formát čísla; bez `periodHeader` se ignoruje.
+ * @param {boolean} [opts.bom] Značka kódování pro Excel. U strojově čtených formátů se vynechává —
+ *   naivní `read_csv` si o ni rozbije název prvního sloupce.
+ */
+function rowsToCsv(columns, rows, delimiter = ";", { periodHeader = null, locale = null, bom = true } = {}) {
   const lines = [columns.join(delimiter)];
   for (const row of rows) {
     lines.push(
@@ -76,7 +82,7 @@ function rowsToCsv(columns, rows, delimiter = ";", { periodHeader = null, locale
         .join(delimiter)
     );
   }
-  return "\uFEFF" + lines.join("\n");
+  return (bom ? "\uFEFF" : "") + lines.join("\n");
 }
 
 function buildLongExportColumns(longRows) {
@@ -316,18 +322,20 @@ export function exportChartOlapFactCsv(contract, options = {}) {
   const { filename = "chart", delimiter = ",", query = "" } = options;
   const pkg = buildOlapCubePackage(contract, { query });
   const columns = ["fact_id", "period_id", "series_id", "geo_id", "source_id", "value", "unit", "frequency", "transformation"];
-  const csv = rowsToCsv(columns, pkg.tables.fact_values, delimiter);
+  const csv = rowsToCsv(columns, pkg.tables.fact_values, delimiter, { bom: false });
   downloadTextBlob(csv, `${safeFilename(filename)}_fact_values.csv`, "text/csv;charset=utf-8");
 }
 
+/**
+ * Technický (dlouhý) formát je určený ke strojovému zpracování, ne k otevření v Excelu: čísla
+ * proto zůstávají s desetinnou tečkou a soubor nemá značku kódování. Volba `locale` se sem dřív
+ * předávala, ale `rowsToCsv` ji bez `periodHeader` ignorovala — byl to mrtvý kód, který budil
+ * dojem, že formát respektuje české oddělovače.
+ */
 export function exportChartDataLongCsv(contract, options = {}) {
-  const {
-    locale = DEFAULT_LONG_LOCALE,
-    delimiter = DEFAULT_LONG_DELIMITER,
-    filename = "chart",
-  } = options;
+  const { delimiter = DEFAULT_LONG_DELIMITER, filename = "chart" } = options;
   const sheets = buildChartExportSheets(contract);
-  const csv = rowsToCsv(sheets.Data_Long.columns, sheets.Data_Long.rows, delimiter, { locale });
+  const csv = rowsToCsv(sheets.Data_Long.columns, sheets.Data_Long.rows, delimiter, { bom: false });
   downloadTextBlob(csv, `${safeFilename(filename)}_long.csv`, "text/csv;charset=utf-8");
 }
 

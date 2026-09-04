@@ -1,4 +1,4 @@
-import { applyChartTransform, applyTransformToContract } from "./chartTransforms";
+import { applyChartTransform, applyTransformToContract, unitAfterTransform } from "./chartTransforms";
 import { createEmptyChartContract, normalizeChartPoint } from "./chartDataContract";
 
 describe("chartTransforms", () => {
@@ -42,5 +42,32 @@ describe("chartTransforms", () => {
     const updated = applyTransformToContract(contract, "mom");
     expect(updated.data.length).toBe(3);
     expect(updated.transformations.length).toBe(1);
+  });
+});
+
+/**
+ * Jednotka po transformaci.
+ *
+ * Kontext: po přepnutí grafu na YoY nebo index=100 zůstávala v hlavičce exportu původní jednotka,
+ * takže v CSV i XLSX stálo třeba „Objem (mil. Kč)", ačkoli hodnoty byly procenta.
+ */
+describe("unitAfterTransform", () => {
+  it("nechá jednotku beze změny u původních hodnot a klouzavého průměru", () => {
+    expect(unitAfterTransform("mil. Kč", "raw")).toBe("mil. Kč");
+    expect(unitAfterTransform("mil. Kč", "rolling_average")).toBe("mil. Kč");
+  });
+
+  it("u procentních transformací hlásí procenta", () => {
+    expect(unitAfterTransform("mil. Kč", "yoy")).toBe("%");
+    expect(unitAfterTransform("mil. Kč", "mom")).toBe("%");
+  });
+
+  it("u normalizace na sto hlásí index", () => {
+    expect(unitAfterTransform("mil. Kč", "index_100")).toBe("index (100 = první období)");
+  });
+
+  it("prázdnou jednotku nevymýšlí", () => {
+    expect(unitAfterTransform("", "raw")).toBe("");
+    expect(unitAfterTransform(undefined, "raw")).toBe("");
   });
 });

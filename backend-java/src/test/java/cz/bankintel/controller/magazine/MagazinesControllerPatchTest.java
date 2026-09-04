@@ -42,6 +42,13 @@ class MagazinesControllerPatchTest {
     @MockitoBean
     private AdminAccess adminAccess;
 
+    // Kontroler nově hlídá předplatitelský přístup k archivu (feature `magazine_archive`).
+    @MockitoBean
+    private cz.bankintel.service.access.FeatureAccessService featureAccessService;
+
+    @MockitoBean
+    private cz.bankintel.security.CurrentUser currentUser;
+
     @MockitoBean
     private JwtService jwtService;
 

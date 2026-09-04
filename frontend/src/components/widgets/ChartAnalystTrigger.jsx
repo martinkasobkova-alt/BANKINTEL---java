@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useFeatureAccess } from "@/hooks/useFeatureAccess";
 import { createPortal } from "react-dom";
 import { Loader2, Search, Sparkles, X } from "lucide-react";
 import api, { formatApiErrorFromAxios } from "@/lib/api";
@@ -611,7 +612,7 @@ function cleanCatalogQuery(text) {
     .trim();
 }
 
-function addCatalogActionFromSuggestion(item, query = "") {
+export function addCatalogActionFromSuggestion(item, query = "") {
   const row = suggestionToRow(item);
   // Akcie maji v deep-search vysledcich jen obecny "stocks" bucket v source/catalog/source_type -
   // skutecny konektor (yahoo_finance/alphavantage) najde jen catalogDefForSuggestion (cte
@@ -634,6 +635,11 @@ function addCatalogActionFromSuggestion(item, query = "") {
     indicator_id: selectedIndicator,
     name,
     title: name,
+    // Bez tohohle mělo ověření přes /catalog/preview volnější (jen set_id/indicator) tělo než
+    // finální widget, takže u vícerozměrných zdrojů (OECD4, Eurostat, World Bank...) preview
+    // prošel na jiné/výchozí dimenzi, než jakou pak žádal widget - AI nahlásila "ověřeno" a
+    // widget skončil s "Pro tuto řadu nebyla nalezena žádná data".
+    query_params: row.query_params && typeof row.query_params === "object" ? row.query_params : undefined,
   };
 }
 
@@ -1422,14 +1428,20 @@ export default function ChartAnalystTrigger({
     setOpen(true);
   }, [onOpenInline]);
 
+  // AI nad grafem je po registraci (klíč chart_ai). Tlačítko necháváme viditelné,
+  // ale místo spuštění analýzy vysvětlíme proč — jinak by uživatel jen klikal do prázdna.
+  const { allowed: canChartAi, ready: chartAiReady, message: chartAiMessage } =
+    useFeatureAccess("chart_ai");
+  const chartAiLocked = chartAiReady && !canChartAi;
+
   return (
     <>
       <button
         type="button"
         disabled={disabled || (!hasData && !hasConcept)}
-        onClick={handleOpen}
+        onClick={chartAiLocked ? () => window.alert(chartAiMessage || "Tato funkce je dostupná po přihlášení.") : handleOpen}
         className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-violet-200 bg-violet-50 text-violet-800 shadow-sm hover:bg-violet-100 disabled:opacity-50"
-        title="AI nad grafem: vysvětlení řady, související řady a výpočty"
+        title={chartAiLocked ? (chartAiMessage || "Tato funkce je dostupná po přihlášení.") : "AI nad grafem: vysvětlení řady, související řady a výpočty"}
         aria-label="AI nad grafem"
         data-export-ignore="true"
         data-testid="chart-analyst-trigger"

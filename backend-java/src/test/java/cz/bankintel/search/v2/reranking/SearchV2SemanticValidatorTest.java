@@ -27,6 +27,7 @@ class SearchV2SemanticValidatorTest {
             new SearchV2SemanticValidator(
                     mock(OpenAiClient.class),
                     new ObjectMapper(),
+                    new cz.bankintel.search.v2.orchestration.SearchV2CacheService(),
                     new SearchV2ConceptOntology(new ObjectMapper()),
                     new SearchV2ExactEntityScorer(),
                     new SearchV2InstitutionalSectorRegistry(new ObjectMapper()));
@@ -205,6 +206,7 @@ class SearchV2SemanticValidatorTest {
         SearchV2SemanticValidator aiValidator = new SearchV2SemanticValidator(
                 client,
                 objectMapper,
+                new cz.bankintel.search.v2.orchestration.SearchV2CacheService(),
                 new SearchV2ConceptOntology(objectMapper),
                 new SearchV2ExactEntityScorer(),
                 new SearchV2InstitutionalSectorRegistry(objectMapper));
@@ -261,6 +263,7 @@ class SearchV2SemanticValidatorTest {
         SearchV2SemanticValidator aiValidator = new SearchV2SemanticValidator(
                 client,
                 objectMapper,
+                new cz.bankintel.search.v2.orchestration.SearchV2CacheService(),
                 new SearchV2ConceptOntology(objectMapper),
                 new SearchV2ExactEntityScorer(),
                 new SearchV2InstitutionalSectorRegistry(objectMapper));
@@ -322,6 +325,7 @@ class SearchV2SemanticValidatorTest {
         SearchV2SemanticValidator aiValidator = new SearchV2SemanticValidator(
                 client,
                 objectMapper,
+                new cz.bankintel.search.v2.orchestration.SearchV2CacheService(),
                 new SearchV2ConceptOntology(objectMapper),
                 new SearchV2ExactEntityScorer(),
                 new SearchV2InstitutionalSectorRegistry(objectMapper));

@@ -132,3 +132,22 @@ export function applyTransformToContract(contract, transformId, options = {}) {
 }
 
 export { indexSeriesTo100, rollingAverageSeries, rollingMedianSeries, spreadSeries, ratioSeries };
+
+/**
+ * Jednotka řady po zobrazovací transformaci.
+ *
+ * Bez toho zůstávala v hlavičce exportu původní jednotka — po přepnutí na YoY nebo index=100
+ * stálo v CSV i v XLSX například „Objem (mil. Kč)", ačkoli hodnoty byly procenta. Uživatel pak
+ * exportovaná čísla přečetl ve špatné jednotce a neměl jak to poznat.
+ */
+export function unitAfterTransform(unit, transformId) {
+  switch (String(transformId || "raw")) {
+    case "mom":
+    case "yoy":
+      return "%";
+    case "index_100":
+      return "index (100 = první období)";
+    default:
+      return unit || "";
+  }
+}

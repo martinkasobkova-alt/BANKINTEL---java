@@ -150,10 +150,14 @@ public class RssService {
             feedFilter = List.of(feedId);
         }
 
-        Instant cutoff = days != null ? Instant.now().minus(days, ChronoUnit.DAYS) : null;
+        // PostgreSQL neumí u `:param IS NULL` odvodit typ nenaplněného parametru a celý dotaz
+        // shodí na „could not determine data type". Protože `category` i `search` jsou při běžném
+        // volání prázdné, padalo /api/rss/items VŽDYCKY — výpis položek tedy nefungoval nikomu.
+        // Místo null se proto posílají hodnoty, které dotaz už umí vyhodnotit jako „bez filtru".
+        Instant cutoff = days != null ? Instant.now().minus(days, ChronoUnit.DAYS) : Instant.EPOCH;
         int cappedLimit = Math.min(Math.max(limit, 1), 100);
-        String cat = category == null || category.isBlank() ? null : category.trim();
-        String search = q == null || q.isBlank() ? null : q.trim();
+        String cat = category == null || category.isBlank() ? "" : category.trim();
+        String search = q == null || q.isBlank() ? "" : q.trim();
         return itemRepository
                 .findFiltered(feedFilter, cat, cutoff, search, PageRequest.of(0, cappedLimit))
                 .stream()

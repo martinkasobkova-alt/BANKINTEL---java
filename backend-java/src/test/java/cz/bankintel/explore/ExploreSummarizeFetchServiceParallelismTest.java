@@ -54,7 +54,14 @@ class ExploreSummarizeFetchServiceParallelismTest {
         when(indexStore.lookupRow(anyString(), anyString())).thenReturn(Optional.empty());
         when(fetchRegistry.tryFetch(any(), any())).thenReturn(Optional.empty());
         when(connectorFactory.isSupported(any())).thenReturn(false);
-        return new ExploreSummarizeFetchService(indexStore, previewOrchestrator, connectorFactory, cacheReader, fetchRegistry);
+        return new ExploreSummarizeFetchService(
+                indexStore,
+                previewOrchestrator,
+                connectorFactory,
+                cacheReader,
+                fetchRegistry,
+                mock(cz.bankintel.repository.UserUploadRepository.class),
+                mock(cz.bankintel.service.myseries.SavedSeriesResolverService.class));
     }
 
     @Test

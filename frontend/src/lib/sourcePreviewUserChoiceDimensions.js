@@ -5,6 +5,7 @@ import {
   resolveHumanValueLabel,
   buildLabelLookupFromDimensionMeta,
 } from "./sourcePreviewDimensionMeta";
+import { pickAggregateOrFirst } from "./dimensionAggregateValue";
 import {
   INDUSTRY_FIELD_LABEL_CS,
   industryMaxOptionCount,
@@ -202,7 +203,10 @@ function buildDimensionEntry(field, options, applied, availableDimensions, rowLa
   const selected = Array.isArray(appliedRaw)
     ? String(appliedRaw[0] ?? "").trim()
     : String(appliedRaw ?? "").trim();
-  const fallbackSelected = selected || String(options[0]?.value || "").trim();
+  // Souhrn misto prvniho v abecede - jinak se dimenze potka s ukazatelem
+  // na protichudne kombinaci a v grafu zbude jediny bod.
+  const fallbackOption = pickAggregateOrFirst(options, (o) => [o?.value, o?.label]);
+  const fallbackSelected = selected || String(fallbackOption?.value || "").trim();
   return {
     field,
     label: getUserChoiceDimensionLabel(field, availableDimensions, rowLabel),

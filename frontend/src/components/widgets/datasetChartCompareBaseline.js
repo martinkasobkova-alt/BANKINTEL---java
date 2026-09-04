@@ -54,3 +54,25 @@ export function isExternalCatalogWidgetEngine(engine) {
   const e = String(engine || "").toLowerCase();
   return e === "external_catalog_chart" || e === "external_catalog_view";
 }
+
+export function isUploadPrimaryWidgetEngine(engine) {
+  const e = String(engine || "").toLowerCase();
+  return e === "user_upload_chart" || e === "uploaded_data_chart";
+}
+
+/**
+ * Živě zjištěno: „Srovnat s řadou" na grafu z vlastních dat (primární je nahraný soubor) →
+ * přidat katalogovou řadu. Dialog uložení nahlásil úspěch, ale po reloadu zůstala jen původní
+ * řada — {@code handleUnifiedCompareSave} uměla trvale uložit srovnání jen pro katalogové
+ * widgety (viz {@link isExternalCatalogWidgetEngine}), takže widget z vlastních dat vždy spadl
+ * do dočasného, neukládaného náhledu. Tahle funkce jen pojmenovává rozhodnutí „umí se tohle
+ * srovnání trvale uložit", ať se dá otestovat samostatně bez celého {@code AradView.jsx}.
+ */
+export function canPersistChartCompare({
+  isExternalCatalogPrimary,
+  isUploadPrimary,
+  hasWidgetConfigPatch,
+  hasWidgetId,
+}) {
+  return Boolean(hasWidgetConfigPatch) && Boolean(hasWidgetId) && Boolean(isExternalCatalogPrimary || isUploadPrimary);
+}

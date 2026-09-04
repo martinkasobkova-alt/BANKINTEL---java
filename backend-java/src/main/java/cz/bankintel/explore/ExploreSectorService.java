@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import cz.bankintel.search.CatalogIndexStore;
 import cz.bankintel.search.CatalogSourceRegistry;
 import cz.bankintel.explore.ExploreDtos.ExploreSectorRequest;
 import cz.bankintel.search.openai.OpenAiClient;
@@ -13,6 +14,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,6 +42,7 @@ public class ExploreSectorService {
     private final ExploreDiscoveryCache discoveryCache;
     private final Environment environment;
     private final WebResearchService webResearchService;
+    private final CatalogIndexStore indexStore;
 
     public Map<String, Object> analyzeSector(ExploreSectorRequest request) {
         PreparedAnalysis prep = prepareAnalysis(request);
@@ -222,7 +225,7 @@ public class ExploreSectorService {
         out = ExploreSectorContract.mergeWebSources(out, webSources, webResearchStatus);
         out.put("query_understanding", prep.understanding());
         out.put("analysis_scope", normalizeScope(request.analysisScope()));
-        out.put("user_data_privacy_mode", normalizePrivacy(request.userDataPrivacyMode()));
+        out.put("user_data_privacy_mode", ExploreUserDataPrivacy.normalize(request.userDataPrivacyMode()));
         out.put("company_indicators", List.of());
         out.put("company_vs_market", List.of());
         out.put("user_data_used", false);
@@ -422,9 +425,15 @@ public class ExploreSectorService {
                 String system =
                         """
                         Jsi datový kurátor pro manažerský Explorer. Vrať pouze JSON:
-                        {"sector_indicators":[{"source":"eurostat|ecb|fred|imf|oecd4","dataset_id":"...","indicator_name":"...","manager_category":"sector_indicators","confidence_score":0.0-1.0}],
+                        {"sector_indicators":[{"source":"eurostat|ecb|fred|imf|oecd4|data360|arad|csu","dataset_id":"...","indicator_name":"...","manager_category":"sector_indicators","confidence_score":0.0-1.0}],
                          "macro_indicators":[{"source":"...","dataset_id":"...","indicator_name":"...","manager_category":"macro_indicators","confidence_score":0.0-1.0}]}
                         Navrhni 4-8 sektorových a 2-4 makro ukazatelů relevantních k dotazu. Používej reálné katalogové zdroje.
+                        Pro World Bank používej vždy zdroj "data360" - klasický "worldbank" katalog appka
+                        už nepoužívá a nemá v něm žádná data.
+                        U zdrojů "arad", "csu", "oecd4" a "data360" neznáš skutečné interní kódy ani
+                        parametry datasetů - do dataset_id napiš prázdný řetězec a spolehni se na to, že
+                        se podle indicator_name dohledá v katalogu; nevymýšlej si žádné ID ani parametry
+                        pro ně.
                         """;
                 String userPrompt =
                         "Segment: " + sector + "\nDotaz: " + question + "\nGeo: " + geo.get("display") + "\nŠirší hledání: "
@@ -432,8 +441,10 @@ public class ExploreSectorService {
                 JsonNode response = openAiClient.chatCompletion(system, userPrompt);
                 String content = extractContent(response);
                 Map<String, Object> parsed = objectMapper.readValue(content, new TypeReference<>() {});
-                List<Map<String, Object>> sectorRows = castIndicatorList(parsed.get("sector_indicators"), sector);
-                List<Map<String, Object>> macroRows = castIndicatorList(parsed.get("macro_indicators"), sector);
+                List<Map<String, Object>> sectorRows = refineReportSections(
+                        resolveOpaqueSourceIndicators(castIndicatorList(parsed.get("sector_indicators"), sector)));
+                List<Map<String, Object>> macroRows =
+                        resolveOpaqueSourceIndicators(castIndicatorList(parsed.get("macro_indicators"), sector));
                 return new ExploreDiscoveryService.IndicatorBundle(
                         sectorRows, macroRows, sectorRows.size() + macroRows.size(), false, 0L);
             } catch (Exception ignored) {
@@ -487,6 +498,160 @@ public class ExploreSectorService {
         return out;
     }
 
+    /**
+     * Zdroje, u kterých navržený `dataset_id` od LLM nestačí k reálnému načtení dat - buď nemají
+     * veřejně známou ID konvenci (arad, csu), nebo konektor navíc potřebuje strukturované
+     * `query_params` (measure/REF_AREA/freq pro oecd4, DATABASE_ID/INDICATOR pro data360), které
+     * prompt výše vůbec nevyžaduje. Pro všechny se proto navržený dataset_id ignoruje a řada se
+     * dohledá v katalogu podle indicator_name - včetně jejích skutečných query_params.
+     */
+    private static final Set<String> OPAQUE_ID_SOURCES = Set.of("arad", "csu", "oecd4", "data360", "worldbank");
+
+    /**
+     * Zdroje, kde LLM `dataset_id` často trefí (veřejně známé kódy jako Eurostat "sts_inpr_m"),
+     * ale konektor navíc potřebuje strukturované `query_params` (dimenze), které prompt výše
+     * nikdy nenavrhuje. Na rozdíl od {@link #OPAQUE_ID_SOURCES} se navržený `dataset_id`
+     * nezahazuje automaticky - {@link #enrichWithCatalogParams} nejdřív zkusí přesné dohledání
+     * podle něj, a teprve když selže, padne na dohledání podle `indicator_name`. Tyhle konektory
+     * navíc na rozdíl od ARAD/OECD4/Data360 při chybějících `query_params` tvrdě nespadnou (jen
+     * vrátí širší/neprofiltrovaná data), takže na úplné selhání dohledání se řádek nezahazuje.
+     */
+    private static final Set<String> PARAM_ENRICHMENT_SOURCES = Set.of("eurostat", "imf", "ecb2");
+
+    /** Skutečný ARAD `set_id` je vždy čistě číselný (1088, 1119, 1169, ...) - nikdy popisný slug. */
+    private static final java.util.regex.Pattern ARAD_REAL_SET_ID = java.util.regex.Pattern.compile("[0-9]+");
+
+    /**
+     * LLM u ARAD/ČSÚ (řádek 425 promptu výše) často vymyslí `dataset_id`, který v katalogu
+     * neexistuje - např. "arad_repo_rate" pro „2T repo sazba ČNB" (skutečné ID je set_id
+     * "1119" + indicator_id "SFTP01M11", nic co by šlo uhodnout). Fetch takové řady pak vždy
+     * selže se „Data se nepodařilo načíst". Pro tyhle zdroje proto navržený dataset_id
+     * ignorujeme a dohledáme skutečnou řadu v katalogu podle indicator_name; když se nic
+     * nenajde, řadu radši vynecháme, než abychom poslali garantovaně nefunkční ID dál.
+     *
+     * <p>Živě zjištěno: {@code indexStore.searchSource} umí pro chybějící FTS shodu vrátit
+     * „sidecar rescue" náhradní řádek postavený přímo z metadata sidecare
+     * ({@link cz.bankintel.search.CatalogIndexStore#searchSource}) - a tenhle sidecar sám občas
+     * jako svůj klíč používá STEJNÝ druh popisného slugu ({@code AradSeriesIdentity.parse} ho
+     * nerozparsuje, protože nemá dvojtečku, takže projde beze změny). Bez dodatečné kontroly by
+     * tak řešení jeden vymyšlený ARAD `dataset_id` jen vyměnilo za jiný, stejně nefunkční.
+     *
+     * <p>OECD4/World Bank Data360 mají jiný problém: dataset_id samotné nestačí, protože konektor
+     * vyžaduje strukturované query_params ({@link cz.bankintel.explore.manager.fetch.Oecd4ManagerFetch},
+     * {@link cz.bankintel.connector.Data360Connector}), které prompt výše nikdy nenavrhuje. Bez
+     * dohledání v katalogu OECD4 tiše spadne na natvrdo nastavený fallback measure ("GDPV_ANNPCT" =
+     * růst HDP, bez ohledu na to, na co se uživatel ptal) a Data360 vždy selže na „DATABASE_ID je
+     * povinný". Ověřeno přímo v katalogovém indexu: skutečné řádky nesou přesně tahle query_params,
+     * např. {@code {"oecd4_measure":"CGFL","ref_area":"CHL","freq":"A",...}} nebo
+     * {@code {"DATABASE_ID":"IMF_BOP","INDICATOR":"...","skip":"0"}}.
+     */
+    List<Map<String, Object>> resolveOpaqueSourceIndicators(List<Map<String, Object>> rows) {
+        List<Map<String, Object>> out = new ArrayList<>(rows.size());
+        for (Map<String, Object> row : rows) {
+            String source = CatalogSourceRegistry.normalizeSearchSource(str(row.get("source")));
+            if (OPAQUE_ID_SOURCES.contains(source)) {
+                Map<String, Object> resolved = resolveAgainstCatalog(row, source);
+                if (resolved != null) {
+                    out.add(resolved);
+                } else {
+                    log.debug(
+                            "Explorer: {} ukazatel '{}' se nedohledal v katalogu, vynechávám",
+                            source,
+                            row.get("indicator_name"));
+                }
+                continue;
+            }
+            if (PARAM_ENRICHMENT_SOURCES.contains(source)) {
+                out.add(enrichWithCatalogParams(row, source));
+                continue;
+            }
+            out.add(row);
+        }
+        return out;
+    }
+
+    /** Viz {@link #PARAM_ENRICHMENT_SOURCES}. */
+    private Map<String, Object> enrichWithCatalogParams(Map<String, Object> row, String source) {
+        String datasetId = str(row.get("dataset_id"));
+        if (!datasetId.isBlank()) {
+            Map<String, Object> exact = indexStore.lookupRow(source, datasetId).orElse(null);
+            if (exact != null && exact.get("query_params") instanceof Map<?, ?> queryParams && !queryParams.isEmpty()) {
+                Map<String, Object> resolved = new LinkedHashMap<>(row);
+                resolved.put("query_params", queryParams);
+                return resolved;
+            }
+        }
+        Map<String, Object> byName = resolveAgainstCatalog(row, source);
+        return byName != null ? byName : row;
+    }
+
+    /**
+     * LLM prompt výše smí navrhnout jemnější {@code manager_category} přímo (viz enum v promptu),
+     * ale spolehnout se na to je křehké - tenhle průchod je záchranná síť: každý řádek, co pořád
+     * nese jen obecné „sector_indicators" (LLM ho buď nezměnilo, nebo ho ignorovalo), se zkusí
+     * dohledat jemněji podle vlastního obsahu ({@link ExploreManagerDiscoveryTerms#reportSectionFor}).
+     * Řádek, který LLM už označilo jinak (finější kategorií, nebo makro), se nemění.
+     */
+    static List<Map<String, Object>> refineReportSections(List<Map<String, Object>> rows) {
+        for (Map<String, Object> row : rows) {
+            if ("sector_indicators".equals(str(row.get("manager_category")))) {
+                row.put("manager_category", ExploreManagerDiscoveryTerms.reportSectionFor(row));
+            }
+        }
+        return rows;
+    }
+
+    /**
+     * Klasický „World Bank" katalog appka už nepoužívá - reálná data (i ve vyhledávání) má jen
+     * World Bank Data360 pod zdrojem "data360". LLM ale název "worldbank" pořád zná a umí ho
+     * navrhnout, přestože pod ním katalog nemá ani jeden řádek (ověřeno přímo v
+     * classic_catalog_search.sqlite: 0 řádků `source='worldbank'` proti 259 pod `data360`).
+     * Dohledání proto pro "worldbank" hledá rovnou pod "data360" - stejný princip jako
+     * {@code ExploreSummarizeFetchService.hydrateFromIndex}'s oecd4→oecd fallback.
+     */
+    private static String catalogLookupSource(String source) {
+        return "worldbank".equals(source) ? "data360" : source;
+    }
+
+    private Map<String, Object> resolveAgainstCatalog(Map<String, Object> row, String source) {
+        String name = str(row.getOrDefault("indicator_name", row.get("title")));
+        if (name.isBlank()) {
+            return null;
+        }
+        String lookupSource = catalogLookupSource(source);
+        List<Map<String, Object>> hits;
+        try {
+            hits = indexStore.searchSource(lookupSource, name, 1);
+        } catch (Exception ex) {
+            log.debug("Explorer: katalogové dohledání pro {}/{} selhalo: {}", lookupSource, name, ex.getMessage());
+            return null;
+        }
+        if (hits.isEmpty()) {
+            return null;
+        }
+        Map<String, Object> hit = hits.getFirst();
+        Object realSetId = hit.get("set_id");
+        if (realSetId == null || String.valueOf(realSetId).isBlank()) {
+            return null;
+        }
+        if ("arad".equals(source) && !ARAD_REAL_SET_ID.matcher(String.valueOf(realSetId)).matches()) {
+            // Sidecar rescue vrátil svůj vlastní neparsovatelný klíč (žádná dvojtečka) místo
+            // skutečného čísla - stejný nefunkční vzor jako to, co jsme se snažili opravit.
+            return null;
+        }
+        Map<String, Object> resolved = new LinkedHashMap<>(row);
+        // Pro "worldbank" přepíše zdroj na "data360", pod kterým se skutečně hledalo a kde
+        // dataset_id/query_params níže doopravdy existují - jinak by connectorSourceType mapoval
+        // podle "worldbank" nálepky, ale hodnoty by odpovídaly data360 katalogu.
+        resolved.put("source", lookupSource);
+        resolved.put("dataset_id", realSetId);
+        resolved.put("set_id", realSetId);
+        if (hit.get("query_params") instanceof Map<?, ?> queryParams && !queryParams.isEmpty()) {
+            resolved.put("query_params", queryParams);
+        }
+        return resolved;
+    }
+
     private static String extractContent(JsonNode response) throws Exception {
         JsonNode content = response.path("choices").path(0).path("message").path("content");
         if (content.isMissingNode() || content.asText().isBlank()) {
@@ -508,13 +673,6 @@ public class ExploreSectorService {
         return "selected_only".equals(raw) ? "selected_only" : "auto";
     }
 
-    private static String normalizePrivacy(String value) {
-        String raw = value == null ? "" : value.trim().toLowerCase();
-        if (raw.contains("safe") || raw.contains("anonym")) {
-            return "private_safe_summary";
-        }
-        return "private_local_only";
-    }
 
     @SuppressWarnings("unchecked")
     private static Map<String, Object> castMap(Object value) {

@@ -892,7 +892,7 @@ select.input:disabled {
 
     [data-app-shell-root] .app-shell-catalog-search {
         max-width: 100%;
-        overflow: hidden;
+        overflow-x: clip;
     }
 
     .catalog-dark-scope,
@@ -2022,6 +2022,24 @@ html.banko-article-embed [data-testid="cookie-banner"] {
     }
     100% {
         transform: translateX(420%);
+    }
+}
+
+/* SearchProgressCard — jemný "data radar" (viz frontend/src/components/ui/loading/) */
+@keyframes radar-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes radar-breathe {
+    0%, 100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+    50% {
+        transform: scale(1.1);
+        opacity: 0.82;
     }
 }
 

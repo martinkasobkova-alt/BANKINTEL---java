@@ -34,6 +34,8 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 @RequiredArgsConstructor
 public class ExploreController {
 
+    private final cz.bankintel.security.CurrentUser currentUser;
+    private final cz.bankintel.service.access.FeatureAccessService featureAccessService;
     private final ExploreGeoCatalog geoCatalog;
     private final ExploreSectorService sectorService;
     private final ExploreStreamService streamService;
@@ -42,13 +44,20 @@ public class ExploreController {
     private final ExploreFollowupService exploreFollowupService;
     private final ManagerAnalysisPlanService managerAnalysisPlanService;
 
+    /** Manager Explorer je po registraci — procházení zdrojů i AI analýza nad nimi. */
+    private void requireExplorer() {
+        featureAccessService.requireFeature(currentUser.optionalUserEntity(), "manager_explorer");
+    }
+
     @GetMapping("/geo-options")
     public Map<String, Object> geoOptions() {
+        requireExplorer();
         return geoCatalog.geoOptions();
     }
 
     @PostMapping("/sector")
     public Map<String, Object> sector(@RequestBody ExploreSectorRequest request) {
+        requireExplorer();
         return ExploreTraceEnvelope.forRest(sectorService.analyzeSector(request));
     }
 
@@ -63,6 +72,7 @@ public class ExploreController {
             @RequestParam(name = "related_segment_ranking", required = false) String relatedSegmentRanking,
             @RequestParam(name = "analysis_mode", defaultValue = "sector") String analysisMode,
             @RequestParam(name = "request_id", required = false) String requestId) {
+                requireExplorer();
         return streamService.streamSector(
                 sector,
                 question,
@@ -77,11 +87,14 @@ public class ExploreController {
 
     @PostMapping("/summarize")
     public Map<String, Object> summarize(@RequestBody ExploreSummarizeRequest request) {
-        return summarizeService.startSummarize(request);
+        requireExplorer();
+        cz.bankintel.domain.entity.UserEntity user = currentUser.optionalUserEntity();
+        return summarizeService.startSummarize(request, user != null ? user.getId() : null);
     }
 
     @GetMapping("/summarize/status/{jobId}")
     public Map<String, Object> summarizeStatus(@PathVariable String jobId) {
+        requireExplorer();
         try {
             return summarizeService.summarizeStatus(jobId);
         } catch (SummarizeJobNotFoundException ex) {
@@ -91,6 +104,7 @@ public class ExploreController {
 
     @GetMapping("/summarize/detail/{jobId}")
     public Map<String, Object> summarizeDetail(@PathVariable String jobId) {
+        requireExplorer();
         try {
             return summarizeService.summarizeDetail(jobId);
         } catch (SummarizeJobNotFoundException ex) {
@@ -100,6 +114,7 @@ public class ExploreController {
 
     @PostMapping({"/related-suggestions", "/sector/related-suggestions"})
     public Map<String, Object> relatedSuggestions(@RequestBody Map<String, Object> body) {
+        requireExplorer();
         return exploreAuxiliaryService.relatedSuggestions(
                 str(body.get("sector")),
                 str(body.get("country")),
@@ -110,17 +125,20 @@ public class ExploreController {
 
     @PostMapping({"/country-suggestions", "/geo-country-suggestions"})
     public Map<String, Object> countrySuggestions(@RequestBody Map<String, Object> body) {
+        requireExplorer();
         return exploreAuxiliaryService.countrySuggestions(
                 str(body.get("sector")), str(body.get("country")), str(body.get("geo_mode")), str(body.get("continent")));
     }
 
     @PostMapping("/query-understanding")
     public Map<String, Object> queryUnderstanding(@RequestBody Map<String, Object> body) {
+        requireExplorer();
         return exploreAuxiliaryService.queryUnderstanding(str(body.get("query")));
     }
 
     @PostMapping("/sector/refine")
     public Map<String, Object> sectorRefine(@RequestBody Map<String, Object> body) {
+        requireExplorer();
         return exploreAuxiliaryService.refineSector(body);
     }
 
@@ -131,11 +149,13 @@ public class ExploreController {
             @RequestParam(required = false) String country,
             @RequestParam(name = "geo_mode", required = false) String geoMode,
             @RequestParam(required = false) String continent) {
+                requireExplorer();
         return sectorService.buildPresetPreview(sector, question, country, geoMode, continent);
     }
 
     @PostMapping("/summarize/followup")
     public Map<String, Object> summarizeFollowup(@RequestBody Map<String, Object> body) {
+        requireExplorer();
         return exploreFollowupService.followup(body);
     }
 
@@ -153,6 +173,7 @@ public class ExploreController {
      */
     @PostMapping("/manager/analysis-plan")
     public Map<String, Object> managerAnalysisPlan(@RequestBody Map<String, Object> body) {
+        requireExplorer();
         List<String> relatedOverrides = null;
         Object relatedRaw = body.get("related_segments");
         if (relatedRaw != null) {

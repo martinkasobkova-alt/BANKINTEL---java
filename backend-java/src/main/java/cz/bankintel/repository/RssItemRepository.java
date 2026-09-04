@@ -14,14 +14,19 @@ public interface RssItemRepository extends JpaRepository<RssItemEntity, String> 
 
     java.util.Optional<RssItemEntity> findFirstByFeedIdAndLink(String feedId, String link);
 
+    /**
+     * Prázdný řetězec a {@link java.time.Instant#EPOCH} zastupují „bez filtru" — volající je posílá
+     * místo null. Podmínky typu {@code :param IS NULL} totiž na PostgreSQL shodí celý dotaz,
+     * protože databáze neumí odvodit typ nenaplněného parametru.
+     */
     @Query(
             """
             SELECT i FROM RssItemEntity i
             WHERE i.feedId IN :feedIds
-              AND (:category IS NULL OR :category = '' OR i.category = :category)
-              AND (:cutoff IS NULL OR i.publishedAt >= :cutoff)
+              AND (:category = '' OR i.category = :category)
+              AND (i.publishedAt IS NULL OR i.publishedAt >= :cutoff)
               AND (
-                :search IS NULL OR :search = ''
+                :search = ''
                 OR LOWER(i.title) LIKE LOWER(CONCAT('%', :search, '%'))
                 OR LOWER(i.summary) LIKE LOWER(CONCAT('%', :search, '%'))
               )

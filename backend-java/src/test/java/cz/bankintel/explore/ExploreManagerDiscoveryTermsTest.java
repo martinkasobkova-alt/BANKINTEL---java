@@ -239,4 +239,69 @@ class ExploreManagerDiscoveryTermsTest {
         assertTrue(ExploreManagerDiscoveryTerms.detectedIntentIds("retail sales ve Francii")
                 .contains("retail"));
     }
+
+    // Živě zjištěno: appka slibovala 8 report sekcí, ale jen 2 (Sektor, Makro) se kdy naplnily -
+    // zbylých 6 bylo v kódu natvrdo vždy prázdných. reportSectionFor je jemnější zařazení
+    // NEmakro řádku podle obsahu, ne dotazu (na rozdíl od detectedIntentIds výše).
+
+    @Test
+    void tradeContentGoesToExternalIndicators() {
+        assertEquals(
+                "external_indicators",
+                ExploreManagerDiscoveryTerms.reportSectionFor(
+                        Map.of("title", "Exports of goods and services", "set_id", "ext_st_eu27_2020sitc")));
+    }
+
+    @Test
+    void profitabilityContentGoesToFinancialIndicators() {
+        assertEquals(
+                "financial_indicators",
+                ExploreManagerDiscoveryTerms.reportSectionFor(
+                        Map.of("title", "Return on equity of banks", "set_id", "tipsbd40")));
+    }
+
+    @Test
+    void bankingCapitalContentGoesToFinancialIndicatorsNotRisk() {
+        assertEquals(
+                "financial_indicators",
+                ExploreManagerDiscoveryTerms.reportSectionFor(
+                        Map.of("title", "CET1 capital adequacy ratio", "set_id", "tipsbd30")));
+    }
+
+    @Test
+    void debtContentGoesToRiskIndicators() {
+        assertEquals(
+                "risk_indicators",
+                ExploreManagerDiscoveryTerms.reportSectionFor(
+                        Map.of("title", "Non-performing loans ratio", "set_id", "tipsbd10")));
+    }
+
+    @Test
+    void businessConfidenceGoesToLeadingIndicators() {
+        assertEquals(
+                "leading_indicators",
+                ExploreManagerDiscoveryTerms.reportSectionFor(
+                        Map.of("title", "Business confidence indicator")));
+    }
+
+    @Test
+    void producerPriceGoesToCostIndicators() {
+        assertEquals(
+                "cost_indicators",
+                ExploreManagerDiscoveryTerms.reportSectionFor(Map.of("title", "Producer price index")));
+    }
+
+    @Test
+    void unmatchedContentDefaultsToSectorIndicators() {
+        assertEquals(
+                "sector_indicators",
+                ExploreManagerDiscoveryTerms.reportSectionFor(
+                        Map.of("title", "Industrial production of motor vehicles")));
+    }
+
+    @Test
+    void emptyOrNullRowDefaultsToSectorIndicatorsWithoutThrowing() {
+        assertEquals("sector_indicators", ExploreManagerDiscoveryTerms.reportSectionFor(Map.of()));
+        assertEquals("sector_indicators", ExploreManagerDiscoveryTerms.reportSectionFor(null));
+    }
 }

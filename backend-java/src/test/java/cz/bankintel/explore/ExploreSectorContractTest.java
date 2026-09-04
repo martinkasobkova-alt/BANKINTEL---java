@@ -148,4 +148,70 @@ class ExploreSectorContractTest {
         assertEquals("found", out.get("web_research_status"));
         assertEquals(List.of(), out.get("sector_indicators"));
     }
+
+    private static Map<String, Object> emptyBase() {
+        Map<String, Object> geo = new LinkedHashMap<>();
+        geo.put("mode", "none");
+        geo.put("country_codes", List.of());
+        geo.put("continent_id", null);
+        geo.put("display", "Svět (globální kontext)");
+        Map<String, Object> ctx = ExploreSectorContract.buildContext(
+                "banking_finance", "stav bankovnictvi", geo, Map.of(), Map.of());
+        return ExploreSectorContract.buildEmptyContract(ctx, "catalog_deep_search", false);
+    }
+
+    // Živě zjištěno: appka slibovala 8 report sekcí, ale jen sector_indicators/macro_indicators se
+    // kdy naplnily - zbylých 5 (leading/cost/financial/external/risk) bylo natvrdo vždy prázdných.
+
+    @Test
+    void mergeIndicatorsSplitsNonMacroRowsIntoFineSectionsByManagerCategory() {
+        List<Map<String, Object>> sectorIndicators = List.of(
+                Map.of("title", "Automotive production", "manager_category", "sector_indicators"),
+                Map.of("title", "PMI", "manager_category", "leading_indicators"),
+                Map.of("title", "PPI", "manager_category", "cost_indicators"),
+                Map.of("title", "ROE", "manager_category", "financial_indicators"),
+                Map.of("title", "Exports", "manager_category", "external_indicators"),
+                Map.of("title", "NPL ratio", "manager_category", "risk_indicators"));
+
+        Map<String, Object> out = ExploreSectorContract.mergeIndicators(
+                emptyBase(), sectorIndicators, List.of(), sectorIndicators.size(), "completed", false);
+
+        assertEquals(1, ((List<?>) out.get("sector_indicators")).size());
+        assertEquals("Automotive production", ((Map<?, ?>) ((List<?>) out.get("sector_indicators")).getFirst()).get("title"));
+        assertEquals("PMI", ((Map<?, ?>) ((List<?>) out.get("leading_indicators")).getFirst()).get("title"));
+        assertEquals("PPI", ((Map<?, ?>) ((List<?>) out.get("cost_indicators")).getFirst()).get("title"));
+        assertEquals("ROE", ((Map<?, ?>) ((List<?>) out.get("financial_indicators")).getFirst()).get("title"));
+        assertEquals("Exports", ((Map<?, ?>) ((List<?>) out.get("external_indicators")).getFirst()).get("title"));
+        assertEquals("NPL ratio", ((Map<?, ?>) ((List<?>) out.get("risk_indicators")).getFirst()).get("title"));
+    }
+
+    @Test
+    void recommendedChartSetKeepsTheFullSectorSetAfterTheFineSplit() {
+        List<Map<String, Object>> sectorIndicators = List.of(
+                Map.of("title", "Automotive production", "manager_category", "sector_indicators"),
+                Map.of("title", "PMI", "manager_category", "leading_indicators"));
+
+        Map<String, Object> out = ExploreSectorContract.mergeIndicators(
+                emptyBase(), sectorIndicators, List.of(), sectorIndicators.size(), "completed", false);
+
+        // recommended_chart_set nesmí zeštíhlet o to, co odteklo do leading_indicators - jinak by
+        // "Doporučené pro srovnání" nesmyslně ztratilo řady jen proto, že se lépe zařadily.
+        assertEquals(2, ((List<?>) out.get("recommended_chart_set")).size());
+    }
+
+    @Test
+    void macroRowsAreNeverSplitIntoFineSections() {
+        List<Map<String, Object>> macroIndicators =
+                List.of(Map.of("title", "GDP", "manager_category", "macro_indicators"));
+
+        Map<String, Object> out =
+                ExploreSectorContract.mergeIndicators(emptyBase(), List.of(), macroIndicators, 1, "completed", false);
+
+        assertEquals(1, ((List<?>) out.get("macro_indicators")).size());
+        assertEquals(List.of(), out.get("leading_indicators"));
+        assertEquals(List.of(), out.get("cost_indicators"));
+        assertEquals(List.of(), out.get("financial_indicators"));
+        assertEquals(List.of(), out.get("external_indicators"));
+        assertEquals(List.of(), out.get("risk_indicators"));
+    }
 }

@@ -6,6 +6,13 @@ import {
 import { toast } from "sonner";
 import api, { formatApiErrorFromAxios } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
+import { CHART_THEME_DEFAULT } from "@/lib/chartTheme";
+import { fmtCompact, fmtPeriodLabel } from "@/lib/format";
+import { indicatorSelectOptions } from "@/lib/indicatorLabels";
+import { useAradIndicatorLabels } from "@/hooks/useAradIndicatorLabels";
+import { buildDimensionValueOptions } from "@/lib/dimensionValueOptions";
+import DimensionSeriesPicker from "@/components/common/DimensionSeriesPicker";
+import { formatAxisTick, formatTimeAxisTick, formatTooltipValue } from "@/charts/chartFormatters";
 import {
   buildExternalCatalogChartConfig,
   buildPersonalChartConfigFromPreview,
@@ -233,9 +240,9 @@ function CatalogDataPreview({ rows, fields, groupField, selectedIndicator, dataM
   if (dataMode === "latest" && latestPts.length) {
     const latestPeriod = latestPts.find((p) => p.period)?.period;
     return (
-      <div className="rounded-lg border border-emerald-200 bg-emerald-50/60 p-2 space-y-1.5">
+      <div className="rounded-lg border border-border bg-card p-2 space-y-1.5">
         <div className="flex items-center justify-between gap-2">
-          <span className="text-[10px] uppercase tracking-wider font-semibold text-emerald-700">Náhled posledních údajů</span>
+          <span className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">Náhled posledních údajů</span>
           <span className="text-[10px] text-muted-foreground">{latestPeriod ? `poslední: ${latestPeriod}` : ""}</span>
         </div>
         <div className="h-24">
@@ -272,24 +279,23 @@ function CatalogDataPreview({ rows, fields, groupField, selectedIndicator, dataM
 
   if (historySeriesPreview?.rows?.length) {
     return (
-      <div className="rounded-lg border border-emerald-200 bg-emerald-50/60 p-2 space-y-1.5">
+      <div className="rounded-lg border border-border bg-card p-2 space-y-1.5">
         <div className="flex items-center justify-between gap-2">
-          <span className="text-[10px] uppercase tracking-wider font-semibold text-emerald-700">Náhled historie více řad</span>
+          <span className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">Náhled historie více řad</span>
           <span className="text-[10px] text-muted-foreground">
             {historySeriesPreview.rows.length} období · {historySeriesPreview.total} řad
           </span>
         </div>
-        <div className="h-24">
+        <div className="h-44">
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={historySeriesPreview.rows} margin={{ top: 4, right: 4, left: 4, bottom: 2 }}>
-              <XAxis dataKey="period" hide />
+            <LineChart data={historySeriesPreview.rows} margin={{ top: 6, right: 8, left: 0, bottom: 2 }}>
+              <CartesianGrid stroke={CHART_THEME_DEFAULT.grid} strokeDasharray="3 3" vertical={false} />
+              <XAxis dataKey="period" tick={PREVIEW_TICK} tickLine={false} axisLine={{ stroke: CHART_THEME_DEFAULT.grid }} tickFormatter={formatTimeAxisTick} minTickGap={28} />
+              <YAxis tick={PREVIEW_TICK} tickLine={false} axisLine={false} width={52} tickFormatter={(v) => formatAxisTick(v, { digits: 1 })} />
               <ReTooltip
                 contentStyle={{ fontSize: 10, padding: "2px 6px" }}
-                formatter={(v, name) => [
-                  typeof v === "number" ? v.toLocaleString("cs-CZ", { maximumFractionDigits: 2 }) : v,
-                  String(name || ""),
-                ]}
-                labelFormatter={(l) => String(l)}
+                formatter={(v, name) => [formatTooltipValue(v), String(name || "")]}
+                labelFormatter={(l) => fmtPeriodLabel(l)}
               />
               {historySeriesPreview.series.map((s, idx) => (
                 <Line
@@ -325,31 +331,45 @@ function CatalogDataPreview({ rows, fields, groupField, selectedIndicator, dataM
   if (pts.length < 2) return null;
 
   const latest = pts[pts.length - 1];
-  const latestFmt = typeof latest?.value === "number"
-    ? latest.value.toLocaleString("cs-CZ", { maximumFractionDigits: 2 })
-    : "—";
+  // Stejné zkracování po tisících jako na osách a na KPI dlaždicích.
+  const latestFmt = typeof latest?.value === "number" ? fmtCompact(latest.value) : "—";
 
   return (
-    <div className="rounded-lg border border-emerald-200 bg-emerald-50/60 p-2 space-y-1.5">
+    <div className="rounded-lg border border-border bg-card p-2 space-y-1.5">
       <div className="flex items-center justify-between gap-2">
-        <span className="text-[10px] uppercase tracking-wider font-semibold text-emerald-700">Náhled dat</span>
-        <span className="text-xs font-bold text-foreground">{latestFmt}</span>
+        <span className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">Náhled dat</span>
+        <span className="text-xs font-bold text-foreground tabular-nums">{latestFmt}</span>
       </div>
-      <div className="h-20">
+      <div className="h-44">
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={pts} margin={{ top: 2, right: 4, left: 4, bottom: 2 }}>
-            <XAxis dataKey="period" hide />
+          <LineChart data={pts} margin={{ top: 6, right: 8, left: 0, bottom: 2 }}>
+            <CartesianGrid stroke={CHART_THEME_DEFAULT.grid} strokeDasharray="3 3" vertical={false} />
+            <XAxis
+              dataKey="period"
+              tick={PREVIEW_TICK}
+              tickLine={false}
+              axisLine={{ stroke: CHART_THEME_DEFAULT.grid }}
+              tickFormatter={formatTimeAxisTick}
+              minTickGap={28}
+            />
+            <YAxis
+              tick={PREVIEW_TICK}
+              tickLine={false}
+              axisLine={false}
+              width={52}
+              tickFormatter={(v) => formatAxisTick(v, { digits: 1 })}
+            />
             <ReTooltip
-              contentStyle={{ fontSize: 10, padding: "2px 6px" }}
-              formatter={(v) => [typeof v === "number" ? v.toLocaleString("cs-CZ", { maximumFractionDigits: 2 }) : v, ""]}
-              labelFormatter={(l) => String(l)}
+              contentStyle={{ fontSize: 11, padding: "4px 8px" }}
+              formatter={(v) => [formatTooltipValue(v), ""]}
+              labelFormatter={(l) => fmtPeriodLabel(l)}
             />
             <Line
               type="monotone"
               dataKey="value"
               dot={false}
               strokeWidth={2}
-              stroke="hsl(var(--primary, 215 85% 50%))"
+              stroke="hsl(202 90% 52%)"
               isAnimationActive={false}
             />
           </LineChart>
@@ -359,6 +379,13 @@ function CatalogDataPreview({ rows, fields, groupField, selectedIndicator, dataM
     </div>
   );
 }
+
+/** Osy a mřížka jako v katalogovém grafu (ChartRenderer) — náhled má vypadat stejně. */
+const PREVIEW_TICK = {
+  fontSize: 10,
+  fill: CHART_THEME_DEFAULT.axis,
+  fontFamily: "JetBrains Mono, ui-monospace, monospace",
+};
 
 function CatalogCompareEntryRow({
   indicators,
@@ -462,8 +489,8 @@ function CatalogCompareEntryRow({
           className="h-7 border border-border rounded-md px-1.5 text-xs bg-card text-foreground flex-1 min-w-[140px]"
         >
           <option value="">— ukazatel —</option>
-          {activeIndicators.map((ind) => (
-            <option key={ind.id} value={String(ind.id)}>{ind.name || ind.id}</option>
+          {indicatorSelectOptions(activeIndicators).map(({ item, id, label }) => (
+            <option key={id} value={String(item.id)}>{label}</option>
           ))}
         </select>
       ) : (
@@ -594,8 +621,8 @@ function AradCompareEntryRow({ aradSources, entry, onChange, onRemove }) {
           className="h-7 border border-border rounded-md px-1.5 text-xs bg-card text-foreground flex-1 min-w-[130px]"
         >
           <option value="">— ukazatel —</option>
-          {indicators.map((ind) => (
-            <option key={ind.id} value={String(ind.id)}>{ind.name || ind.id}</option>
+          {indicatorSelectOptions(indicators).map(({ item, id, label }) => (
+            <option key={id} value={String(item.id)}>{label}</option>
           ))}
         </select>
       )}
@@ -629,6 +656,8 @@ export default function PersonalCatalogChartForm({
   disabled,
   /** Na veřejných stránkách (přehled / sekce) jako admin: před uložením widgetu založit globální zdroj v `/api/sources`. */
   ensureGlobalCatalogSource = false,
+  /** Výběr řady pro KPI dlaždici — skryje volby, které se týkají jen widgetu (typ grafu, název, popisek). */
+  kpiMode = false,
 }) {
   const { ready, isAdmin } = useAuth();
   const canAddSources = Boolean(ready && isAdmin);
@@ -649,6 +678,9 @@ export default function PersonalCatalogChartForm({
   const [q, setQ] = useState("");
   const dq = useDebounced(q, 200);
   const [pick, setPick] = useState(null);
+  // Skutečné názvy ARAD řad; u ostatních katalogů zůstane mapa prázdná a popisky
+  // rozliší withDistinctLabels podle identifikátorů.
+  const aradLabels = useAradIndicatorLabels(catalogId === "arad" ? pick?.set_id : "");
   /** internal = globální zdroj z /sources; external = náhled z /catalog/preview */
   const [catalogMode, setCatalogMode] = useState("internal");
   const [externalPreview, setExternalPreview] = useState(null);
@@ -678,6 +710,13 @@ export default function PersonalCatalogChartForm({
   const [dimFilters, setDimFilters] = useState({});
   /** "indicator" = 1 indikátor (default) | "region" = všechny kraje jako série */
   const [seriesDimMode, setSeriesDimMode] = useState("indicator");
+  /**
+   * Dimenze, podle které se graf rozpadá na řady/sloupce, a vybrané hodnoty té dimenze.
+   * Dřív to formulář u živých katalogových sad neuměl vůbec — dimenze si načetl a nikdy je
+   * neukázal, takže z něj nešlo postavit „sloupec za každou zemi".
+   */
+  const [compareDim, setCompareDim] = useState("");
+  const [compareValues, setCompareValues] = useState([]);
   /** "single" = 1 řada | "all" = všechny hodnoty group_field | "selected" = ruční multi výběr */
   const [groupSeriesMode, setGroupSeriesMode] = useState("single");
   const [selectedSeriesIds, setSelectedSeriesIds] = useState([]);
@@ -930,6 +969,8 @@ export default function PersonalCatalogChartForm({
     setExtCompareEntries([]);
     setExtraDims([]);
     setDimFilters({});
+    setCompareDim("");
+    setCompareValues([]);
     setSeriesDimMode("indicator");
     setGroupSeriesMode("single");
     setSelectedSeriesIds([]);
@@ -1011,6 +1052,47 @@ export default function PersonalCatalogChartForm({
     catalogMode === "external" ? externalPreview?.rows : internalPreviewData?.rows;
   const previewRowCount = Array.isArray(previewRows) ? previewRows.length : 0;
   const activePreviewData = catalogMode === "external" ? externalPreview : internalPreviewData;
+  /**
+   * Dimenze s víc než jednou hodnotou, s čitelnými popisky. Jednohodnotové dimenze nemá
+   * smysl nabízet — rozdělení podle nich dá jednu řadu, tedy totéž co žádné rozdělení.
+   */
+  const dimensionOptions = useMemo(
+    () => buildDimensionValueOptions(activePreviewData),
+    [activePreviewData]
+  );
+  const compareDimension = useMemo(
+    () => dimensionOptions.find((dim) => dim.field === compareDim) || null,
+    [dimensionOptions, compareDim]
+  );
+
+  /**
+   * Zapíše do konfigurace widgetu volbu „rozdělit graf podle dimenze".
+   *
+   * Prázdný výběr hodnot znamená v UI „prvních 12"; do konfigurace se ale musí uložit
+   * konkrétní seznam, jinak si widget při vykreslení vybere prvních 12 abecedně a to jsou
+   * u 29 zemí skoro jistě jiné země, než jaké člověk viděl v náhledu.
+   */
+  const applyCompareDimension = useCallback(
+    (cfg) => {
+      if (!cfg || !compareDim) return;
+      cfg.chart_series_dim = compareDim;
+      const values =
+        compareValues.length > 0
+          ? compareValues
+          : (compareDimension?.values || []).slice(0, 12).map((v) => v.code);
+      if (values.length > 0) cfg.chart_series_dim_values = values;
+      // Rozdělovací dimenze se nesmí zároveň filtrovat na jedinou hodnotu — zbyla by
+      // jedna řada místo celého výběru.
+      if (cfg.dimension_filters) {
+        const cleaned = { ...cfg.dimension_filters };
+        delete cleaned[compareDim];
+        cfg.dimension_filters = Object.keys(cleaned).length > 0 ? cleaned : undefined;
+      }
+      // Součet přes hodnoty dimenze nedává smysl — sčítal by to, co se má porovnávat.
+      if (!cfg.agg || cfg.agg === "sum") cfg.agg = "avg";
+    },
+    [compareDim, compareValues, compareDimension]
+  );
   const activeGroupField = String(activePreviewData?.group_field || "").trim();
   const indicatorIds = useMemo(
     () => normalizeSeriesIds(indicators.map((ind) => ind?.id)),
@@ -1224,6 +1306,7 @@ export default function PersonalCatalogChartForm({
         }
         built.config.agg = "avg";
       }
+      applyCompareDimension(built.config);
       // Compare series for non-ARAD internal (series_value based for grouped datasets)
       const nonAradCmp = extCompareEntries.filter((e) => e.selected_indicator);
       if (nonAradCmp.length > 0) {
@@ -1251,6 +1334,9 @@ export default function PersonalCatalogChartForm({
       ...externalPreview,
       selected_indicator: primarySeriesForSubmit,
       ...(groupedIdsForSubmit.length > 1 ? { selected_indicators: groupedIdsForSubmit } : {}),
+      // Vybrané hodnoty dimenzí se sem dřív nepředávaly vůbec, takže co uživatel nastavil,
+      // to se při uložení zahodilo — na rozdíl od cesty přes uložený zdroj.
+      ...(Object.keys(dimFilters).length > 0 ? { dimension_filters: dimFilters } : {}),
     };
     const built = buildExternalCatalogChartConfig(
       catalogDef,
@@ -1276,6 +1362,7 @@ export default function PersonalCatalogChartForm({
       }
       built.config.agg = "avg";
     }
+    applyCompareDimension(built.config);
 
     const validExtCmp = extCompareEntries.filter((e) => e.selected_indicator || e.set_id);
     if (validExtCmp.length > 0) {
@@ -1312,7 +1399,9 @@ export default function PersonalCatalogChartForm({
 
   return (
     <div className="space-y-3 border border-border/70 rounded-xl p-3 bg-slate-50/50">
-      <div className="text-xs font-medium text-slate-700">Datová řada z katalogu — graf nebo tabulka</div>
+      <div className="text-xs font-medium text-slate-700">
+        {kpiMode ? "Datová řada z katalogu — zdroj dlaždice" : "Datová řada z katalogu — graf nebo tabulka"}
+      </div>
       <p className="text-[11px] text-slate-500 leading-relaxed">
         Nejdřív zvolte katalog (ARAD, ČSÚ, Eurostat, ALPHA VANTAGE — akcie / indexy, …), případně zemi u World Bank.
         Potom vyhledejte nebo vyberte
@@ -1468,9 +1557,9 @@ export default function PersonalCatalogChartForm({
                           value={indicatorId}
                           onChange={(e) => onIndicatorChange(e.target.value)}
                         >
-                          {indicators.map((ind) => (
-                            <option key={ind.id} value={ind.id}>
-                              {ind.name || ind.id}
+                          {indicatorSelectOptions(indicators, aradLabels).map(({ item, id, label }) => (
+                            <option key={id} value={item.id}>
+                              {label}
                             </option>
                           ))}
                         </select>
@@ -1710,6 +1799,28 @@ export default function PersonalCatalogChartForm({
                     );
                   })()}
 
+                  {/* ── Rozdělení grafu podle dimenze (křivka/sloupec za každou hodnotu) ── */}
+                  {previewRowCount > 0 && dimensionOptions.length > 0 && !kpiMode ? (
+                    <div className="space-y-1.5 border-t border-border/40 pt-2">
+                      <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">
+                        Rozdělit graf
+                      </div>
+                      <DimensionSeriesPicker
+                        dimensions={dimensionOptions}
+                        dimension={compareDim}
+                        onDimensionChange={setCompareDim}
+                        selectedValues={compareValues}
+                        onSelectedValuesChange={setCompareValues}
+                        disabled={disabled}
+                        hint={
+                          dataMode === "latest"
+                            ? "Jeden sloupec za každou vybranou hodnotu, poslední dostupný údaj."
+                            : "Jedna křivka za každou vybranou hodnotu."
+                        }
+                      />
+                    </div>
+                  ) : null}
+
                   {/* ── Compare series (multi-series) ── */}
                   {previewRowCount > 0 && (
                     <ExtCompareSection
@@ -1738,9 +1849,9 @@ export default function PersonalCatalogChartForm({
                             value={indicatorId}
                             onChange={(e) => onIndicatorChange(e.target.value)}
                           >
-                            {indicators.map((ind) => (
-                              <option key={ind.id} value={ind.id}>
-                                {ind.name || ind.id}
+                            {indicatorSelectOptions(indicators, aradLabels).map(({ item, id, label }) => (
+                              <option key={id} value={item.id}>
+                                {label}
                               </option>
                             ))}
                           </select>
@@ -1880,9 +1991,9 @@ export default function PersonalCatalogChartForm({
                             value={indicatorId}
                             onChange={(e) => onIndicatorChange(e.target.value)}
                           >
-                            {indicators.map((ind) => (
-                              <option key={ind.id} value={ind.id}>
-                                {ind.name || ind.id}
+                            {indicatorSelectOptions(indicators, aradLabels).map(({ item, id, label }) => (
+                              <option key={id} value={item.id}>
+                                {label}
                               </option>
                             ))}
                           </select>
@@ -1961,6 +2072,28 @@ export default function PersonalCatalogChartForm({
                           </div>
                         );
                       })()}
+                      {/* Rozdělení grafu podle dimenze — stejná volba jako u živých katalogových sad,
+                          aby obě cesty do dashboardu nabízely totéž. */}
+                      {dimensionOptions.length > 0 && !kpiMode ? (
+                        <div className="space-y-1.5 border-t border-border/40 pt-2">
+                          <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">
+                            Rozdělit graf
+                          </div>
+                          <DimensionSeriesPicker
+                            dimensions={dimensionOptions}
+                            dimension={compareDim}
+                            onDimensionChange={setCompareDim}
+                            selectedValues={compareValues}
+                            onSelectedValuesChange={setCompareValues}
+                            disabled={disabled}
+                            hint={
+                              dataMode === "latest"
+                                ? "Jeden sloupec za každou vybranou hodnotu, poslední dostupný údaj."
+                                : "Jedna křivka za každou vybranou hodnotu."
+                            }
+                          />
+                        </div>
+                      ) : null}
                       <ExtCompareSection
                         indicators={indicators}
                         entries={extCompareEntries}
@@ -1976,20 +2109,22 @@ export default function PersonalCatalogChartForm({
                 </>
               )}
 
-              <label className="block text-[11px] text-slate-600">
-                Typ grafu
-                <select
-                  className="mt-1 w-full border rounded-lg px-2 py-1.5 text-sm"
-                  value={chartType}
-                  onChange={(e) => setChartType(e.target.value)}
-                >
-                  {CHART_TYPES.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              {!kpiMode && (
+                <label className="block text-[11px] text-slate-600">
+                  Typ grafu
+                  <select
+                    className="mt-1 w-full border rounded-lg px-2 py-1.5 text-sm"
+                    value={chartType}
+                    onChange={(e) => setChartType(e.target.value)}
+                  >
+                    {CHART_TYPES.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
               {chartType === "bar" && (
                 <label className="block text-[11px] text-slate-600">
                   Varianta sloupců
@@ -2085,29 +2220,33 @@ export default function PersonalCatalogChartForm({
             </div>
           )}
 
-          <div>
-            <label className="block text-[11px] text-slate-500 mb-0.5">Název widgetu</label>
-            <input
-              className="w-full border rounded-lg px-2 py-1.5 text-sm"
-              value={wTitle}
-              onChange={(e) => setWTitle(e.target.value)}
-            />
-          </div>
-          <div>
-            <label className="block text-[11px] text-slate-500 mb-0.5">Popisek (volitelné)</label>
-            <textarea
-              className="w-full border rounded-lg px-2 py-1.5 text-sm min-h-[52px]"
-              value={wDesc}
-              onChange={(e) => setWDesc(e.target.value)}
-            />
-          </div>
+          {!kpiMode && (
+            <>
+              <div>
+                <label className="block text-[11px] text-slate-500 mb-0.5">Název widgetu</label>
+                <input
+                  className="w-full border rounded-lg px-2 py-1.5 text-sm"
+                  value={wTitle}
+                  onChange={(e) => setWTitle(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] text-slate-500 mb-0.5">Popisek (volitelné)</label>
+                <textarea
+                  className="w-full border rounded-lg px-2 py-1.5 text-sm min-h-[52px]"
+                  value={wDesc}
+                  onChange={(e) => setWDesc(e.target.value)}
+                />
+              </div>
+            </>
+          )}
           <button
             type="button"
             disabled={disabled || !canUse}
             className="btn-primary text-sm py-1.5 px-3 disabled:opacity-50"
             onClick={submit}
           >
-            Použít v mém dashboardu
+            {kpiMode ? "Použít jako dlaždici" : "Použít v mém dashboardu"}
           </button>
         </>
       )}

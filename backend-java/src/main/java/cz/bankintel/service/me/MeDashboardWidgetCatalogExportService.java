@@ -34,6 +34,14 @@ public class MeDashboardWidgetCatalogExportService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Widget nenalezen"));
         Map<String, Object> body = payload != null ? new LinkedHashMap<>(payload) : new LinkedHashMap<>();
         Map<String, Object> cfg = widget.getConfig() != null ? widget.getConfig() : Map.of();
+        // Zamčená zdrojová data se dosud kontrolovala jen v prohlížeči, takže stažení celé
+        // katalogové sady zámek obcházelo. Export stránky do Excelu zamčené widgety přeskakuje
+        // (MeDashboardPageExportService), tady to chybělo.
+        if (Boolean.TRUE.equals(cfg.get("lock_source_data"))) {
+            throw new ResponseStatusException(
+                    HttpStatus.FORBIDDEN,
+                    "Graf má zamčená zdrojová data — stažení celé datové sady není povolené.");
+        }
         if (!body.containsKey("source_type") && cfg.get("source_type") != null) {
             body.put("source_type", cfg.get("source_type"));
         }

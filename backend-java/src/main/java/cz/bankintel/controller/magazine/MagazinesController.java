@@ -12,6 +12,8 @@ import cz.bankintel.domain.dto.MagazineDtos.MagazinePdfLinkResponse;
 import cz.bankintel.domain.dto.MagazineDtos.MagazineResponse;
 import cz.bankintel.domain.dto.MagazineDtos.SearchResponse;
 import cz.bankintel.security.AdminAccess;
+import cz.bankintel.security.CurrentUser;
+import cz.bankintel.service.access.FeatureAccessService;
 import cz.bankintel.service.magazine.MagazineAiService;
 import cz.bankintel.service.magazine.MagazineService;
 import jakarta.validation.Valid;
@@ -41,9 +43,22 @@ public class MagazinesController {
     private final MagazineService magazineService;
     private final MagazineAiService magazineAiService;
     private final AdminAccess adminAccess;
+    private final FeatureAccessService featureAccessService;
+    private final CurrentUser currentUser;
+
+    /**
+     * Obsah časopisu je předplatitelský.
+     *
+     * SecurityConfig pouští všechna /api/**, takže bez tohohle checku si celé PDF čísla stáhl
+     * kdokoli i bez přihlášení — a předplatné časopisu je přitom jediná placená funkce.
+     */
+    private void requireMagazineAccess() {
+        featureAccessService.requireFeature(currentUser.optionalUserEntity(), "magazine_archive");
+    }
 
     @GetMapping({"", "/"})
     public List<MagazineResponse> listMagazines() {
+        requireMagazineAccess();
         return magazineService.listMagazines();
     }
 
@@ -62,6 +77,7 @@ public class MagazinesController {
 
     @GetMapping("/{magazineId}/issues")
     public List<MagazineIssueResponse> listIssues(@PathVariable String magazineId) {
+        requireMagazineAccess();
         return magazineService.listIssues(magazineId);
     }
 
@@ -84,11 +100,13 @@ public class MagazinesController {
             @PathVariable String magazineId,
             @RequestParam(defaultValue = "") String q,
             @RequestParam(defaultValue = "40") int limit) {
+        requireMagazineAccess();
         return magazineService.searchMagazine(magazineId, q, limit);
     }
 
     @GetMapping("/issues/{issueId}")
     public MagazineIssueDetailResponse getIssue(@PathVariable String issueId) {
+        requireMagazineAccess();
         return magazineService.getIssue(issueId);
     }
 
@@ -116,6 +134,12 @@ public class MagazinesController {
     public ResponseEntity<ByteArrayResource> getIssueFile(
             @PathVariable String issueId,
             @RequestParam(value = "reader_page", required = false) Integer readerPage) {
+        requireMagazineAccess();
+        // Celé číslo jedním požadavkem dostane jen administrace. Předplatitel čte po stránkách
+        // (`reader_page`), takže mu aplikace nikdy nepošle celý soubor ke stažení.
+        if (readerPage == null) {
+            adminAccess.requireAdmin();
+        }
         byte[] raw = magazineService.readIssuePdf(issueId, readerPage);
         String filename = magazineService.issuePdfFilename(issueId, readerPage);
         HttpHeaders headers = new HttpHeaders();
@@ -138,6 +162,7 @@ public class MagazinesController {
             @RequestParam(defaultValue = "1200") int width) {
         int safePage = Math.max(1, Math.min(page, 9999));
         int safeWidth = Math.max(320, Math.min(width, 2400));
+        requireMagazineAccess();
         byte[] png = magazineService.renderPagePreview(issueId, safePage, safeWidth);
         String filename = magazineService.issuePdfFilename(issueId, safePage).replace(".pdf", ".png");
         HttpHeaders headers = new HttpHeaders();
@@ -155,12 +180,14 @@ public class MagazinesController {
             @PathVariable String issueId,
             @RequestParam(defaultValue = "") String q,
             @RequestParam(defaultValue = "20") int limit) {
+        requireMagazineAccess();
         return magazineService.searchIssue(issueId, q, limit);
     }
 
     @GetMapping("/issues/{issueId}/links")
     public cz.bankintel.domain.dto.MagazineDtos.IssueLinksResponse listLinks(
             @PathVariable String issueId, @RequestParam(required = false) Integer page) {
+        requireMagazineAccess();
         return magazineService.listLinks(issueId, page);
     }
 
@@ -179,11 +206,13 @@ public class MagazinesController {
 
     @PostMapping("/ai/search")
     public SearchResponse aiSearch(@Valid @RequestBody MagazineAiSearchRequest body) {
+        requireMagazineAccess();
         return magazineAiService.aiSearch(body);
     }
 
     @PostMapping("/ai/chat")
     public AiChatResponse aiChat(@Valid @RequestBody MagazineAiChatRequest body) {
+        requireMagazineAccess();
         return magazineAiService.aiChat(body);
     }
 }

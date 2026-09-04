@@ -178,19 +178,50 @@ public class ExploreSectionBucketService {
         return "sector";
     }
 
-    public static String sectionContextBullets(List<Map<String, Object>> items, int maxChars) {
+    /** Zdroje nahraných uživatelských dat - stejná konvence jako {@code ChartPrivacySupport}. */
+    private static final String PRIVATE_UPLOAD_SOURCE_TYPE = "user_upload";
+
+    /**
+     * {@code privacyMode} je {@link ExploreUserDataPrivacy#STRICT_PRIVATE}/{@link
+     * ExploreUserDataPrivacy#SAFE_SUMMARY}. Dřív appka {@code request.uploadIds()} do detailní
+     * analýzy vůbec nezapojovala (viz {@link ExploreSummarizeFetchService#fetchUserUpload}) - teď
+     * když zapojuje, musí tenhle přesný bod (kde se text skládá do promptu pro OpenAI) respektovat
+     * „Strict private"/„Anonymní souhrny": za strict se nahraná řada z AI promptu úplně vynechá,
+     * za safe summary se nahradí maskovanou variantou bez absolutní hodnoty (viz {@code
+     * data_context_line_safe_summary}, {@link ExploreSummarizeFetchService#fetchUserUpload}).
+     * Samotný {@code data_context_line} na řádku se nikdy nemění - to pořád čte i uživatelovo
+     * vlastní zobrazení ({@code buildSeriesCoverage}/{@code buildAiDataContext}).
+     */
+    public static String sectionContextBullets(List<Map<String, Object>> items, int maxChars, String privacyMode) {
         if (items == null || items.isEmpty()) {
             return "";
         }
+        boolean strict = ExploreUserDataPrivacy.isStrict(privacyMode);
         StringBuilder sb = new StringBuilder();
         for (Map<String, Object> item : items) {
-            sb.append("- ").append(item.getOrDefault("data_context_line", item.get("title"))).append("\n");
+            String line = aiFacingContextLine(item, strict);
+            if (line == null) {
+                continue;
+            }
+            sb.append("- ").append(line).append("\n");
         }
         String text = sb.toString().trim();
         if (text.length() <= maxChars) {
             return text;
         }
         return text.substring(0, Math.max(0, maxChars - 12)).trim() + "\n- …(zkráceno)";
+    }
+
+    private static String aiFacingContextLine(Map<String, Object> item, boolean strict) {
+        if (PRIVATE_UPLOAD_SOURCE_TYPE.equals(str(item.get("source_type")))) {
+            if (strict) {
+                return null;
+            }
+            Object masked = item.get("data_context_line_safe_summary");
+            return masked != null ? String.valueOf(masked) : null;
+        }
+        Object line = item.getOrDefault("data_context_line", item.get("title"));
+        return line == null ? null : String.valueOf(line);
     }
 
     private static boolean geoConflictsWithPrimary(Map<String, Object> item, String primaryCountryCode) {

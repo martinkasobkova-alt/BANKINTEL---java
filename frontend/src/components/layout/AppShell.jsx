@@ -351,7 +351,14 @@ export default function AppShell({ children, actions, hideAds = false }) {
           className="relative z-50 isolate shrink-0 px-3 sm:px-4 md:px-5 lg:px-8 max-md:pt-[max(0.5rem,env(safe-area-inset-top,0px))] max-md:pb-2 pt-5 pb-3"
         >
           <div
-            className="rounded-2xl border border-[hsl(var(--border)/0.85)] shadow-[0_14px_36px_hsl(var(--foreground)/0.13)] flex flex-col overflow-visible max-md:max-w-full max-md:w-full max-md:overflow-x-hidden max-md:shadow-md"
+            // Bez `max-md:overflow-x-hidden` (odstraněno): CSS spec (Overflow Module §3) nutí
+            // prohlížeč dopočítat DRUHOU osu jako `auto`, kdykoli je jedna osa `hidden`/`clip` a
+            // druhá `visible` - `overflow-x: hidden` tu tedy tiše měnilo i `overflow-y` z
+            // `visible` na `auto`, což na mobilu osekávalo roletku návrhů hledání pod hlavičkou
+            // (`AppShellCatalogSearchBar`), i když sama o sobě cílila jen na vodorovnou osu.
+            // Živě ověřeno, že bez téhle třídy nevzniká vodorovný přetok - `max-md:max-w-full` a
+            // `max-md:w-full` už šířku hlídají samy.
+            className="rounded-2xl border border-[hsl(var(--border)/0.85)] shadow-[0_14px_36px_hsl(var(--foreground)/0.13)] flex flex-col overflow-visible max-md:max-w-full max-md:w-full max-md:shadow-md"
             style={{ background: backgroundTheme.panel }}
           >
             {topbarAdActive && showPublicAds && (

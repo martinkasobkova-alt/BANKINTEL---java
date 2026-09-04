@@ -496,4 +496,64 @@ describe("useDeepSearchRunner SSE fallback policy", () => {
     });
     expect(api.post).not.toHaveBeenCalled();
   });
+
+  test("onNewSearch fires for applySuggestedDeepSearch (nové téma) but not for retry/extend stejného dotazu", async () => {
+    const { MockEventSource } = makeEventSourceMock((es) => {
+      setTimeout(() => es.fail(), 0);
+    });
+    global.EventSource = MockEventSource;
+    window.EventSource = MockEventSource;
+
+    const onNewSearch = vi.fn();
+
+    function OnNewSearchHarness({ onReady }) {
+      const selected = useMemo(() => new Set(["eurostat"]), []);
+      const runner = useDeepSearchRunner({
+        aiQuery: "HICP Spain",
+        selected,
+        useAiAssistant: true,
+        aiSearchScope: AI_SEARCH_SCOPE_EXTENDED,
+        deepSourceOrder: ["eurostat"],
+        deepSourceLabel: (sid) => sid.toUpperCase(),
+        chunkTimeoutMs: 1000,
+        totalTimeoutMs: 5000,
+        onNewSearch,
+      });
+      useEffect(() => {
+        onReady?.(runner);
+      }, [onReady, runner]);
+      return null;
+    }
+
+    let runner;
+    await act(async () => {
+      root.render(
+        <OnNewSearchHarness
+          onReady={(r) => {
+            runner = r;
+          }}
+        />,
+      );
+      await flushMicrotasks();
+    });
+
+    await act(async () => {
+      await runner.runDeepSearch();
+      await flushMicrotasks();
+    });
+    expect(onNewSearch).not.toHaveBeenCalled();
+
+    await act(async () => {
+      await runner.runDeepSearchExtended("HICP Spain");
+      await flushMicrotasks();
+    });
+    expect(onNewSearch).not.toHaveBeenCalled();
+
+    await act(async () => {
+      await runner.applySuggestedDeepSearch("inflace Nemecko");
+      await flushMicrotasks();
+    });
+    expect(onNewSearch).toHaveBeenCalledTimes(1);
+    expect(onNewSearch).toHaveBeenCalledWith("inflace Nemecko");
+  });
 });

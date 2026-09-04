@@ -135,6 +135,9 @@ public class OpenAiClient {
      * Every task now sends an explicit completion cap. Leaving CHAT uncapped meant one runaway
      * prompt could bill the model's entire output window, with no upper bound on cost per request.
      */
+    /** Pevný seed pro úlohy, kde musí být rozhodnutí opakovatelné (plánovač, reranker). */
+    private static final int DETERMINISTIC_SEED = 20260903;
+
     public int maxCompletionTokensFor(OpenAiModelTask task) {
         return switch (task) {
             case PLANNER -> positiveInt(
@@ -181,7 +184,7 @@ public class OpenAiClient {
     }
 
     public JsonNode chatCompletion(String systemPrompt, String userPrompt, OpenAiModelTask task) {
-        return complete(systemPrompt, userPrompt, task, null, false).json();
+        return complete(systemPrompt, userPrompt, task, null, false, false).json();
     }
 
     public JsonNode chatCompletionJson(String systemPrompt, String userPrompt) {
@@ -189,15 +192,28 @@ public class OpenAiClient {
     }
 
     public JsonNode chatCompletionJson(String systemPrompt, String userPrompt, OpenAiModelTask task) {
-        return complete(systemPrompt, userPrompt, task, null, true).json();
+        return complete(systemPrompt, userPrompt, task, null, true, false).json();
+    }
+
+    /**
+     * {@code forceDeterministic=true} dá nulovou teplotu a pevný seed (jako {@link
+     * OpenAiModelTask#PLANNER}/{@link OpenAiModelTask#RERANKER}) i volání s {@code task=CHAT} -
+     * beze změny modelu/timeoutu/token stropu, které se pořád řídí jen {@code task}em. Pro volání,
+     * co samo o sobě ROZHODUJE, které konkrétní položky uživatel uvidí (typicky výběr páru k
+     * porovnání), ale potřebuje štědřejší chatový timeout než {@code PLANNER} má (delší katalog
+     * kandidátů v promptu) - {@code PLANNER}'s {@code DEFAULT_PLANNER_REQUEST_TIMEOUT_MS} je
+     * desetkrát kratší než chatový a mohlo by to reálně začít padat na timeoutu.
+     */
+    public JsonNode chatCompletionJson(String systemPrompt, String userPrompt, OpenAiModelTask task, boolean forceDeterministic) {
+        return complete(systemPrompt, userPrompt, task, null, true, forceDeterministic).json();
     }
 
     public JsonNode plannerCompletionJson(String systemPrompt, String userPrompt) {
-        return complete(systemPrompt, userPrompt, OpenAiModelTask.PLANNER, null, true).json();
+        return complete(systemPrompt, userPrompt, OpenAiModelTask.PLANNER, null, true, false).json();
     }
 
     public CompletionResult plannerCompletionJson(String systemPrompt, String userPrompt, Map<String, Object> jsonSchema) {
-        return complete(systemPrompt, userPrompt, OpenAiModelTask.PLANNER, jsonSchema, true);
+        return complete(systemPrompt, userPrompt, OpenAiModelTask.PLANNER, jsonSchema, true, false);
     }
 
     /**
@@ -265,7 +281,8 @@ public class OpenAiClient {
             String userPrompt,
             OpenAiModelTask task,
             Map<String, Object> jsonSchema,
-            boolean jsonMode) {
+            boolean jsonMode,
+            boolean forceDeterministic) {
         if (!isConfigured()) {
             throw new OpenAiClientException(OpenAiErrorType.LLM_NOT_CONFIGURED, "OPENAI_API_KEY is not configured or OpenAI is disabled");
         }
@@ -307,6 +324,7 @@ public class OpenAiClient {
                         task,
                         jsonSchema,
                         jsonMode,
+                        forceDeterministic,
                         connectMs,
                         Math.min(requestBudgetMs, remaining));
                 trace.put("http_status", result.statusCode());
@@ -437,6 +455,7 @@ public class OpenAiClient {
             OpenAiModelTask task,
             Map<String, Object> jsonSchema,
             boolean jsonMode,
+            boolean forceDeterministic,
             long connectMs,
             long requestTimeoutMs) {
         long started = System.nanoTime();
@@ -447,9 +466,19 @@ public class OpenAiClient {
                 List.of(
                         Map.of("role", "system", "content", systemPrompt),
                         Map.of("role", "user", "content", userPrompt)));
-        body.put("temperature", 0.2);
+        boolean deterministicTask =
+                forceDeterministic || task == OpenAiModelTask.PLANNER || task == OpenAiModelTask.RERANKER;
+        // Plánovač a reranker rozhodují, KTERÉ řady uživatel uvidí. Vzorkování tam znamená, že
+        // tentýž dotaz vrátí pokaždé jinou sadu — naměřeno: čtyři shodné běhy dotazu
+        // „nezaměstnanost" daly 5/7/6/4 řad a ani jedna se neobjevila ve všech čtyřech.
+        // Nulová teplota a pevný seed z toho dělají opakovatelné rozhodnutí. U ostatních úloh
+        // (chat nad grafem) je rozmanitost odpovědí v pořádku, takže tam zůstává 0,2.
+        body.put("temperature", deterministicTask ? 0 : 0.2);
+        if (deterministicTask) {
+            body.put("seed", DETERMINISTIC_SEED);
+        }
         body.put("max_completion_tokens", maxCompletionTokensFor(task));
-        if (task == OpenAiModelTask.PLANNER || task == OpenAiModelTask.RERANKER) {
+        if (deterministicTask) {
             String reasoningEffort = configuredPlannerReasoningEffort();
             if (!reasoningEffort.isBlank()) {
                 body.put("reasoning_effort", reasoningEffort);

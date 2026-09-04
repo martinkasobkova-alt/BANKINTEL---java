@@ -60,7 +60,12 @@ import org.springframework.stereotype.Service;
 public class SearchV2Service {
 
     private static final Logger log = LoggerFactory.getLogger(SearchV2Service.class);
-    private static final Duration PLAN_TTL = Duration.ofHours(1);
+    // Plan skladá jazykový model (SearchV2QueryPlanner); i s pevným seedem a teplotou 0 OpenAI
+    // nezaručuje bitově identický výstup napříč voláními, takže po vypršení cache mohl stejný
+    // dotaz vrátit jinou sadu výsledků - v praxi kdykoli po hodině neaktivity. Klíč teď nese i
+    // catalogVersion (viz plan(...)), takže reindex plán zneplatní sám; čas je jen záložní limit,
+    // proto může být dlouhý.
+    private static final Duration PLAN_TTL = Duration.ofDays(7);
     private static final Duration RETRIEVAL_TTL = Duration.ofMinutes(30);
     private static final Duration FINAL_TTL = Duration.ofMinutes(10);
     private static final String RETRIEVAL_CACHE_SCHEMA = "source-routing-v2";
@@ -307,7 +312,7 @@ public class SearchV2Service {
         boolean useAiPlanner = resolveUseAiPlanner(payload);
         boolean useAiReranker = resolveUseAiReranker(payload);
         boolean useAiStory = useAiPlanner && parseBoolean(payload.get("use_ai_story"), true);
-        SearchQueryPlan plan = plan(payload, query, useAiPlanner, noCache, trace);
+        SearchQueryPlan plan = plan(payload, query, useAiPlanner, noCache, trace, catalogVersion);
         trace.timing("planner_ms", System.currentTimeMillis() - planStart);
         trace.put("query_plan", plan.toMap());
         trace.put("llm_planner", plan.llmPlannerTrace());
@@ -1164,10 +1169,13 @@ public class SearchV2Service {
     }
 
     private SearchQueryPlan plan(
-            Map<String, Object> payload, String query, boolean useAi, boolean noCache, SearchV2Trace trace) {
-        String key = "plan:" + cacheScope(payload) + ":ai=" + useAi + ":geo="
-                + normalized(CatalogMapSupport.firstNonBlank(payload.get("selected_geo"), payload.get("geo"), payload.get("country"), ""))
-                + ":" + normalized(query);
+            Map<String, Object> payload,
+            String query,
+            boolean useAi,
+            boolean noCache,
+            SearchV2Trace trace,
+            String catalogVersion) {
+        String key = planCacheKey(payload, query, useAi, catalogVersion);
         if (noCache) {
             trace.put("plan_cache_status", "bypassed");
             return planner.plan(payload);
@@ -1183,6 +1191,17 @@ public class SearchV2Service {
         }
         trace.put("plan_cache_status", "miss");
         return planned;
+    }
+
+    /**
+     * catalogVersion je v klici stejne jako u retrieval/final cache (viz {@code finalCacheKey},
+     * {@code retrievalCacheKey}) - kdyz se katalog prereindexuje, stary plan pro stejny dotaz uz
+     * nedostane cache hit sam od sebe, misto aby az hodinu (drivejsi PLAN_TTL) cekal na vyprseni.
+     */
+    static String planCacheKey(Map<String, Object> payload, String query, boolean useAi, String catalogVersion) {
+        return "plan:" + cacheScope(payload) + ":cv=" + catalogVersion + ":ai=" + useAi + ":geo="
+                + normalized(CatalogMapSupport.firstNonBlank(payload.get("selected_geo"), payload.get("geo"), payload.get("country"), ""))
+                + ":" + normalized(query);
     }
 
     private Map<String, Object> baseResponse(

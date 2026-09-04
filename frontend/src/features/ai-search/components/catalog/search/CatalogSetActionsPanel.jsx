@@ -49,6 +49,7 @@ export default function CatalogSetActionsPanel({
   onOpenBisDimensions,
   onOpenOecdDimensions,
   onOpenEurostatCatalog,
+  onShowInTree,
 }) {
   const canForecast = previewable && Boolean(def?.sourceType) && Boolean(row?.set_id);
   const canAnalytics = canForecast;
@@ -151,6 +152,17 @@ export default function CatalogSetActionsPanel({
               <FileBarChart2 className="h-3 w-3" />
             )}
             {detailButtonLabel}
+          </button>
+        ) : null}
+        {onShowInTree ? (
+          <button
+            type="button"
+            onClick={onShowInTree}
+            className="inline-flex items-center gap-1 h-7 px-2 text-[11px] rounded-md border border-border/70 bg-card text-foreground/90 hover:bg-muted/50"
+            title="Otevřít pozici této řady ve stromu katalogu"
+          >
+            <Folder className="h-3 w-3" />
+            Ukázat ve stromu
           </button>
         ) : null}
         {canAnalytics ? (

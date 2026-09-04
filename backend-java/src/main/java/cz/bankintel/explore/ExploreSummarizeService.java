@@ -20,13 +20,13 @@ public class ExploreSummarizeService {
     private final ExploreSectionedSynthesisService sectionedSynthesisService;
     private final ExploreIndicatorRelationshipService relationshipService;
 
-    public Map<String, Object> startSummarize(ExploreSummarizeRequest request) {
+    public Map<String, Object> startSummarize(ExploreSummarizeRequest request, String ownerUserId) {
         String mode = request.summarizeMode() != null ? request.summarizeMode().trim().toLowerCase() : "";
         if (isInstantMode(mode)) {
-            return instantThenDetailService.start(request, normalizeInstantMode(mode));
+            return instantThenDetailService.start(request, normalizeInstantMode(mode), ownerUserId);
         }
         String jobId = "explore-summarize-" + UUID.randomUUID().toString().replace("-", "");
-        ExploreSummarizeJob job = new ExploreSummarizeJob(jobId, request);
+        ExploreSummarizeJob job = new ExploreSummarizeJob(jobId, request, ownerUserId);
         jobStore.put(job);
         CompletableFuture.runAsync(() -> runJob(job));
         try {
@@ -94,36 +94,51 @@ public class ExploreSummarizeService {
             ExploreSummarizeRequest request = job.getRequest();
             ExploreSummarizeFetchService.BatchResult fetch =
                     summarizeFetchService.fetchBatch(request.selectedSeries(), request.country());
+            List<Map<String, Object>> loaded =
+                    summarizeFetchService.appendUserUploadedSeries(fetch.loaded(), request, job.getOwnerUserId());
             job.setProgressStep("relationships");
             job.setDetail("Počítám statistické vztahy mezi ukazateli (korelace, trend, medián).");
             String primaryCountry = nullSafe(request.country());
+            String privacyMode = ExploreUserDataPrivacy.normalize(request.userDataPrivacyMode());
             ExploreIndicatorRelationshipService.RelationshipsResult relationships =
-                    relationshipService.analyze(fetch.loaded(), request.question(), request.sector());
+                    relationshipService.analyze(loaded, request.question(), request.sector(), privacyMode);
             job.setProgressStep("ai_sections");
             job.setDetail("AI píše sekční interpretaci z načtených dat a spočítaných vztahů.");
             ExploreSectionedSynthesisService.SynthesisResult synthesis =
                     sectionedSynthesisService.synthesize(new ExploreSectionedSynthesisService.SynthesisRequest(
-                            request.question(), request.sector(), primaryCountry, fetch.loaded(), relationships.digest()));
+                            request.question(),
+                            request.sector(),
+                            primaryCountry,
+                            loaded,
+                            relationships.digest(),
+                            privacyMode));
             Map<String, Object> result = new LinkedHashMap<>(synthesis.payload());
             result.put("computed_relationships", relationships.relationships());
             result.put("ok", true);
             result.put("status", "completed");
             result.put("job_id", job.getJobId());
             result.put("primary_segment", request.sector());
-            result.put("series_count_used", fetch.loaded().size());
-            result.put("chart_payload", ExploreSummarizeFetchService.buildChartPayload(fetch.loaded()));
-            result.put("chart_summaries", fetch.loaded().stream().map(row -> str(row.get("data_context_line"))).toList());
-            result.put("chart_count", fetch.loaded().size());
+            result.put("series_count_used", loaded.size());
+            result.put("chart_payload", ExploreSummarizeFetchService.buildChartPayload(loaded));
+            result.put("chart_summaries", loaded.stream().map(row -> str(row.get("data_context_line"))).toList());
+            result.put("chart_count", loaded.size());
             result.put("fetch_summary", fetch.summary());
-            result.put("series_used", ExploreSummarizeFetchService.buildSeriesUsed(fetch.loaded()));
-            result.put("series_coverage", ExploreSummarizeFetchService.buildSeriesCoverage(fetch.loaded(), fetch.failed()));
+            result.put("series_used", ExploreSummarizeFetchService.buildSeriesUsed(loaded));
+            result.put("series_coverage", ExploreSummarizeFetchService.buildSeriesCoverage(loaded, fetch.failed()));
             result.put(
                     "limitations_cz",
-                    fetch.loaded().isEmpty()
+                    loaded.isEmpty()
                             ? "AI interpretace bez numerických dat — fetch řad selhal nebo nebyly vybrány řady."
-                            : "Sekční syntéza z " + fetch.loaded().size() + " řad.");
+                            : "Sekční syntéza z " + loaded.size() + " řad.");
             result.put("question", request.question());
-            job.setChartPayload(ExploreSummarizeFetchService.buildChartPayload(fetch.loaded()));
+            result.put("user_data_used", loaded.size() > fetch.loaded().size());
+            result.put(
+                    "user_uploads_used",
+                    loaded.stream()
+                            .filter(row -> "user_upload".equals(row.get("source_type")))
+                            .map(row -> Map.of("title", str(row.get("title")), "upload_id", str(row.get("set_id"))))
+                            .toList());
+            job.setChartPayload(ExploreSummarizeFetchService.buildChartPayload(loaded));
             job.setResult(result);
             job.setStatus("completed");
             job.setProgressStep("completed");

@@ -43,6 +43,9 @@ import org.springframework.web.server.ResponseStatusException;
 @RequiredArgsConstructor
 public class MeDashboardService {
 
+    /** Strop dlaždic na jednu osobní stránku — drží pruh čitelný a JSONB malý. */
+    private static final int MAX_PAGE_KPIS = 8;
+
     private static final Set<String> DISALLOWED_WIDGET_TYPES = Set.of("ad");
     private static final Set<String> GRID_KEYS =
             Set.of("grid_column_start", "grid_column_end", "grid_row_start", "grid_row_end");
@@ -81,6 +84,7 @@ public class MeDashboardService {
     private final DashboardPageRepository pageRepository;
     private final DashboardWidgetRepository widgetRepository;
     private final FeatureAccessService featureAccessService;
+    private final cz.bankintel.service.homepage.HomepageHeadlineKpiService headlineKpiService;
     private final UserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
 
@@ -525,6 +529,40 @@ public class MeDashboardService {
         if (!"admin".equalsIgnoreCase(user.getRole())) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Jen pro administrátory.");
         }
+    }
+
+    /**
+     * KPI dlaždice osobní stránky. Stejný tvar jako u veřejného přehledu, jen vázané
+     * na stránku uživatele — čte i zapisuje je stávající komponenta HeadlineKpiStrip.
+     */
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> listPageKpis(UserEntity user, String pageId) {
+        requireSubscriberDashboard(user);
+        DashboardPageEntity page = requireOwnedPage(user.getId(), pageId);
+        return page.getHeadlineKpis() != null ? page.getHeadlineKpis() : new ArrayList<>();
+    }
+
+    /** Dopočítané hodnoty dlaždic osobní stránky — stejný resolver jako u veřejného přehledu. */
+    @Transactional(readOnly = true)
+    public Map<String, Object> resolvePageKpis(UserEntity user, String pageId) {
+        requireSubscriberDashboard(user);
+        DashboardPageEntity page = requireOwnedPage(user.getId(), pageId);
+        return headlineKpiService.resolveList(page.getHeadlineKpis(), user);
+    }
+
+    @Transactional
+    public List<Map<String, Object>> savePageKpis(
+            UserEntity user, String pageId, List<Map<String, Object>> kpis) {
+        requireSubscriberDashboard(user);
+        DashboardPageEntity page = requireOwnedPage(user.getId(), pageId);
+        List<Map<String, Object>> next = kpis != null ? new ArrayList<>(kpis) : new ArrayList<>();
+        if (next.size() > MAX_PAGE_KPIS) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "Na stránku lze uložit nejvýš " + MAX_PAGE_KPIS + " dlaždic.");
+        }
+        page.setHeadlineKpis(next);
+        pageRepository.save(page);
+        return next;
     }
 
     private DashboardPageEntity requireOwnedPage(String userId, String pageId) {

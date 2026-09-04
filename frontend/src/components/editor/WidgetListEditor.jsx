@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { indicatorSelectOptions } from "@/lib/indicatorLabels";
 import { Link } from "react-router-dom";
 import {
   Trash2,
@@ -1025,9 +1026,9 @@ function DatasetViewConfig({
                       <option value="">
                         {isIndicatorSeriesMode ? "— všechny ukazatele —" : "— vyberte ukazatel —"}
                       </option>
-                      {previewIndicators.map((ind) => (
-                        <option key={ind.id} value={ind.id}>
-                          {ind.name || ind.id}{ind.count ? ` (${ind.count})` : ""}
+                      {indicatorSelectOptions(previewIndicators).map(({ item, id, label }) => (
+                        <option key={id} value={item.id}>
+                          {label}{item.count ? ` (${item.count})` : ""}
                         </option>
                       ))}
                     </select>

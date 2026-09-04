@@ -759,7 +759,7 @@ public class CatalogIndexStore {
                 // the final search still performs the full ranked retrieval.
                 FtsQueryPlan plan = CatalogSourceRegistry.BIG_FTS_SOURCES.contains(source)
                         ? new FtsQueryPlan(matchExpr, false)
-                        : resolveFtsQueryPlan(conn, source, matchExpr);
+                        : resolveFtsQueryPlan(conn, source, matchExpr, queryRaw);
                 String sql = plan.ordered() ? SQL_FTS_SUGGEST_ORDERED : SQL_FTS_SUGGEST_FAST;
                 try (PreparedStatement ps = conn.prepareStatement(sql)) {
                     ps.setString(1, source);
@@ -794,7 +794,7 @@ public class CatalogIndexStore {
         List<Map<String, Object>> scored = List.of();
         try (PooledConnection pooled = borrowPooled()) {
             Connection conn = pooled.connection();
-            FtsQueryPlan plan = resolveFtsQueryPlan(conn, source, matchExpr);
+            FtsQueryPlan plan = resolveFtsQueryPlan(conn, source, matchExpr, queryRaw);
             int fetch = computeFtsFetchLimit(conn, source, lim, plan);
             rows = fetchFtsRows(conn, plan, source, fetch);
             rows = mergeEntityRescueRows(conn, source, queryRaw, needles, rows, fetch);
@@ -879,7 +879,7 @@ public class CatalogIndexStore {
                 });
                 progressHandlerInstalled = true;
 
-                FtsQueryPlan plan = resolveFtsQueryPlan(conn, source, matchExpr);
+                FtsQueryPlan plan = resolveFtsQueryPlan(conn, source, matchExpr, queryRaw);
                 int fetch = computeFtsFetchLimit(conn, source, lim, plan);
                 String sql = plan.ordered() ? SQL_FTS_SEARCH_ORDERED : SQL_FTS_SEARCH_FAST;
                 try (PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -1135,7 +1135,8 @@ public class CatalogIndexStore {
      * the match set first and only fall back to the legacy fast path when ordering would be too
      * expensive, optionally narrowing to the rarest quoted token from the OR-expanded match expr.
      */
-    static FtsQueryPlan resolveFtsQueryPlan(Connection conn, String source, String matchExpr) throws SQLException {
+    static FtsQueryPlan resolveFtsQueryPlan(Connection conn, String source, String matchExpr, String queryRaw)
+            throws SQLException {
         if (!CatalogSourceRegistry.BIG_FTS_SOURCES.contains(source)) {
             return new FtsQueryPlan(matchExpr, true);
         }
@@ -1144,7 +1145,7 @@ public class CatalogIndexStore {
         }
         int matchCount = countFtsMatches(conn, source, matchExpr);
         if (matchCount <= FTS_BM25_ORDER_THRESHOLD) {
-            String anchored = anchoredMatchExpr(conn, source, matchExpr);
+            String anchored = anchoredMatchExpr(conn, source, matchExpr, queryRaw);
             if (!anchored.equals(matchExpr)) {
                 int anchoredCount = countFtsMatches(conn, source, anchored);
                 if (anchoredCount > 0
@@ -1155,7 +1156,7 @@ public class CatalogIndexStore {
             }
             return new FtsQueryPlan(matchExpr, true);
         }
-        String anchored = anchoredMatchExpr(conn, source, matchExpr);
+        String anchored = anchoredMatchExpr(conn, source, matchExpr, queryRaw);
         if (!anchored.equals(matchExpr)) {
             int anchoredCount = countFtsMatches(conn, source, anchored);
             if (anchoredCount <= FTS_BM25_ORDER_THRESHOLD) {
@@ -1182,13 +1183,33 @@ public class CatalogIndexStore {
     }
 
     /**
-     * When a broad OR match explodes (e.g. {@code "nasdaq" OR "cena" OR "price"}), retry with the
-     * rarest quoted token so bm25 ordering stays tractable and major entities are not drowned out.
+     * When a broad OR match explodes (e.g. {@code "nasdaq" OR "cena" OR "price"}), retry with a
+     * single quoted token so bm25 ordering stays tractable and major entities are not drowned out.
+     *
+     * <p>The user's own literal query phrase wins whenever it is affordable on its own, even if
+     * some other token has a lower raw match count. {@code needlesFromQuery} expands a query into
+     * a cluster of related concept words (e.g. "Return on assets" in {@code ecb2} pulls in
+     * "assets", "liabilities", "deposits", "balance", "sheet", "total", "bank"...) and some of
+     * those expansion words can co-occur into a phrase that is numerically rarer than what the
+     * user actually typed — live-measured: "total assets" (2 170 matches) beats the literal
+     * "return on assets" (11 200 matches) in {@code ecb2}. Anchoring on raw rarity alone picked
+     * "total assets" and silently dropped every literally-titled "Return on assets (ROA)" row
+     * from the fetch window before {@code CatalogScoringPipeline} ever got a chance to rank them.
+     * Preferring the literal phrase (when its own count is already under the bm25 threshold) means
+     * the anchor tracks what the user asked for, not an artifact of concept expansion.
      */
-    static String anchoredMatchExpr(Connection conn, String source, String matchExpr) throws SQLException {
+    static String anchoredMatchExpr(Connection conn, String source, String matchExpr, String queryRaw)
+            throws SQLException {
         List<String> tokens = parseQuotedFtsTokens(matchExpr);
         if (tokens.isEmpty()) {
             return matchExpr;
+        }
+        String literalPhrase = literalQueryToken(queryRaw);
+        if (literalPhrase != null && tokens.contains(literalPhrase)) {
+            int literalCount = countFtsMatches(conn, source, ftsQuotedToken(literalPhrase));
+            if (literalCount > 0 && literalCount <= FTS_BM25_ORDER_THRESHOLD) {
+                return ftsQuotedToken(literalPhrase);
+            }
         }
         String bestToken = null;
         int bestCount = Integer.MAX_VALUE;
@@ -1210,6 +1231,19 @@ public class CatalogIndexStore {
             return matchExpr;
         }
         return ftsQuotedToken(bestToken);
+    }
+
+    /** Reconstructs the unquoted phrase token {@link CatalogTextUtils#buildFtsMatch} derives from the raw query. */
+    private static String literalQueryToken(String queryRaw) {
+        if (queryRaw == null || queryRaw.isBlank()) {
+            return null;
+        }
+        String topicQuery = CatalogGeoIntent.topicQueryWithoutGeo(queryRaw);
+        if (topicQuery.isBlank()) {
+            topicQuery = queryRaw.trim();
+        }
+        String phrase = CatalogTextUtils.ftsEscapeToken(topicQuery);
+        return phrase.isBlank() ? null : phrase;
     }
 
     static List<String> parseQuotedFtsTokens(String matchExpr) {

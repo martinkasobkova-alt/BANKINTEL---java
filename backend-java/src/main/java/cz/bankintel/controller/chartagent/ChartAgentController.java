@@ -1,5 +1,7 @@
 package cz.bankintel.controller.chartagent;
 
+import cz.bankintel.security.CurrentUser;
+import cz.bankintel.service.access.FeatureAccessService;
 import cz.bankintel.service.chartagent.ChartAgentIntentService;
 import cz.bankintel.service.chartagent.ChartAgentService;
 import cz.bankintel.service.chartagent.ChartContractParser;
@@ -19,9 +21,22 @@ public class ChartAgentController {
 
     private final ChartAgentIntentService intentService;
     private final ChartAgentService chartAgentService;
+    private final FeatureAccessService featureAccessService;
+    private final CurrentUser currentUser;
+
+    /**
+     * AI nad grafem i AI nad dashboardem chodí sem. Funkce `chart_ai` je od migrace V14 na úrovni
+     * `registered`, ale kontrolovalo ji jen tlačítko v prohlížeči — endpointy šlo volat anonymně
+     * a placené volání OpenAI proběhlo. Katalogové AI endpointy to hlídají stejně
+     * (CatalogController.requireChartAi).
+     */
+    private void requireChartAi() {
+        featureAccessService.requireFeature(currentUser.optionalUserEntity(), "chart_ai");
+    }
 
     @PostMapping("/intent")
     public Map<String, Object> intent(@RequestBody(required = false) Map<String, Object> body) {
+        requireChartAi();
         Map<String, Object> payload = body != null ? body : Map.of();
         String question = ChartContractParser.str(payload.get("question"));
         if (question.isBlank()) {
@@ -37,6 +52,7 @@ public class ChartAgentController {
 
     @PostMapping("/ask")
     public Map<String, Object> ask(@RequestBody(required = false) Map<String, Object> body) {
+        requireChartAi();
         Map<String, Object> payload = body != null ? body : Map.of();
         String question = ChartContractParser.str(payload.get("question"));
         if (question.isBlank()) {

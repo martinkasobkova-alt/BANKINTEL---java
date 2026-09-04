@@ -163,7 +163,8 @@ export default function ExportMenu({
   const noData = (!rows || rows.length === 0) && !hasChartContract;
   const canExportData = canExport && !lockSourceData;
   const canChartImage = Boolean(enableChartImageExport && canImageExport);
-  const canAnyExport = canExportData || canChartImage;
+  // PDF je dostupné i u zamčeného grafu, takže samotné `canExport` stačí na otevření nabídky.
+  const canAnyExport = canExportData || canChartImage || canExport;
   const loadingAny = feLoading || imageLoading;
   const disabled = noData || loadingAny || !canAnyExport;
 
@@ -183,7 +184,7 @@ export default function ExportMenu({
 
   const exportChartCsvContract = () => {
     if (!chartContract?.data?.length || feLoading || !canExportData) return;
-    exportChartDataLongCsv(chartContract, { filename: safeName, locale: "en-US", delimiter: "," });
+    exportChartDataLongCsv(chartContract, { filename: safeName, delimiter: "," });
     setOpen(false);
   };
 
@@ -345,6 +346,21 @@ export default function ExportMenu({
               </button>
             </>
           ) : null}
+          {/* PDF je u zamčeného grafu záměrně dostupné — popisek u zámku slibuje „jen obrázek
+              nebo PDF". Dokud bylo uvnitř bloku canExportData, mizelo spolu s Excelem a slib
+              se nedodržel. */}
+          {canExport ? (
+            <button
+              type="button"
+              onClick={() => exportRemote("pdf")}
+              disabled={busy !== null}
+              className="w-full flex items-center gap-2 px-3 h-8 text-[12px] hover:bg-slate-50 disabled:opacity-60 text-left"
+            >
+              <FileText className="h-3.5 w-3.5 text-red-600" />
+              <span>PDF</span>
+              {busy === "pdf" && <span className="ml-auto text-[10px] text-slate-400">…</span>}
+            </button>
+          ) : null}
           {canExportData ? (
             <>
           {hasChartContract ? (
@@ -437,16 +453,6 @@ export default function ExportMenu({
             <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600" />
             <span>Excel (tabulka widgetu)</span>
             {busy === "xlsx" && <span className="ml-auto text-[10px] text-slate-400">…</span>}
-          </button>
-          <button
-            type="button"
-            onClick={() => exportRemote("pdf")}
-            disabled={busy !== null}
-            className="w-full flex items-center gap-2 px-3 h-8 text-[12px] hover:bg-slate-50 disabled:opacity-60 text-left"
-          >
-            <FileText className="h-3.5 w-3.5 text-red-600" />
-            <span>PDF</span>
-            {busy === "pdf" && <span className="ml-auto text-[10px] text-slate-400">…</span>}
           </button>
           <button
             type="button"

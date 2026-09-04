@@ -9,7 +9,7 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation, useParams } from "
 import "@/App.css";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { FeatureAccessProvider } from "@/contexts/FeatureAccessContext";
-import { AdminRoute, AuthRoute, EditorRoute, SubscriberRoute } from "@/components/ProtectedRoute";
+import { AdminRoute, AuthRoute, EditorRoute, FeatureRoute } from "@/components/ProtectedRoute";
 import LoginModal from "@/components/LoginModal";
 import CookieBanner from "@/components/CookieBanner";
 import { Toaster } from "sonner";
@@ -98,9 +98,11 @@ export default function App() {
           <Route
             path="/explore"
             element={
-              <ExploreErrorBoundary>
-                <ExplorePage />
-              </ExploreErrorBoundary>
+              <FeatureRoute feature="manager_explorer">
+                <ExploreErrorBoundary>
+                  <ExplorePage />
+                </ExploreErrorBoundary>
+              </FeatureRoute>
             }
           />
           <Route path="/dev/charts" element={<ChartSystemDemo />} />
@@ -123,11 +125,11 @@ export default function App() {
           <Route path="/oecd2/browse-tree" element={<LegacyCatalogRedirect catalog="oecd4" />} />
           <Route path="/oecd4/browse-tree" element={<LegacyCatalogRedirect catalog="oecd4" />} />
           <Route path="/commodities/catalog" element={<LegacyCatalogRedirect catalog="commodities" />} />
-          <Route path="/my-data" element={<SubscriberRoute><MyDataPage /></SubscriberRoute>} />
-          <Route path="/my-dashboard" element={<SubscriberRoute><MyDashboardPage /></SubscriberRoute>} />
+          <Route path="/my-data" element={<FeatureRoute feature="upload_custom_data"><MyDataPage /></FeatureRoute>} />
+          <Route path="/my-dashboard" element={<FeatureRoute feature="personal_dashboard"><MyDashboardPage /></FeatureRoute>} />
           <Route path="/shared/dashboard/:token" element={<SharedDashboardPage />} />
-          <Route path="/shared/page/:pageId" element={<SubscriberRoute><SharedDashboardPage /></SubscriberRoute>} />
-          <Route path="/my-rss" element={<SubscriberRoute><MyRssFeedsPage /></SubscriberRoute>} />
+          <Route path="/shared/page/:pageId" element={<SharedDashboardPage />} />
+          <Route path="/my-rss" element={<FeatureRoute feature="rss_monitoring"><MyRssFeedsPage /></FeatureRoute>} />
           <Route path="/cookies" element={<CookiesPage />} />
           <Route path="/predplatne" element={<PredplatnePage />} />
           <Route path="/ochrana-osobnich-udaju" element={<OchranaOsobnichUdajuPage />} />

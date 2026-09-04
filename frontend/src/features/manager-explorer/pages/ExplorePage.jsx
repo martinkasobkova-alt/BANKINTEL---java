@@ -36,6 +36,7 @@ import ExploreUserUploadRow from "@/components/explore/ExploreUserUploadRow";
 import ExploreIndicatorCard from "@/components/explore/ExploreIndicatorCard";
 import ManagerQuickDataPreview from "@/components/explore/ManagerQuickDataPreview";
 import VoiceInputButton from "@/components/common/VoiceInputButton";
+import SearchProgressCard from "@/components/ui/loading/SearchProgressCard.jsx";
 import {
   ExploreAnalysisSectionHeader,
   ExploreCompositeScoreHero,
@@ -99,6 +100,11 @@ import {
   indexChartRows,
   previewToChartRows,
 } from "@/lib/exploreChartCompare";
+import {
+  CHART_PERIODS,
+  filterChartRows,
+  overallLatestChartDate,
+} from "@/lib/exploreChartPeriodFilter";
 import { EXPLORE_HERO_SCORE_AREAS } from "@/lib/exploreAnalysisInsights";
 import {
   filterCompareCountriesForSource,
@@ -414,117 +420,6 @@ function formatUploadSize(n) {
   return `${(v / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-/** Real-status labels/colors per lane outcome - "empty" is deliberately NOT styled as an error:
- * a source legitimately having no data for this query is a normal result, not a failure. */
-const SOURCE_STATUS_DISPLAY = {
-  running: { label: "prohledávám…", className: "text-teal-300/90" },
-  ok: { label: null, className: "text-emerald-300/95" }, // label filled in with candidate count
-  empty: { label: "bez výsledků", className: "text-slate-400/80" },
-  skipped: { label: "přeskočeno", className: "text-slate-400/70" },
-  timeout: { label: "vypršel časový limit", className: "text-amber-300/90" },
-  error: { label: "chyba", className: "text-rose-400/90" },
-};
-
-function ExploreSectorScanLoader({ sourceStatuses, active, compact = false }) {
-  const [elapsedSec, setElapsedSec] = useState(0);
-
-  useEffect(() => {
-    if (!active) {
-      setElapsedSec(0);
-      return undefined;
-    }
-    setElapsedSec(0);
-    const countdown = setInterval(() => setElapsedSec((prev) => prev + 1), 1000);
-    return () => clearInterval(countdown);
-  }, [active]);
-
-  if (!active) return null;
-
-  const rows = Array.isArray(sourceStatuses) ? sourceStatuses : [];
-  const totalCount = rows.length;
-  const runningRows = rows.filter((row) => row.status === "running");
-  const finishedCount = totalCount - runningRows.length;
-  // No sources reported yet (still resolving segment/geo before discovery even starts) -
-  // indeterminate progress instead of a misleading 0%.
-  const progressKnown = totalCount > 0;
-  const progressPct = progressKnown ? Math.round((finishedCount / totalCount) * 100) : 0;
-  const headerLabel =
-    totalCount === 0
-      ? "Připravuji vyhledávání…"
-      : runningRows.length > 0
-        ? "Prohledávám katalogy…"
-        : "Zpracovávám výsledky…";
-  // Deliberately no fake ETA in seconds (see docs/archive/MANAGER_EXPLORER_AUDIT_V2.md section 4.1) - just
-  // real elapsed time and real progress out of the real number of sources being searched.
-  const countdownLabel = progressKnown
-    ? `${finishedCount} z ${totalCount} zdrojů · ${elapsedSec} s`
-    : `${elapsedSec} s`;
-
-  return (
-    <div
-      className={`rounded-xl border border-teal-400/40 bg-slate-950 shadow-lg overflow-hidden ${
-        compact ? "max-w-full" : "max-w-xl"
-      }`}
-      role="status"
-      aria-live="polite"
-      aria-label={`${headerLabel} — ${countdownLabel}`}
-    >
-      <div className="flex items-center justify-between gap-2 px-3 py-2 border-b border-teal-500/25 bg-slate-900/95">
-        <div className="flex items-center gap-2 min-w-0">
-          <span className="relative flex h-2 w-2 shrink-0">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
-            <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
-          </span>
-          <span className="text-[11px] font-mono uppercase tracking-wide text-teal-300/95 truncate">
-            {headerLabel}
-          </span>
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <span
-            className="text-[10px] font-mono tabular-nums whitespace-nowrap text-emerald-300/90"
-            title="Skutečný počet dokončených zdrojů a uplynulý čas"
-          >
-            {countdownLabel}
-          </span>
-          <Loader2 className="h-3.5 w-3.5 animate-spin text-teal-400" />
-        </div>
-      </div>
-
-      <div className="h-0.5 bg-slate-800" aria-hidden>
-        <div
-          className={`h-full bg-gradient-to-r from-teal-600 to-emerald-400 transition-[width] duration-1000 ease-linear ${
-            progressKnown ? "" : "animate-pulse"
-          }`}
-          style={{ width: progressKnown ? `${progressPct}%` : "20%" }}
-        />
-      </div>
-
-      <div className="relative h-[132px] overflow-y-auto px-3 py-2 font-mono text-[11px] leading-relaxed">
-        {rows.length === 0 ? (
-          <div className="text-slate-500/80 text-[11px]">Zjišťuji segment a zdroje…</div>
-        ) : (
-          <ul className="space-y-1">
-            {rows.map((row) => {
-              const display = SOURCE_STATUS_DISPLAY[row.status] || SOURCE_STATUS_DISPLAY.running;
-              const label =
-                row.status === "ok" ? `${row.candidates} nalezeno` : display.label;
-              return (
-                <li key={row.source} className="flex items-center gap-2 truncate">
-                  <span className="shrink-0 text-teal-400/90 w-[5.5rem] uppercase">{row.source}</span>
-                  <span className={`truncate ${display.className}`}>{label}</span>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </div>
-
-      <div className="h-1 bg-slate-800 overflow-hidden">
-        <div className="h-full w-1/3 bg-gradient-to-r from-transparent via-teal-400 to-transparent animate-[explore-scan_1.1s_ease-in-out_infinite]" />
-      </div>
-    </div>
-  );
-}
 
 function ExploreSourceIssueSummary({ sourceStatuses }) {
   const issues = sourceStatusIssues(sourceStatuses);
@@ -819,13 +714,6 @@ function ManagerDiscoverySummary({ meta, expertMode = false }) {
   );
 }
 
-const CHART_PERIODS = [
-  { id: "12", label: "12", count: 12 },
-  { id: "36", label: "36", count: 36 },
-  { id: "120", label: "120", count: 120 },
-  { id: "all", label: "Vše", count: null },
-];
-
 const EXPLORE_CHART_THEME = buildChartTheme(null);
 
 const CHART_LINE_COLORS = DASHBOARD_SERIES_COLORS;
@@ -848,13 +736,8 @@ const SECTION_CARD_STYLES = {
   global: "border-slate-400/60 bg-slate-50/80",
 };
 
-function filterChartRows(rows, periodId) {
-  const period = CHART_PERIODS.find((p) => p.id === periodId);
-  if (!period || period.count == null) return rows;
-  return rows.slice(-period.count);
-}
-
 function mergeChartLinesForPeriod(lines, periodId) {
+  const anchor = overallLatestChartDate(lines);
   const filtered = (lines || [])
     .map((line, idx) => {
       const key = `y${idx}`;
@@ -862,7 +745,7 @@ function mergeChartLinesForPeriod(lines, periodId) {
         key,
         name: line.name,
         color: line.color || CHART_LINE_COLORS[idx % CHART_LINE_COLORS.length],
-        rows: filterChartRows(line.rows, periodId),
+        rows: filterChartRows(line.rows, periodId, anchor),
       };
     })
     .filter((line) => line.rows.length > 0);
@@ -1209,7 +1092,7 @@ function ExploreChartCard({ series, compareCountries = [], compareFxPairs = [], 
 
         <div className="px-3 py-2 border-b border-border/40 shrink-0 space-y-2" data-export-ignore="true">
           <div className="flex flex-wrap items-center gap-1">
-            <span className="text-[9px] uppercase tracking-wider text-slate-400 mr-0.5">Období</span>
+            <span className="text-[9px] uppercase tracking-wider text-slate-400 mr-0.5">Počet bodů</span>
             {CHART_PERIODS.map((p) => (
               <button
                 key={p.id}
@@ -1220,6 +1103,7 @@ function ExploreChartCard({ series, compareCountries = [], compareFxPairs = [], 
                     : "border-border/60 text-slate-600 hover:bg-[hsl(var(--primary-soft))]"
                 }`}
                 onClick={() => setPeriod(p.id)}
+                title={p.title}
               >
                 {p.label}
               </button>
@@ -1372,7 +1256,7 @@ function ExploreChartCard({ series, compareCountries = [], compareFxPairs = [], 
             </div>
             <div className="px-4 py-3 space-y-3 border-b border-border/40">
               <div className="flex flex-wrap gap-1">
-                <span className="text-[9px] uppercase tracking-wider text-slate-400 self-center mr-0.5">Období</span>
+                <span className="text-[9px] uppercase tracking-wider text-slate-400 self-center mr-0.5">Počet bodů</span>
                 {CHART_PERIODS.map((p) => (
                   <button
                     key={`modal-${p.id}`}
@@ -1383,6 +1267,7 @@ function ExploreChartCard({ series, compareCountries = [], compareFxPairs = [], 
                         : "border-border/60 text-slate-600 hover:bg-[hsl(var(--primary-soft))]"
                     }`}
                     onClick={() => setPeriod(p.id)}
+                    title={p.title}
                   >
                     {p.label}
                   </button>
@@ -6307,10 +6192,22 @@ export default function ExplorePage() {
             ) : null}
 
             {loadingSector ? (
-              <ExploreSectorScanLoader
-                sourceStatuses={sourceStatuses}
-                active={loadingSector}
-                compact={false}
+              <SearchProgressCard
+                mode="manager-explorer"
+                query={question}
+                sources={sourceStatuses.map((row) => ({ id: row.source, label: row.source }))}
+                activeSource={sourceStatuses.filter((row) => row.status === "running").map((row) => row.source)}
+                completedSources={sourceStatuses.filter((row) => row.status !== "running").map((row) => row.source)}
+                stage={
+                  sourceStatuses.length === 0
+                    ? "finding"
+                    : sourceStatuses.every((row) => row.status !== "running")
+                      ? "selecting"
+                      : sourceStatuses.some((row) => row.status !== "running")
+                        ? "comparing"
+                        : "scanning"
+                }
+                resultCount={sourceStatuses.reduce((sum, row) => sum + (Number(row.candidates) || 0), 0)}
               />
             ) : null}
 
@@ -6330,7 +6227,7 @@ export default function ExplorePage() {
 
         {step === 2 ? (
           <div className="soft-card px-5 py-5 space-y-4">
-            <h2 className="text-sm font-semibold text-slate-900">Krok 2 — Výsledek a skóre</h2>
+            <h2 className="text-sm font-semibold text-slate-900">Krok 2 — Výsledek analýzy</h2>
             <div className="rounded-xl border border-sky-300/60 bg-sky-50/70 px-4 py-3 text-sm text-sky-950 space-y-1">
               <p>
                 <span className="font-medium">Segment:</span> {sector || "—"}

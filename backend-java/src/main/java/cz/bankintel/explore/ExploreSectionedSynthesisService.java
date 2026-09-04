@@ -126,7 +126,7 @@ public class ExploreSectionedSynthesisService {
             items = items.subList(0, SECTION_ITEM_LIMIT);
         }
         List<Map<String, Object>> seriesRefs = buildSeriesRefs(items);
-        String context = ExploreSectionBucketService.sectionContextBullets(items, 9000);
+        String context = ExploreSectionBucketService.sectionContextBullets(items, 9000, request.userDataPrivacyMode());
         if (context.isBlank()) {
             context = "Pro oblast „" + section.title() + "“ nejsou dedikované načtené řady s čísly.";
         }
@@ -382,10 +382,20 @@ public class ExploreSectionedSynthesisService {
             String sector,
             String primaryCountryCode,
             List<Map<String, Object>> loadedItems,
-            String relationshipsDigest) {
+            String relationshipsDigest,
+            String userDataPrivacyMode) {
         public SynthesisRequest(
                 String question, String sector, String primaryCountryCode, List<Map<String, Object>> loadedItems) {
-            this(question, sector, primaryCountryCode, loadedItems, "");
+            this(question, sector, primaryCountryCode, loadedItems, "", ExploreUserDataPrivacy.STRICT_PRIVATE);
+        }
+
+        public SynthesisRequest(
+                String question,
+                String sector,
+                String primaryCountryCode,
+                List<Map<String, Object>> loadedItems,
+                String relationshipsDigest) {
+            this(question, sector, primaryCountryCode, loadedItems, relationshipsDigest, ExploreUserDataPrivacy.STRICT_PRIVATE);
         }
     }
 

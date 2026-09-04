@@ -103,25 +103,54 @@ export function chartAreaTopMargin({ showBarLabels = false, compact = false } = 
 }
 
 /** Sklon a výška osy X u kategoriálního sloupcového grafu (latest / value compare). */
-export function latestBarCategoryAxisLayout({ n = 0, compact = false, latestBarMode = false } = {}) {
-  const useTilt = latestBarMode && n > 4;
+/**
+ * @param {object} opts
+ * @param {boolean} [opts.tight] Plocha grafu je tak nízká, že by na sloupce nezbylo místo.
+ *   Nakloněné názvy kategorií si berou pevnou výšku bez ohledu na to, kolik jí graf má:
+ *   u 27 zemí ve widgetu na dashboardu spotřebovaly 70 ze 77 pixelů a nevykreslil se
+ *   ani jeden sloupec. V takové situaci je lepší popisky zkrátit než graf neukázat.
+ */
+export function latestBarCategoryAxisLayout({
+  n = 0,
+  compact = false,
+  latestBarMode = false,
+  tight = false,
+} = {}) {
+  // Nakloněné popisky si berou 48 px výšky. V nízké ploše (widget na dashboardu) je to
+  // celý graf — sloupce se pak nevykreslí vůbec. Vodorovný posuvník už každému sloupci
+  // dává 68 px šířky, takže na plocho se popisek vejde taky a na sloupce zbude místo.
+  const useTilt = latestBarMode && n > 4 && !tight;
   const angle = useTilt ? (n > 10 ? -40 : n > 6 ? -32 : -24) : 0;
+  const tiltHeight = compact ? 40 : 48;
+  const tiltMargin = compact ? 38 : 48;
   return {
     useTilt,
     angle,
     textAnchor: useTilt ? "end" : "middle",
     dy: useTilt ? 6 : 0,
-    axisHeight: latestBarMode ? (useTilt ? (compact ? 40 : 48) : compact ? 24 : 28) : compact ? 20 : 18,
+    axisHeight: latestBarMode
+      ? useTilt
+        ? tiltHeight
+        : tight
+          ? 16
+          : compact
+            ? 24
+            : 28
+      : compact
+        ? 20
+        : 18,
     bottomMargin: latestBarMode
       ? useTilt
-        ? compact
-          ? 38
-          : 48
-        : compact
-          ? 22
-          : 28
+        ? tiltMargin
+        : tight
+          ? 14
+          : compact
+            ? 22
+            : 28
       : null,
-    ellipsizeMax: categoryAxisLabelMax({ compact, n, latestBarMode }),
+    ellipsizeMax: tight
+      ? Math.min(8, categoryAxisLabelMax({ compact, n, latestBarMode }))
+      : categoryAxisLabelMax({ compact, n, latestBarMode }),
     scrollPerBar: compact ? 56 : 68,
     scrollThreshold: { mobile: 5, desktop: 6 },
   };
@@ -143,9 +172,10 @@ export function computeChartPlotMargins({
   latestBarMode = false,
   compact = false,
   n = 0,
+  tight = false,
 } = {}) {
   const useTilt = latestBarMode ? n > 4 : n > 8;
-  const latestLayout = latestBarMode ? latestBarCategoryAxisLayout({ n, compact, latestBarMode }) : null;
+  const latestLayout = latestBarMode ? latestBarCategoryAxisLayout({ n, compact, latestBarMode, tight }) : null;
   return {
     top: chartAreaTopMargin({ compact }),
     bottom: latestLayout?.bottomMargin ?? (useTilt ? (compact ? 26 : 28) : compact ? 16 : 24),
@@ -153,8 +183,8 @@ export function computeChartPlotMargins({
   };
 }
 
-export function latestBarXTickProps({ n, compact, latestBarMode }) {
-  const layout = latestBarCategoryAxisLayout({ n, compact, latestBarMode });
+export function latestBarXTickProps({ n, compact, latestBarMode, tight = false }) {
+  const layout = latestBarCategoryAxisLayout({ n, compact, latestBarMode, tight });
   return {
     angle: layout.angle,
     textAnchor: layout.textAnchor,

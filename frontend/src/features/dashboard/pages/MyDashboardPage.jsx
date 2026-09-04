@@ -11,6 +11,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useFeatureAccessContextOptional } from "@/contexts/FeatureAccessContext";
 import { useFeatureAccess } from "@/hooks/useFeatureAccess";
 import AdminWidgetCanvas from "@/components/admin/AdminWidgetCanvas";
+import HeadlineKpiStrip from "@/components/HeadlineKpiStrip";
 import PersonalCatalogChartForm from "@/components/myDashboard/PersonalCatalogChartForm";
 import PersonalComputedInlineForm from "@/components/myDashboard/PersonalComputedInlineForm";
 import PersonalUploadChartForm from "@/components/myDashboard/PersonalUploadChartForm";
@@ -1066,6 +1067,11 @@ export default function MyDashboardPage() {
               )}
             </div>
           )}
+
+          {/* KPI dlaždice stránky — stejná komponenta jako na veřejném přehledu, jen
+              vázaná na osobní stránku. Editace je povolená, protože stránku vlastní
+              přihlášený uživatel (server to znovu ověřuje přes requireOwnedPage). */}
+          {selPage && <HeadlineKpiStrip mode="personal" pageId={selPage} isAdmin />}
 
           {pageData.widgets?.length ? (
             <AdminWidgetCanvas

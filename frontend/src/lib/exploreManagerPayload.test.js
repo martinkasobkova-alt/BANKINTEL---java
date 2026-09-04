@@ -1,5 +1,6 @@
 import {
   computeAnalysisPortfolioBudget,
+  INDICATOR_SECTION_DEFS,
   mergeExploreManagerPayloads,
   parseExploreManagerPayload,
   selectAnalysisPortfolio,
@@ -106,5 +107,38 @@ describe("mergeExploreManagerPayloads", () => {
 
     expect(merged.sector_indicators.map((row) => row.dataset_id)).toEqual(["roe", "npl", "mortgage"]);
     expect(merged.sector_indicators[0].verified).toBe(true);
+  });
+});
+
+// Živě zjištěno: appka slibovala 8 report sekcí, ale backend naplňoval jen sector_indicators/
+// macro_indicators - 5 dalších (leading/cost/financial/external/risk) je teď naplněných taky;
+// "Výhled IMF WEO" (forecast_indicators) se naopak přestal slibovat, appka pro něj nemá data.
+describe("INDICATOR_SECTION_DEFS", () => {
+  it("no longer promises forecast_indicators (no IMF WEO data exists)", () => {
+    expect(INDICATOR_SECTION_DEFS.some((def) => def.key === "forecast_indicators")).toBe(false);
+  });
+
+  it("includes risk_indicators now that the backend fills it", () => {
+    expect(INDICATOR_SECTION_DEFS.some((def) => def.key === "risk_indicators")).toBe(true);
+  });
+});
+
+describe("parseExploreManagerPayload fine report sections", () => {
+  it("surfaces a populated risk_indicators section", () => {
+    const parsed = parseExploreManagerPayload({
+      risk_indicators: [{ source_type: "eurostat", set_id: "npl", title: "Non-performing loans" }],
+    });
+
+    const riskSection = parsed.sections.find((s) => s.id === "risk_indicators");
+    expect(riskSection).toBeDefined();
+    expect(riskSection.items).toHaveLength(1);
+  });
+
+  it("never surfaces forecast_indicators even if the backend still sends it", () => {
+    const parsed = parseExploreManagerPayload({
+      forecast_indicators: [{ source_type: "imf", set_id: "weo", title: "GDP forecast" }],
+    });
+
+    expect(parsed.sections.find((s) => s.id === "forecast_indicators")).toBeUndefined();
   });
 });

@@ -733,7 +733,10 @@ public class ExploreDiscoveryService {
         row.put("title", hit.getOrDefault("title", hit.get("name")));
         row.put("full_path", hit.get("full_path"));
         row.put("why_relevant", hit.get("why_relevant"));
-        row.put("manager_category", isSector ? "sector_indicators" : "macro_indicators");
+        // Makro řádek zůstává vlastní, samostatnou kategorií (nikdy se nepřeřazuje do jemné
+        // sekce); ne-makro řádek dostane jemnější zařazení (Leading/Náklady/Finance/Externí
+        // trhy/Rizika), kam podle obsahu patří - jinak zůstává obecný "sector_indicators".
+        row.put("manager_category", isSector ? ExploreManagerDiscoveryTerms.reportSectionFor(hit) : "macro_indicators");
         row.put("confidence_score", hit.getOrDefault("_search_score", 0.7));
         row.put("from_preset", false);
         row.put("sector_hint", sector);
@@ -744,7 +747,13 @@ public class ExploreDiscoveryService {
                 "canonical_metric_intents",
                 "geo_scope",
                 "sector_scope",
-                "canonical_metadata_provenance")) {
+                "canonical_metadata_provenance",
+                // Bez tohohle klíče mnohorozměrné zdroje (oecd4, data360, eurostat, imf, ecb) v
+                // Exploreru ztratily přesně ty parametry (measure/REF_AREA/DATABASE_ID/dimenze),
+                // které jejich konektor potřebuje k načtení KONKRÉTNÍ řady - stejný reálný
+                // katalogový hit, který normální hledání→graf používá už teď správně, tady
+                // dál posílal jen holé dataset_id/set_id.
+                "query_params")) {
             if (hit.containsKey(key)) {
                 row.put(key, hit.get(key));
             }

@@ -13,6 +13,8 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -75,7 +77,11 @@ public class RssFeedSyncService {
             entity.setFeedId(feed.getId());
             entity.setTitle(String.valueOf(item.getOrDefault("title", "")).strip());
             entity.setLink(link);
-            entity.setPublishedAt(Instant.now());
+            // Datum vydání se dřív nikdy nečetlo z kanálu - každá položka dostala čas
+            // synchronizace, takže staré i nové články vypadaly stejně "čerstvé" a řazení podle
+            // published_at bylo ve skutečnosti řazení podle toho, kdy appka feed naposled stáhla.
+            Instant published = parsePublishedAt(String.valueOf(item.getOrDefault("published_raw", "")));
+            entity.setPublishedAt(published != null ? published : Instant.now());
             entity.setSummary(String.valueOf(item.getOrDefault("summary", "")).strip());
             entity.setCreatedAt(Instant.now());
             itemRepository.save(entity);
@@ -118,7 +124,11 @@ public class RssFeedSyncService {
             entity.setFeedId(feed.getId());
             entity.setTitle(String.valueOf(item.getOrDefault("title", "")).strip());
             entity.setLink(link);
-            entity.setPublishedAt(Instant.now());
+            // Datum vydání se dřív nikdy nečetlo z kanálu - každá položka dostala čas
+            // synchronizace, takže staré i nové články vypadaly stejně "čerstvé" a řazení podle
+            // published_at bylo ve skutečnosti řazení podle toho, kdy appka feed naposled stáhla.
+            Instant published = parsePublishedAt(String.valueOf(item.getOrDefault("published_raw", "")));
+            entity.setPublishedAt(published != null ? published : Instant.now());
             entity.setSummary(String.valueOf(item.getOrDefault("summary", "")).strip());
             entity.setCreatedAt(Instant.now());
             itemRepository.save(entity);
@@ -178,7 +188,7 @@ public class RssFeedSyncService {
         }
     }
 
-    private List<Map<String, Object>> parseItems(byte[] body) throws Exception {
+    List<Map<String, Object>> parseItems(byte[] body) throws Exception {
         List<Map<String, Object>> items = new ArrayList<>();
         try {
             Document doc = secureDocumentBuilderFactory()
@@ -199,7 +209,10 @@ public class RssFeedSyncService {
                 if (title.isBlank() && link.isBlank()) {
                     continue;
                 }
-                items.add(Map.of("title", title, "link", link, "summary", summary));
+                // RSS 2.0 má <pubDate> (RFC 1123), Atom <published>/<updated> (ISO 8601) - obojí
+                // pod jedním klíčem, přesný formát rozliší až parsePublishedAt při ukládání.
+                String publishedRaw = firstNonBlank(text(el, "pubDate"), text(el, "published"), text(el, "updated"), text(el, "date"));
+                items.add(Map.of("title", title, "link", link, "summary", summary, "published_raw", publishedRaw));
             }
         } catch (Exception ignored) {
             String text = new String(body);
@@ -240,6 +253,29 @@ public class RssFeedSyncService {
 
     private static String stripTags(String value) {
         return value == null ? "" : value.replaceAll("<[^>]+>", " ").replaceAll("\\s+", " ").strip();
+    }
+
+    /**
+     * RSS 2.0 {@code <pubDate>} je RFC 1123 ("Thu, 03 Sep 2026 13:26:54 GMT"), Atom
+     * {@code <published>}/{@code <updated>} je ISO 8601 ("2026-09-03T13:26:54Z") - zkusí obojí,
+     * {@code null} při selhání obou (volající pak sáhne po {@code Instant.now()} jako záloze,
+     * ne přednostně).
+     */
+    static Instant parsePublishedAt(String raw) {
+        String value = raw == null ? "" : raw.strip();
+        if (value.isEmpty()) {
+            return null;
+        }
+        try {
+            return Instant.from(DateTimeFormatter.RFC_1123_DATE_TIME.parse(value));
+        } catch (DateTimeParseException ignored) {
+            // spadne na ISO 8601 níž
+        }
+        try {
+            return Instant.parse(value);
+        } catch (DateTimeParseException ignored) {
+            return null;
+        }
     }
 
     private static String firstNonBlank(String... values) {

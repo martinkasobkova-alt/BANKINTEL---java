@@ -54,21 +54,40 @@ final class WorldbankPinkSheetXlsxParser {
                 rawCodes = maybeCodes;
             } else {
                 firstDataRow = 6;
+                // Živě zjištěno proti skutečnému staženému souboru (aktuální rok nemá vlastní
+                // kódový řádek, spadá do týhle větve): dřív se tu KAŽDÝ název rovnou slugifikoval
+                // (i prázdný na "SERIES"), takže "je kód prázdný?" kontrola o pár řádků níž viděla
+                // už hotový, nikdy neprázdný fallback - ne skutečnou (ne)přítomnost hlavičky.
+                // Necháváme prázdné a slugifikaci přenecháváme JEDNOTNĚ smyčce níž, stejně jako u
+                // větve se skutečným kódovým řádkem - jen tak "je sloupec doopravdy prázdný?"
+                // znamená totéž v obou větvích.
                 rawCodes = new ArrayList<>();
-                for (String name : names) {
-                    rawCodes.add(slugify(name));
+                for (int i = 0; i < names.size(); i++) {
+                    rawCodes.add("");
                 }
             }
 
             List<String> codes = new ArrayList<>();
+            // Živě zjištěno (data/worldbank_pink_sheet_catalog.json): pro sloupec bez skutečné
+            // hlavičky (ani kódový řádek, ani název) `slugify("")` vrátí NEprázdný fallback
+            // "SERIES" - takže se tenhle sloupec dřív nikdy nezachytil kontrolou "code.isBlank()"
+            // níž a appka z něj postavila fantomovou kartu bez jediného pozorování za sebou.
+            // Víc takových prázdných sloupců ve stejném souboru dá "SERIES", "SERIES_2", ...
+            // "SERIES_17" - přesně to, co bylo vidět v katalogu. Řeší se tady, na vstupu, kde se
+            // ještě dá odlišit "opravdu prázdný sloupec" od "sloupec, který se jen jmenuje stejně
+            // jako jiný" (na to slouží `seenCodes` dedup níž, a ten musí zůstat).
+            List<Boolean> hasRealHeader = new ArrayList<>();
             Map<String, Integer> seenCodes = new LinkedHashMap<>();
             for (int i = 0; i < names.size(); i++) {
                 String nameRaw = i < names.size() ? names.get(i) : "";
                 String codeRaw = i < rawCodes.size() ? rawCodes.get(i) : "";
                 String code = codeRaw != null ? codeRaw.trim() : "";
-                if (code.isBlank() || MISSING_MARKERS.contains(code.toLowerCase(Locale.ROOT))) {
+                boolean codeBlank = code.isBlank() || MISSING_MARKERS.contains(code.toLowerCase(Locale.ROOT));
+                boolean nameBlank = stringOrBlank(nameRaw).isBlank();
+                if (codeBlank) {
                     code = slugify(nameRaw);
                 }
+                hasRealHeader.add(!(codeBlank && nameBlank));
                 seenCodes.put(code, seenCodes.getOrDefault(code, 0) + 1);
                 if (seenCodes.get(code) > 1) {
                     code = code + "_" + seenCodes.get(code);
@@ -80,6 +99,9 @@ final class WorldbankPinkSheetXlsxParser {
             Map<String, List<Map<String, Object>>> observations = new LinkedHashMap<>();
 
             for (int idx = 0; idx < codes.size(); idx++) {
+                if (idx >= hasRealHeader.size() || !hasRealHeader.get(idx)) {
+                    continue;
+                }
                 String code = codes.get(idx).trim();
                 if (code.isBlank() || MISSING_MARKERS.contains(code)) {
                     continue;

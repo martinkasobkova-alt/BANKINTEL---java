@@ -30,7 +30,8 @@ public class ChartAgentEconomistService {
             List<Map<String, Object>> calculations,
             Map<String, Object> plan,
             String fallbackAnswer,
-            List<Map<String, String>> conversationHistory) {
+            List<Map<String, String>> conversationHistory,
+            Map<String, Object> requestedPeriodLookup) {
         if (seriesList == null || seriesList.isEmpty() || !hasOpenAiKey()) {
             return null;
         }
@@ -56,6 +57,10 @@ public class ChartAgentEconomistService {
             payload.put("deterministic_draft", fallbackAnswer == null ? "" : fallbackAnswer);
             payload.put("planned_operations", plan.get("operations"));
             payload.put("conversation_history", conversationHistory == null ? List.of() : conversationHistory);
+            boolean hasPeriodLookup = requestedPeriodLookup != null && !requestedPeriodLookup.isEmpty();
+            if (hasPeriodLookup) {
+                payload.put("requested_period_lookup", requestedPeriodLookup);
+            }
 
             Map<String, Object> result = openAiJsonSupport.chatJsonObject(
                     """
@@ -71,7 +76,24 @@ public class ChartAgentEconomistService {
                     "Uživatel se ptá nad grafem/dashboardem. Vytvoř ekonomickou odpověď, ne pouze opis hodnot.\n"
                             + "V každé řadě je pole series_points s reprezentativním (rovnoměrně vzorkovaným) průběhem "
                             + "celé řady včetně minima a maxima — čti z něj skutečný tvar, zlomy a vývoj, ne jen první a "
-                            + "poslední bod. Když se uživatel ptá na konkrétní období, najdi nejbližší bod v series_points.\n"
+                            + "poslední bod.\n"
+                            // series_points je vzorek, ne celá řada: u dlouhé měsíční řady se posílá jen část.
+                            // Bez tohohle pravidla model bral „nejbližší bod" a vydával ho za dotazované
+                            // období — uživatel pak četl číslo, které v grafu pro ten měsíc není.
+                            + "series_points je VZOREK, ne úplný výčet. Uváděj jen hodnoty, které v něm "
+                            + "skutečně jsou, a ke každému číslu napiš období, ze kterého pochází. Když se "
+                            + "uživatel ptá na období, které ve vzorku není, napiš to a nabídni nejbližší "
+                            + "dostupné — ale nevydávej jeho hodnotu za hodnotu dotazovaného období. Čísla "
+                            + "si nedopočítávej ani neodhaduj.\n"
+                            + (hasPeriodLookup
+                                    ? "Otázka se ptá na konkrétní rok — kontext obsahuje requested_period_lookup "
+                                            + "s přesně dohledanými daty pro primární řadu za ten rok. Když má "
+                                            + "exact_matches neprázdné, odpověz VÝHRADNĚ z těchto hodnot (ne z "
+                                            + "series_points). Když je exact_matches prázdné, znamená to, že "
+                                            + "daný rok v datech chybí — v odpovědi to výslovně řekni a jako "
+                                            + "náhradu uveď nearest_available VČETNĚ jeho vlastního období (jinak "
+                                            + "to čtenář přečte jako hodnotu dotazovaného roku).\n"
+                                    : "")
                             + "Kontext JSON:\n"
                             + objectMapper.writeValueAsString(payload),
                     OpenAiModelTask.CHAT);

@@ -141,15 +141,16 @@ import { normalizeCatalogBrowseIdFromUrlParam } from "@/lib/catalogBackNav";
 import {
   CATALOG_HEADER_FILTERS_EVENT,
   loadCatalogHeaderFilters,
+  HEADER_FILTER_STOCKS_ID,
   saveCatalogHeaderFilters,
 } from "@/lib/catalogHeaderFilters";
 import { CATALOG_HEADER_BROWSE_TOGGLE_EVENT } from "@/lib/catalogHeaderSearch";
 import { resolveCatalogShareId } from "@/lib/catalogChartShare";
 import { getAradCatalogRescueNotice } from "@/lib/aradCatalogRescueNotice";
 import CatalogSearchErrorBoundary from "@/components/catalog/CatalogSearchErrorBoundary";
-import CatalogDeepSearchLoader from "@/components/catalog/CatalogDeepSearchLoader";
+import SearchProgressCard from "@/components/ui/loading/SearchProgressCard.jsx";
 import CatalogSearchPathNav from "@/components/catalog/CatalogSearchPathNav";
-import { resolveCatalogCategoryPathPrefixes } from "@/lib/catalogSearchPathNav";
+import { buildCatalogPathPrefixes, resolveCatalogCategoryPathPrefixes } from "@/lib/catalogSearchPathNav";
 import {
   useCatalogSearchState,
   AI_SEARCH_SCOPE_EXTENDED,
@@ -182,8 +183,6 @@ import {
   OECD_BROWSE_BETA_UNAVAILABLE_CZ,
   CATALOG_EMPTY_BROWSE_CZ,
   CATALOG_DEEP_SEARCH_CHUNK_TIMEOUT_MS,
-  CATALOG_DEEP_SEARCH_ESTIMATE_SEC,
-  CATALOG_AI_QUICK_ESTIMATE_SEC,
   IN_APP_SEARCH_ID,
   CATALOG_BROWSE_FETCH_CONCURRENCY,
   isCategoryLikeSearchHit,
@@ -469,6 +468,12 @@ export default function GlobalCatalogSearchPage() {
     () => (_isSingleSourceScope ? new Set([_urlScopeParam]) : selectedExternalCatalogs),
     [_isSingleSourceScope, _urlScopeParam, selectedExternalCatalogs],
   );
+  // Deklarováno před useDeepSearchRunner, aby ho šlo předat jako onNewSearch: nový dotaz je nové
+  // téma a chat nad PŘEDCHOZÍMI výsledky by jinak zůstal viset i nad výsledky, které už uživatel
+  // nevidí (viz useDeepSearchRunner.applySuggestedDeepSearch).
+  const [followupMessages, setFollowupMessages] = useState([]);
+  const resetFollowupChatForNewSearch = useCallback(() => setFollowupMessages([]), []);
+
   const {
     deepLoading,
     deepError,
@@ -505,13 +510,13 @@ export default function GlobalCatalogSearchPage() {
     deepSourceLabel: deepAiDatabaseLabelCz,
     chunkTimeoutMs: CATALOG_DEEP_SEARCH_CHUNK_TIMEOUT_MS,
     totalTimeoutMs: CATALOG_DEEP_SEARCH_TIMEOUT_MS,
+    onNewSearch: resetFollowupChatForNewSearch,
   });
 
   const { mergeDeepResults } = useSearchResultsMerge();
   const catalogAiSectionRef = useRef(null);
   const lastAiScrollSearchRef = useRef("");
   const [followupInput, setFollowupInput] = useState("");
-  const [followupMessages, setFollowupMessages] = useState([]);
   const [followupAvailableSeriesRefs, setFollowupAvailableSeriesRefs] = useState([]);
   const followupRootQueryRef = useRef("");
   const followupInputRef = useRef(null);
@@ -1014,7 +1019,8 @@ export default function GlobalCatalogSearchPage() {
   const applyResolvedPathsToTree = useCallback(
     (rawPath, rows) => {
       const path = String(rawPath || "").trim();
-      if (!path) return false;
+      const totalSegments = buildCatalogPathPrefixes(path).length;
+      if (!path) return { matched: 0, total: 0, complete: true };
       const categoryPaths = (rows || [])
         .filter((r) => r.kind === "cat")
         .map((r) => String(r.path || "").trim())
@@ -1022,19 +1028,25 @@ export default function GlobalCatalogSearchPage() {
       const openList = resolveCatalogCategoryPathPrefixes(path, categoryPaths);
       if (!openList.length) {
         toast.message("Cestu ve stromu se nepodařilo najít — rozbalte kořen katalogu ručně.");
-        return false;
+        return { matched: 0, total: totalSegments, complete: false };
       }
       setOpenPaths((prev) => {
         const next = new Set(prev);
         for (const p of openList) next.add(p);
         return next;
       });
+      // Živě zjištěno: `openPaths` řídí jen kosmetický "otevřeno" stav řádku ve staré
+      // vnořené variantě stromu. Skutečně viditelný Miller-sloupcový prohlížeč
+      // (`CatalogColumnExplorer`) staví sloupce z `browseColumnSelection`
+      // (viz `handleExplorerRowSelect`) - bez tohohle řádku se po prokliku breadcrumby
+      // otevřel jen kořenový sloupec katalogu, ne skutečná pozice řady.
+      setBrowseColumnSelection(openList);
       window.requestAnimationFrame(() => {
         browseTreeSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
       });
-      return true;
+      return { matched: openList.length, total: totalSegments, complete: openList.length >= totalSegments };
     },
-    [setOpenPaths],
+    [setOpenPaths, setBrowseColumnSelection],
   );
 
   useEffect(() => {
@@ -1044,8 +1056,15 @@ export default function GlobalCatalogSearchPage() {
 
     const pending = pendingBrowseTreePathRef.current;
     if (pending?.catalogId === browseCatalogId && rows?.length) {
-      applyResolvedPathsToTree(pending.path, rows);
-      pendingBrowseTreePathRef.current = null;
+      // Živě zjištěno: hlubší patro (např. konkrétní ECB "flow" pod zemí, typicky
+      // dohledatelné teprve po lazy-loadu předchozí úrovně) nemusí být v `rows`
+      // hned napoprvé - dokud `complete` neřekne, že se celá cesta z breadcrumby
+      // podařilo dohledat, necháváme `pending` nastavené, ať to tenhle efekt
+      // zkusí znovu, až doraze další dávka řádků (nová reference `indexedRowsByCat`).
+      const result = applyResolvedPathsToTree(pending.path, rows);
+      if (result.complete) {
+        pendingBrowseTreePathRef.current = null;
+      }
       browseTreeRootsSeededRef.current = browseCatalogId;
       return;
     }
@@ -1260,7 +1279,8 @@ export default function GlobalCatalogSearchPage() {
    */
   useEffect(() => {
     const q = String(submittedCrossQuery || "").trim();
-    if (!searchReady) {
+    // Akcie jsou ve filtru zdrojů jako každý jiný zdroj — odškrtnuté se nehledají.
+    if (!searchReady || !selected.has(HEADER_FILTER_STOCKS_ID)) {
       setStockSearchResults([]);
       return undefined;
     }
@@ -1280,7 +1300,7 @@ export default function GlobalCatalogSearchPage() {
     return () => {
       cancelled = true;
     };
-  }, [submittedCrossQuery, crossSearchSubmitNonce, searchReady]);
+  }, [submittedCrossQuery, crossSearchSubmitNonce, searchReady, selected]);
 
   const browseOptions = useMemo(
     () => CATALOGS.filter((c) => selected.has(c.id)),
@@ -1601,8 +1621,8 @@ export default function GlobalCatalogSearchPage() {
         setBrowseCatalogId(targetCatalog);
         setClassicSearchScope(targetCatalog);
         if (rows?.length) {
-          applyResolvedPathsToTree(path, rows);
-          pendingBrowseTreePathRef.current = null;
+          const result = applyResolvedPathsToTree(path, rows);
+          if (result.complete) pendingBrowseTreePathRef.current = null;
         }
         return;
       }
@@ -1610,7 +1630,12 @@ export default function GlobalCatalogSearchPage() {
         pendingBrowseTreePathRef.current = { catalogId: targetCatalog, path };
         return;
       }
-      applyResolvedPathsToTree(path, rows);
+      // Nechat `pending` nastavené, dokud lazy-load nedohledá i nejhlubší
+      // segment cesty (viz komentář u `applyResolvedPathsToTree`/efektu níže) -
+      // jinak by se ECB "flow" úroveň (a obdobně u data360/bis/fred) otevřela
+      // jen po zemi, protože v okamžiku prokliku ještě nebyla nahraná.
+      const result = applyResolvedPathsToTree(path, rows);
+      pendingBrowseTreePathRef.current = result.complete ? null : { catalogId: targetCatalog, path };
     },
     [browseCatalogId, indexedRowsByCat, setBrowseCatalogId, applyResolvedPathsToTree],
   );
@@ -4184,6 +4209,7 @@ export default function GlobalCatalogSearchPage() {
     };
     const blockKey =
       browseTreeRowOrdinal != null ? `${def.id}-${row.path}-${browseTreeRowOrdinal}` : `${def.id}-${row.path}`;
+    const rowCatalogPath = String(row.full_path || row.catalog_path || row.path || "").trim();
     const compactRowActions = (
       <CatalogSetActionsPanel
         variant="compact"
@@ -4193,6 +4219,9 @@ export default function GlobalCatalogSearchPage() {
         {...{ previewable, isOpen, canAddSources, added, busy, detailActionIsBrowse, detailActionIsQuickPreview, detailButtonLabel }}
         detailDisabled={detailActionBlocked}
         onTogglePreview={(e) => { e.stopPropagation(); handleCompactDataRequest(); }} onActivate={(e) => { e.stopPropagation(); handleActivateRequest(); }} onAddSource={(e) => { e.stopPropagation(); addSource(def, row); }}
+        onShowInTree={
+          rowCatalogPath ? (e) => { e.stopPropagation(); handleShowRowInTree(def, row); } : undefined
+        }
       />
     );
     if (row.internalVisualAsset) {
@@ -4890,6 +4919,39 @@ export default function GlobalCatalogSearchPage() {
     Boolean(deepData) ||
     (Array.isArray(deepSourceStatuses) && deepSourceStatuses.length > 0);
 
+  /**
+   * Zdroje/fáze pro `SearchProgressCard` - nikdy netvrdí, který zdroj je "právě aktivní"
+   * (`activeSource` zůstává níže vždy `null`): SSE stream pro AI hledání posílá jen dokončení
+   * zdroje (`lane`), ne jeho start, takže appka doopravdy neví, co se právě prohledává - jen co
+   * už je hotové. Viz `SearchProgressCard`'s vlastní komentář ke stejnému omezení.
+   */
+  const deepActiveSourceIdsSafe = Array.isArray(deepActiveSourceIds) ? deepActiveSourceIds : [];
+  const deepSearchProgressSources = useMemo(
+    () => deepActiveSourceIdsSafe.map((id) => ({ id, label: deepAiDatabaseLabelCz(id) })),
+    [deepActiveSourceIdsSafe],
+  );
+  const deepSearchCompletedSourceIds = useMemo(
+    () =>
+      (Array.isArray(deepStatusesForUi) ? deepStatusesForUi : [])
+        .filter((s) => {
+          const status = String(s?.status || "").toLowerCase();
+          return status && status !== "pending" && status !== "running";
+        })
+        .map((s) => String(s?.source || "")),
+    [deepStatusesForUi],
+  );
+  const deepSearchStage = useMemo(() => {
+    const total = deepActiveSourceIdsSafe.length;
+    if (total === 0) return "finding";
+    const completed = deepSearchCompletedSourceIds.length;
+    if (completed === 0) return "scanning";
+    if (completed < total) return "comparing";
+    return deepStreamAwaitingFinal ? "selecting" : "preparing";
+  }, [deepActiveSourceIdsSafe, deepSearchCompletedSourceIds, deepStreamAwaitingFinal]);
+  const deepSearchPartialResultCount =
+    (Array.isArray(groupedDeepVerified) ? groupedDeepVerified.length : 0) +
+    (Array.isArray(groupedDeepPossible) ? groupedDeepPossible.length : 0);
+
   // Rámeček sekce AI rešerše jen když má reálný obsah — samotné zvýraznění
   // (?ai=1) jinak vykreslovalo prázdný zelený box a sbalilo browse layout.
   const showDeepChrome = useAiAssistant && deepContentActive;
@@ -5130,11 +5192,76 @@ export default function GlobalCatalogSearchPage() {
     );
   }, [seriesDetailTarget, browseColumnSelection, browseAllRows, browseDef?.label]);
 
+  /**
+   * Živě zjištěno: appka na detailu jedné konkrétní řady ukazovala cestu jen jako "ECB" +
+   * název řady — dvě úrovně, obě neklikací. full_path přitom appka u řady ukládá už dneska
+   * (např. "ECB · ověřené řady > RO > ICP" — Zdroj > Země > skupina), jen se nikde nepoužíval
+   * jako klikací cesta ve stromu. `explorerBreadcrumbItems` výše zůstává jako záložní varianta
+   * pro řádky bez full_path (počítaná řada, vlastní upload apod.) - viz CatalogSeriesFullscreenDetail.
+   *
+   * <p>Živě ověřeno: `seriesDetailTarget.row` NENÍ vždy původní vyhledávací řádek - jakmile je
+   * pro danou řadu už načtený náhled, `handleCompactDataRequest`/`handleActivateRequest` posílají
+   * do `openSeriesDetailPanel` `displayRow` (buď `previewEffectiveRow`, nebo řádek dohledaný přes
+   * `resolveIndexedCatalogPreviewRow` ve stromu, pokud byl katalog dřív procházen) - a řádek ze
+   * stromu nese cestu jako `path`, ne `full_path`. Odtud fallback na `path` navíc.
+   */
+  const seriesDetailCatalogPath = String(
+    seriesDetailTarget?.row?.full_path ||
+      seriesDetailTarget?.row?.catalog_path ||
+      seriesDetailTarget?.row?.path ||
+      "",
+  ).trim();
+
   const handleBackToCatalog = useCallback(() => {
     setCatalogViewMode("browse");
     setSeriesDetailOpen(false);
     setCatalogChartExpanded(false);
   }, []);
+
+  /**
+   * "Ukázat ve stromu" přímo na kartě výsledku hledání - stejná cesta jako klik na
+   * segment breadcrumby na detailu řady (`handleSeriesDetailOpenCatalogPath`), jen bez
+   * nutnosti nejdřív otevřít detail. `def`/`row` bere přímo z karty, ne z `seriesDetailTarget`.
+   */
+  const handleShowRowInTree = useCallback(
+    (def, row) => {
+      const catalogPath = String(row?.full_path || row?.catalog_path || row?.path || "").trim();
+      if (!catalogPath) return;
+      openCatalogPathInBrowseTree(def?.id || "", catalogPath);
+      if (typeof window !== "undefined" && window.matchMedia("(max-width: 1279px)").matches) {
+        setMobileBrowseOpen(true);
+      } else {
+        setBrowseSidebarOpen(true);
+      }
+      closePreview();
+      handleBackToCatalog();
+    },
+    [openCatalogPathInBrowseTree, closePreview, handleBackToCatalog],
+  );
+
+  /**
+   * Kliknutí na segment cesty na detailu řady - zavře fullscreen detail (jinak by strom pod ním
+   * nebyl vidět, detail leží přes celou obrazovku) a otevře příslušnou větev ve stromu, stejně
+   * jako už dnes funguje klik na cestu u karty ve výsledcích hledání.
+   */
+  const handleSeriesDetailOpenCatalogPath = useCallback(
+    (prefix) => {
+      const catalogId = seriesDetailTarget?.def?.id || "";
+      openCatalogPathInBrowseTree(catalogId, prefix);
+      if (typeof window !== "undefined" && window.matchMedia("(max-width: 1279px)").matches) {
+        setMobileBrowseOpen(true);
+      } else {
+        setBrowseSidebarOpen(true);
+      }
+      // Živě zjištěno: samotné zavření detailu (handleBackToCatalog) nestačí - dřív otevřený
+      // náhled (previewKey/previewTarget) zůstal nastavený, a jakmile seriesDetailOpen spadlo na
+      // false, jeho podmínka pro zobrazení (`previewKey && previewTarget && !seriesDetailOpen`)
+      // se splnila a místo stromu se ukázal STARÝ fullscreen náhled té samé řady navrch.
+      closePreview();
+      handleBackToCatalog();
+    },
+    [seriesDetailTarget, openCatalogPathInBrowseTree, closePreview, handleBackToCatalog],
+  );
 
   const handleCloseExplorerPanel = useCallback(() => {
     setBrowseSidebarOpen(false);
@@ -5518,10 +5645,21 @@ export default function GlobalCatalogSearchPage() {
       if (prefs.wbCountry) setWbCountry(String(prefs.wbCountry));
     };
     applyHeaderFilters(loadCatalogHeaderFilters());
-    headerFiltersHydratedRef.current = true;
+    // Příznak se nesmí zvednout dřív, než se načtené nastavení propíše do `selected`.
+    // Ukládací efekt běží ve stejném commitu hned za tímhle, takže by uložil ještě výchozí
+    // výběr zdrojů a přepsal tím, co měl uživatel uložené. V produkci to hned zase přepsala
+    // druhá vlna renderu, ve vývoji (StrictMode spouští efekty dvakrát) se ale přepsané
+    // úložiště stihlo znovu načíst a výchozí hodnoty vyhrály natrvalo — odškrtnutý zdroj
+    // se po načtení stránky vracel zpátky. setTimeout(0) posune zvednutí příznaku za commit.
+    const hydrationTimer = window.setTimeout(() => {
+      headerFiltersHydratedRef.current = true;
+    }, 0);
     const onHeaderFilters = (event) => applyHeaderFilters(event?.detail);
     window.addEventListener(CATALOG_HEADER_FILTERS_EVENT, onHeaderFilters);
-    return () => window.removeEventListener(CATALOG_HEADER_FILTERS_EVENT, onHeaderFilters);
+    return () => {
+      window.clearTimeout(hydrationTimer);
+      window.removeEventListener(CATALOG_HEADER_FILTERS_EVENT, onHeaderFilters);
+    };
   }, [
     setBrowseLocalBranchOnly,
     setBrowseSearchAcrossSelected,
@@ -6061,18 +6199,15 @@ export default function GlobalCatalogSearchPage() {
           {deepContentActive ? (
             <>
           {deepLoading ? (
-            <CatalogDeepSearchLoader
-              active
+            <SearchProgressCard
+              mode="catalog"
               query={aiQuery}
-              sourceIds={deepActiveSourceIds}
-              sourceLabelFn={deepAiDatabaseLabelCz}
-              sourceStatuses={deepStatusesForUi}
-              estimateSec={
-                aiSearchScope === AI_SEARCH_SCOPE_EXTENDED
-                  ? CATALOG_DEEP_SEARCH_ESTIMATE_SEC
-                  : CATALOG_AI_QUICK_ESTIMATE_SEC
-              }
-              onStop={cancelDeepSearch}
+              sources={deepSearchProgressSources}
+              activeSource={null}
+              completedSources={deepSearchCompletedSourceIds}
+              stage={deepSearchStage}
+              resultCount={deepSearchPartialResultCount}
+              onCancel={cancelDeepSearch}
             />
           ) : null}
 
@@ -6697,6 +6832,8 @@ export default function GlobalCatalogSearchPage() {
               onBack={handleBackToCatalog}
               onClose={closeSeriesDetail}
               breadcrumbItems={explorerBreadcrumbItems}
+              catalogPath={seriesDetailCatalogPath}
+              onOpenCatalogPath={handleSeriesDetailOpenCatalogPath}
               autoPreview
               previewLoading={
                 previewLoading &&

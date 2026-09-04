@@ -10,6 +10,7 @@ import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import cz.bankintel.explore.ExploreDtos.ExploreSectorRequest;
+import cz.bankintel.search.CatalogIndexStore;
 import cz.bankintel.search.openai.OpenAiClient;
 import cz.bankintel.service.research.WebResearchService;
 import java.util.List;
@@ -55,7 +56,8 @@ class ExploreSectorServiceWebResearchFallbackTest {
                 mock(ExplorePresetPreviewService.class),
                 mock(ExploreDiscoveryCache.class),
                 mock(Environment.class),
-                webResearchService);
+                webResearchService,
+                mock(CatalogIndexStore.class));
     }
 
     @Test

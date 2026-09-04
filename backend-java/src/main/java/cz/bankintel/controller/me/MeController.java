@@ -4,6 +4,7 @@ import cz.bankintel.domain.dto.AuthDtos.MeResponse;
 import cz.bankintel.domain.dto.MeDtos;
 import cz.bankintel.domain.dto.MeDtos.ChangePasswordRequest;
 import cz.bankintel.domain.dto.MeDtos.DashboardPageCreateRequest;
+import cz.bankintel.domain.dto.MeDtos.DashboardPageKpisRequest;
 import cz.bankintel.domain.dto.MeDtos.DashboardPagePatchRequest;
 import cz.bankintel.domain.dto.MeDtos.DashboardWidgetCreateRequest;
 import cz.bankintel.domain.dto.MeDtos.DashboardWidgetPatchRequest;
@@ -88,6 +89,24 @@ public class MeController {
     public Map<String, Boolean> reorderPages(@Valid @RequestBody ReorderPagesRequest body) {
         meDashboardService.reorderPages(currentUser.requireUserEntity(), body);
         return MeDtos.okMap();
+    }
+
+    @GetMapping("/dashboard/pages/{pageId}/kpis")
+    public Map<String, Object> listPageKpis(@PathVariable String pageId) {
+        return Map.of("kpis", meDashboardService.listPageKpis(currentUser.requireUserEntity(), pageId));
+    }
+
+    @PutMapping("/dashboard/pages/{pageId}/kpis")
+    public Map<String, Object> savePageKpis(
+            @PathVariable String pageId, @RequestBody DashboardPageKpisRequest body) {
+        return Map.of(
+                "kpis",
+                meDashboardService.savePageKpis(currentUser.requireUserEntity(), pageId, body.kpis()));
+    }
+
+    @GetMapping("/dashboard/pages/{pageId}/kpis-resolved")
+    public Map<String, Object> resolvePageKpis(@PathVariable String pageId) {
+        return meDashboardService.resolvePageKpis(currentUser.requireUserEntity(), pageId);
     }
 
     @GetMapping("/dashboard/pages/{pageId}/widgets")

@@ -1,7 +1,10 @@
 package cz.bankintel.explore;
 
 import cz.bankintel.connector.ConnectorFactory;
+import cz.bankintel.domain.entity.UserUploadEntity;
+import cz.bankintel.explore.ExploreDtos.ExploreSummarizeRequest;
 import cz.bankintel.explore.ExploreDtos.ExploreSummarizeSeriesItem;
+import cz.bankintel.repository.UserUploadRepository;
 import cz.bankintel.search.CatalogIndexStore;
 import cz.bankintel.search.CatalogPreviewOrchestrator;
 import cz.bankintel.search.CatalogSourceRegistry;
@@ -9,6 +12,7 @@ import cz.bankintel.explore.manager.ManagerSeriesCacheReader;
 import cz.bankintel.explore.manager.fetch.ManagerFetchRegistry;
 import cz.bankintel.explore.manager.fetch.ManagerMirrorFetchSupport;
 import cz.bankintel.search.CatalogTextUtils;
+import cz.bankintel.service.myseries.SavedSeriesResolverService;
 import jakarta.annotation.PreDestroy;
 import java.time.Year;
 import java.util.ArrayList;
@@ -48,6 +52,8 @@ public class ExploreSummarizeFetchService {
     private final ConnectorFactory connectorFactory;
     private final ManagerSeriesCacheReader managerSeriesCacheReader;
     private final ManagerFetchRegistry managerFetchRegistry;
+    private final UserUploadRepository uploadRepository;
+    private final SavedSeriesResolverService savedSeriesResolverService;
     private final ExecutorService fetchExecutor = Executors.newFixedThreadPool(FETCH_CONCURRENCY);
     // Not final: tests shrink this to exercise the timeout path without a real 25s wait. Production
     // code never changes it from the default.
@@ -93,6 +99,15 @@ public class ExploreSummarizeFetchService {
         if (items == null || items.isEmpty()) {
             return new BatchResult(loaded, failed, summary(0, 0, 0, indexStore.ftsDbAvailable()));
         }
+        // Uživatelem vynucené řady (Krok 1: "Vlastní řady z katalogu") appka posílá za
+        // automaticky objevenými - smyčka níže se zastaví, jakmile najde `cap` (14) úspěšných
+        // fetchů, takže vynucená řada na konci seznamu se nikdy ani nezkusila, pokud auto-objevené
+        // řady samy o sobě daly 14 úspěchů dřív. UI přitom slibuje "vámi vybrané řady vždy vstoupí
+        // do analýzy" - stabilní přeřazení dá `user_selected` řady na začátek, aby se vždycky
+        // aspoň ZKUSILY jako první, ne až když (a jestli) na ně dojde řada.
+        items = items.stream()
+                .sorted(Comparator.comparing((ExploreSummarizeSeriesItem it) -> !it.userSelected()))
+                .toList();
         int index = 0;
         while (index < items.size() && loaded.size() < cap) {
             int waveEnd = Math.min(items.size(), index + FETCH_CONCURRENCY);
@@ -211,7 +226,7 @@ public class ExploreSummarizeFetchService {
             List<Map<String, Object>> observations,
             String fetchSource,
             String contextGeo) {
-        Map<String, Object> metrics = computeMetrics(observations);
+        Map<String, Object> metrics = computeMetrics(observations, resolveFrequencyCode(hydrated, observations));
         List<Map<String, Object>> chartPoints = chartPoints(observations);
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("title", firstNonBlank(hydrated.get("title"), hydrated.get("indicator_name"), setId));
@@ -240,6 +255,72 @@ public class ExploreSummarizeFetchService {
         out.put("data_context_line", buildDataContextLine(out, metrics));
         out.put("status", "loaded");
         return Optional.of(out);
+    }
+
+    /**
+     * Resolvne jednu nahranou uživatelskou řadu (Krok 1 „Vlastní data" v Manager Exploreru) do
+     * STEJNÉHO tvaru „loaded item" řádku jako katalogová řada z {@link #fetchOne} - stejné
+     * {@code computeMetrics}/{@code buildDataContextLine}, jen zdroj dat je {@link
+     * SavedSeriesResolverService} místo konektoru. Dřív appka `request.uploadIds()` u detailní
+     * Explorer analýzy vůbec nečetla, takže vybraná nahraná data neměla na report žádný vliv -
+     * ani na graf, ani na AI text, ani na součet řad.
+     *
+     * <p>{@code source_type} se označí "user_upload" - stejná konvence jako {@code
+     * ChartPrivacySupport.PRIVATE_SOURCE_TYPES} u jiné appkové funkce; podle ní pozná gating krok
+     * ({@link ExploreSectionBucketService}, {@link ExploreIndicatorRelationshipService}), že
+     * surová hodnota téhle řady nesmí doputovat do promptu pro OpenAI, když je zapnuté „Strict
+     * private".
+     */
+    @SuppressWarnings("unchecked")
+    Optional<Map<String, Object>> fetchUserUpload(String uploadId, String ownerUserId) {
+        String id = str(uploadId);
+        String owner = str(ownerUserId);
+        if (id.isBlank() || owner.isBlank()) {
+            return Optional.empty();
+        }
+        UserUploadEntity upload = uploadRepository.findByIdAndUserId(id, owner).orElse(null);
+        if (upload == null) {
+            return Optional.empty();
+        }
+        try {
+            SavedSeriesResolverService.ResolvedPoints resolved = savedSeriesResolverService.resolvePoints(
+                    owner, Map.of("kind", "user_upload", "user_upload_id", id));
+            List<Map<String, Object>> observations = resolved.points();
+            if (observations.size() < 2) {
+                return Optional.empty();
+            }
+            Map<String, Object> hydrated = new LinkedHashMap<>();
+            hydrated.put("title", upload.getOriginalName());
+            hydrated.put("query_params", Map.of());
+            Optional<Map<String, Object>> item =
+                    buildLoadedItem(hydrated, "user_upload", id, observations, "user_upload", "");
+            item.ifPresent(row -> row.put(
+                    "data_context_line_safe_summary",
+                    buildSafeSummaryContextLine(row, (Map<String, Object>) row.get("metrics"))));
+            return item;
+        } catch (Exception ex) {
+            log.warn("summarize user-upload fetch failed upload_id={}: {}", id, ex.getMessage());
+            return Optional.empty();
+        }
+    }
+
+    /**
+     * Volané ze dvou nezávislých míst ({@link ExploreInstantThenDetailService},
+     * {@link ExploreSummarizeService}), která donedávna obě stejnou chybou {@code
+     * request.uploadIds()}/{@code request.includeUserData()} úplně ignorovala - proto je logika
+     * tady, na jednom místě, ne zkopírovaná v obou volajících. Vrací NOVÝ seznam (katalogové +
+     * úspěšně dohledané nahrané řady); {@code loaded} samotné nemění.
+     */
+    public List<Map<String, Object>> appendUserUploadedSeries(
+            List<Map<String, Object>> loaded, ExploreSummarizeRequest request, String ownerUserId) {
+        if (!request.includeUserData() || request.uploadIds().isEmpty() || str(ownerUserId).isBlank()) {
+            return loaded;
+        }
+        List<Map<String, Object>> out = new ArrayList<>(loaded);
+        for (String uploadId : request.uploadIds()) {
+            fetchUserUpload(uploadId, ownerUserId).ifPresent(out::add);
+        }
+        return out;
     }
 
     private Optional<Map<String, Object>> buildMirrorUnavailableItem(
@@ -394,6 +475,13 @@ public class ExploreSummarizeFetchService {
         if (!qp.isEmpty()) {
             target.put("query_params", qp);
         }
+        // Jednotka a frekvence z katalogového řádku se dosud zahazovaly, přestože na nich závisí
+        // správný meziroční posun i to, jestli AI uvidí u čísla jednotku.
+        for (String key : List.of("unit", "unit_label", "freq", "frequency")) {
+            if (str(target.get(key)).isBlank() && row.get(key) != null) {
+                target.put(key, row.get(key));
+            }
+        }
         target.put("_fts_index_hit", true);
     }
 
@@ -525,7 +613,54 @@ public class ExploreSummarizeFetchService {
         return points;
     }
 
-    private static Map<String, Object> computeMetrics(List<Map<String, Object>> observations) {
+    /**
+     * Kód frekvence řady: přednost má metadata ze zdroje, jinak se odvodí z tvaru období.
+     * Bez ní se meziroční změna počítala vždy posunem o 12 pozorování — u čtvrtletní řady to
+     * byla tříletá změna a u roční dvanáctiletá, obojí popsané jako „YoY".
+     */
+    static String resolveFrequencyCode(Map<String, Object> hydrated, List<Map<String, Object>> observations) {
+        String raw = firstNonBlank(
+                hydrated == null ? null : hydrated.get("freq"),
+                hydrated == null ? null : hydrated.get("frequency"));
+        String code = str(raw).trim().toUpperCase(Locale.ROOT);
+        if (!code.isBlank()) {
+            char first = code.charAt(0);
+            if (first == 'M' || first == 'Q' || first == 'A' || first == 'Y' || first == 'D' || first == 'W') {
+                return first == 'Y' ? "A" : String.valueOf(first);
+            }
+        }
+        if (observations == null || observations.isEmpty()) {
+            return "";
+        }
+        String period = str(observations.getLast().get("period")).trim();
+        if (period.matches("\\d{4}")) {
+            return "A";
+        }
+        if (period.matches("(?i)\\d{4}[-_ ]?Q[1-4]")) {
+            return "Q";
+        }
+        if (period.matches("(?i)\\d{4}[-_ ]?M?(0[1-9]|1[0-2])")) {
+            return "M";
+        }
+        if (period.matches("\\d{4}-\\d{2}-\\d{2}")) {
+            return "D";
+        }
+        return "";
+    }
+
+    /** Kolik pozorování zpět leží „před rokem" pro danou frekvenci. 0 = neumíme určit. */
+    private static int yearOverYearLag(String frequencyCode) {
+        return switch (frequencyCode == null ? "" : frequencyCode) {
+            case "M" -> 12;
+            case "Q" -> 4;
+            case "A" -> 1;
+            case "W" -> 52;
+            default -> 0;
+        };
+    }
+
+    static Map<String, Object> computeMetrics(
+            List<Map<String, Object>> observations, String frequencyCode) {
         Map<String, Object> metrics = new LinkedHashMap<>();
         Map<String, Object> last = observations.getLast();
         Map<String, Object> prev = observations.size() > 1 ? observations.get(observations.size() - 2) : last;
@@ -545,11 +680,15 @@ public class ExploreSummarizeFetchService {
         if (latest != null && previous != null && previous != 0.0) {
             metrics.put("period_over_period_change", (latest - previous) / Math.abs(previous));
         }
-        if (observations.size() >= 13) {
-            Double yearAgo = toDouble(observations.get(observations.size() - 13).get("value"));
+        int lag = yearOverYearLag(frequencyCode);
+        if (lag > 0 && observations.size() > lag) {
+            Double yearAgo = toDouble(observations.get(observations.size() - 1 - lag).get("value"));
             if (latest != null && yearAgo != null && yearAgo != 0.0) {
                 metrics.put("year_on_year_change", (latest - yearAgo) / Math.abs(yearAgo));
             }
+        }
+        if (!str(frequencyCode).isBlank()) {
+            metrics.put("frequency_code", frequencyCode);
         }
         return metrics;
     }
@@ -563,8 +702,27 @@ public class ExploreSummarizeFetchService {
         String trend = trendLabelCz(str(metrics.get("trend_direction")));
         Object yoy = metrics.get("year_on_year_change");
         String yoyText = yoy instanceof Number n ? String.format(Locale.ROOT, "%.1f %%", n.doubleValue() * 100) : "n/a";
-        return title + " [" + src + "/" + setId + "]: poslední hodnota " + latest + " (" + lastDate + "), trend "
-                + trend + ", YoY " + yoyText;
+        // Bez jednotky nemá model jak poznat, jestli 103,4 je index, procento nebo miliarda korun —
+        // a dosadí si ji sám. `unit` přitom leží ve stejné mapě (viz copyRefMetadata).
+        String unit = str(firstNonBlank(item.get("unit"), item.get("unit_label")));
+        String unitText = unit.isBlank() ? "" : " " + unit;
+        return title + " [" + src + "/" + setId + "]: poslední hodnota " + latest + unitText
+                + " (" + lastDate + "), trend " + trend + ", YoY " + yoyText;
+    }
+
+    /**
+     * Bezpečná varianta pro nahraná uživatelská data se zapnutým „Anonymní souhrny" - jen trend a
+     * meziroční změna, BEZ absolutní poslední hodnoty (přesně to, co UI přepínač slibuje: „AI
+     * dostane jen agregované signály typu trend nebo meziroční změna, bez raw tabulky."). Používá
+     * se jen jako AI-prompt text pro {@code user_upload} řady - lokální zobrazení uživateli pořád
+     * čte plný {@code data_context_line}, ten se nemaskuje nikdy.
+     */
+    private static String buildSafeSummaryContextLine(Map<String, Object> item, Map<String, Object> metrics) {
+        String title = str(item.get("title"));
+        String trend = trendLabelCz(str(metrics.get("trend_direction")));
+        Object yoy = metrics.get("year_on_year_change");
+        String yoyText = yoy instanceof Number n ? String.format(Locale.ROOT, "%.1f %%", n.doubleValue() * 100) : "n/a";
+        return title + " (vlastní data uživatele): trend " + trend + ", YoY " + yoyText;
     }
 
     private static boolean isStaleSeries(List<Map<String, Object>> observations) {

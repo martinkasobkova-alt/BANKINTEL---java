@@ -8,8 +8,6 @@ import {
   GLOBAL_CATALOG_BROWSE_UI_TIMEOUT_MS,
   CATALOG_SOURCE_STATUS_MAP,
 } from "@/lib/catalogBrowseStatusRegistry";
-import { CATALOG_AI_QUICK_TIMEOUT_MS, CATALOG_DEEP_SEARCH_TIMEOUT_MS } from "@/lib/catalogDeepSearchClient";
-
 export const IMF_BROWSE_BETA_UNAVAILABLE_CZ =
   "Katalog IMF je zatím beta. Upstream IMF může timeoutovat nebo strom nemusí být dostupný. Použijte AI asistenta / přímý výběr ověřené databáze, nebo zkuste později.";
 export const IMF_PREVIEW_UNAVAILABLE_CZ =
@@ -21,13 +19,6 @@ export const CATALOG_EMPTY_BROWSE_CZ =
 
 export const CATALOG_DEEP_SEARCH_CHUNK_TIMEOUT_MS =
   Number(process.env.REACT_APP_DEEP_SEARCH_CHUNK_TIMEOUT_MS) || 120000;
-export const CATALOG_DEEP_SEARCH_ESTIMATE_SEC = Math.min(
-  120,
-  Math.round(CATALOG_DEEP_SEARCH_TIMEOUT_MS / 1000 * 0.75),
-);
-export const CATALOG_AI_QUICK_ESTIMATE_SEC =
-  Number(process.env.REACT_APP_CATALOG_AI_QUICK_ESTIMATE_SEC) ||
-  Math.min(45, Math.round(CATALOG_AI_QUICK_TIMEOUT_MS / 1000 * 0.75));
 
 export const EUROSTAT_DEEP_AI_HINT_HAS_REF_CZ =
   "AI našla odpovídající položku v katalogu Eurostatu. Přidání použije stejný postup jako při ručním výběru v katalogu.";

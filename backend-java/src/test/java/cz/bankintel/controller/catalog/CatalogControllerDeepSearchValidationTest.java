@@ -101,6 +101,8 @@ class CatalogControllerDeepSearchValidationTest {
     @MockitoBean
     private CurrentUser currentUser;
     @MockitoBean
+    private cz.bankintel.service.access.FeatureAccessService featureAccessService;
+    @MockitoBean
     private AdminAccess adminAccess;
 
     @MockitoBean

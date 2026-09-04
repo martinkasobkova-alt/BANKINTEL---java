@@ -19,9 +19,9 @@ public class ExploreInstantThenDetailService {
     private final ExploreSectionedSynthesisService sectionedSynthesisService;
     private final ExploreIndicatorRelationshipService relationshipService;
 
-    public Map<String, Object> start(ExploreSummarizeRequest request, String summarizeMode) {
+    public Map<String, Object> start(ExploreSummarizeRequest request, String summarizeMode, String ownerUserId) {
         String detailJobId = "explore-detail-" + UUID.randomUUID().toString().replace("-", "");
-        ExploreSummarizeJob job = new ExploreSummarizeJob(detailJobId, request);
+        ExploreSummarizeJob job = new ExploreSummarizeJob(detailJobId, request, ownerUserId);
         job.setJobKind("instant_then_detail_v2".equals(summarizeMode) ? "instant_then_detail_v2" : "instant_then_detail");
         job.setStatus("running");
         job.setDetailStatus("running");
@@ -65,11 +65,14 @@ public class ExploreInstantThenDetailService {
             ExploreSummarizeRequest request = job.getRequest();
             ExploreSummarizeFetchService.BatchResult fetch =
                     summarizeFetchService.fetchBatch(request.selectedSeries(), request.country());
+            List<Map<String, Object>> loaded =
+                    summarizeFetchService.appendUserUploadedSeries(fetch.loaded(), request, job.getOwnerUserId());
             job.setProgressStep("relationships");
             job.setProgressPercent(45);
             job.setDetail("Počítám statistické vztahy mezi ukazateli (korelace, trend, medián).");
+            String privacyMode = ExploreUserDataPrivacy.normalize(request.userDataPrivacyMode());
             ExploreIndicatorRelationshipService.RelationshipsResult relationships =
-                    relationshipService.analyze(fetch.loaded(), request.question(), request.sector());
+                    relationshipService.analyze(loaded, request.question(), request.sector(), privacyMode);
             job.setProgressStep("ai_sections");
             job.setProgressPercent(55);
             job.setDetail("AI píše sekční detailní interpretaci z načtených dat a spočítaných vztahů.");
@@ -78,29 +81,37 @@ public class ExploreInstantThenDetailService {
                             request.question(),
                             request.sector(),
                             nullSafe(request.country()),
-                            fetch.loaded(),
-                            relationships.digest()));
+                            loaded,
+                            relationships.digest(),
+                            privacyMode));
             Map<String, Object> detailResult = new LinkedHashMap<>(synthesis.payload());
             detailResult.put("computed_relationships", relationships.relationships());
             detailResult.put("ok", true);
             detailResult.put("status", "completed");
             detailResult.put("job_id", job.getJobId());
-            detailResult.put("chart_payload", ExploreSummarizeFetchService.buildChartPayload(fetch.loaded()));
-            detailResult.put("chart_summaries", fetch.loaded().stream().map(row -> String.valueOf(row.get("data_context_line"))).toList());
-            detailResult.put("chart_count", fetch.loaded().size());
-            detailResult.put("series_count_used", fetch.loaded().size());
+            detailResult.put("chart_payload", ExploreSummarizeFetchService.buildChartPayload(loaded));
+            detailResult.put("chart_summaries", loaded.stream().map(row -> String.valueOf(row.get("data_context_line"))).toList());
+            detailResult.put("chart_count", loaded.size());
+            detailResult.put("series_count_used", loaded.size());
             detailResult.put("fetch_summary", fetch.summary());
-            detailResult.put("series_used", ExploreSummarizeFetchService.buildSeriesUsed(fetch.loaded()));
+            detailResult.put("series_used", ExploreSummarizeFetchService.buildSeriesUsed(loaded));
             detailResult.put(
-                    "series_coverage", ExploreSummarizeFetchService.buildSeriesCoverage(fetch.loaded(), fetch.failed()));
+                    "series_coverage", ExploreSummarizeFetchService.buildSeriesCoverage(loaded, fetch.failed()));
             detailResult.put(
                     "limitations_cz",
-                    fetch.loaded().isEmpty()
+                    loaded.isEmpty()
                             ? "Detailní AI syntéza bez numerických dat — fetch řad selhal."
-                            : "Sekční detailní syntéza z " + fetch.loaded().size() + " řad.");
+                            : "Sekční detailní syntéza z " + loaded.size() + " řad.");
             detailResult.put("question", request.question());
             detailResult.put("primary_segment", request.sector());
-            job.setChartPayload(ExploreSummarizeFetchService.buildChartPayload(fetch.loaded()));
+            detailResult.put("user_data_used", loaded.size() > fetch.loaded().size());
+            detailResult.put(
+                    "user_uploads_used",
+                    loaded.stream()
+                            .filter(row -> "user_upload".equals(row.get("source_type")))
+                            .map(row -> Map.of("title", String.valueOf(row.get("title")), "upload_id", String.valueOf(row.get("set_id"))))
+                            .toList());
+            job.setChartPayload(ExploreSummarizeFetchService.buildChartPayload(loaded));
             job.setDetailResult(detailResult);
             job.setResult(detailResult);
             job.setStatus("completed");

@@ -19,9 +19,12 @@ import {
   LineChart, Line, ResponsiveContainer, Tooltip as ReTooltip,
 } from "recharts";
 import api from "@/lib/api";
+import PersonalCatalogChartForm from "@/components/myDashboard/PersonalCatalogChartForm";
+import { indicatorSelectOptions, resolveIndicatorLabel } from "@/lib/indicatorLabels";
 
 const TABS = [
   { id: "arad",     label: "Z databáze",   Icon: Database    },
+  { id: "catalog",  label: "Z katalogu",   Icon: Search      },
   { id: "mydata",   label: "Moje data",    Icon: FolderOpen  },
   { id: "computed", label: "Výpočet",      Icon: Calculator  },
 ];
@@ -251,7 +254,7 @@ export default function HeadlineKpiPicker({ onSelect, disabled }) {
     };
     const engineType = typeMap[String(src?.source_type || "").toLowerCase()] || "external_catalog_chart";
     const item = {
-      title: ind.name || ind.id,
+      title: indicatorLabelById[String(ind.id)] || resolveIndicatorLabel(ind),
       type: engineType,
       config: {
         source_id: sourceId,
@@ -261,7 +264,7 @@ export default function HeadlineKpiPicker({ onSelect, disabled }) {
         source_type: src?.source_type || "",
       },
     };
-    setPreview({ loading: true, title: ind.name || ind.id, item, points: null, latest: null, period: null });
+    setPreview({ loading: true, title: indicatorLabelById[String(ind.id)] || resolveIndicatorLabel(ind), item, points: null, latest: null, period: null });
     api.get(`/sources/${sourceId}/preview`, { params: { limit: 20, indicator_id: ind.id } })
       .then(({ data }) => {
         const pts = parseRows(data?.rows || []);
@@ -332,6 +335,11 @@ export default function HeadlineKpiPicker({ onSelect, disabled }) {
       String(ind.id   || "").toLowerCase().includes(q)
     );
   });
+  // Popisky se rozliší, i když zdroj pošle u víc řad ten samý název (ARAD dává
+  // často jen měnu) — jinak by v seznamu bylo dvacet položek „USD" a nešlo by vybrat.
+  const indicatorLabelById = Object.fromEntries(
+    indicatorSelectOptions(filteredInds).map(({ id, label }) => [id, label])
+  );
   const filteredComputed = computed.filter((c) => {
     if (!compSearch.trim()) return true;
     const q = compSearch.trim().toLowerCase();
@@ -424,7 +432,7 @@ export default function HeadlineKpiPicker({ onSelect, disabled }) {
                 >
                   <div className="min-w-0">
                     <p className="text-xs font-medium text-foreground truncate leading-snug">
-                      {ind.name || ind.id}
+                      {indicatorLabelById[String(ind.id)] || resolveIndicatorLabel(ind)}
                     </p>
                     {ind.name && String(ind.id) !== ind.name && (
                       <p className="text-[10px] text-muted-foreground truncate font-mono">
@@ -526,6 +534,35 @@ export default function HeadlineKpiPicker({ onSelect, disabled }) {
       )}
 
       {/* ── Computed indicators tab ──────────────────────── */}
+      {!preview && tab === "catalog" && (
+        <div className="space-y-2">
+          <p className="text-[11px] text-muted-foreground">
+            Vyberte řadu z katalogu. Hodnota se uloží teď a na dlaždici bude vidět, ke kterému
+            období platí.
+          </p>
+          <PersonalCatalogChartForm
+            kpiMode
+            onApply={({ title, config }) => {
+              // Config nese `chart_primary_snapshot`, takže se přehled otevře bez volání katalogu.
+              const item = { title, type: "external_catalog_chart", config };
+              const rows = Array.isArray(config?.chart_primary_snapshot?.rows)
+                ? config.chart_primary_snapshot.rows
+                : [];
+              const pts = parseRows(rows);
+              const last = pts[pts.length - 1];
+              setPreview({
+                loading: false,
+                title,
+                item,
+                points: pts.slice(-20),
+                latest: last?.value ?? null,
+                period: last?.period ?? null,
+              });
+            }}
+          />
+        </div>
+      )}
+
       {!preview && tab === "computed" && (
         <div className="space-y-2">
           {loadingComputed ? (

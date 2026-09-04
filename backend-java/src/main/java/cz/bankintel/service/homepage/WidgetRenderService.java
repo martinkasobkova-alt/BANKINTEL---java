@@ -74,7 +74,7 @@ public class WidgetRenderService {
             case "computed_view" -> computedViewWidgetResolver.resolve(cfg, user);
             case "chart_net_result", "chart_dataset_distribution", "table_recent_syncs", "dataset_table", "dataset_chart", "formula_chart" ->
                     adminChartWidgetResolver.resolve(type, cfg);
-            case "user_upload_chart", "uploaded_data_chart" -> userUploadChartWidgetResolver.resolve(cfg);
+            case "user_upload_chart", "uploaded_data_chart" -> userUploadChartWidgetResolver.resolve(cfg, user);
             case "external_catalog_chart" -> externalCatalogChartWidgetResolver.resolve(cfg, user);
             case "rss_monitoring" -> rssMonitoringWidgetResolver.resolve(cfg, user);
             default -> resolveDatasetFamily(type, cfg, user);

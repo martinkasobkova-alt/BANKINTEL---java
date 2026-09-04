@@ -111,7 +111,7 @@ export default function CatalogHeaderFiltersMenu({ className = "" }) {
         data-testid="app-shell-catalog-filters-panel"
       >
         <div
-          className="w-full max-w-full md:w-max md:max-w-[min(92vw,56rem)] rounded-2xl border border-[hsl(var(--border)/0.85)] bg-[hsl(var(--card))] px-3 py-2.5 shadow-xl"
+          className="w-full max-w-full md:w-[min(92vw,34rem)] rounded-2xl border border-[hsl(var(--border)/0.85)] bg-[hsl(var(--card))] px-3 py-2.5 shadow-xl"
           role="group"
           aria-label={t("pages.catalogHub.databases")}
         >
@@ -134,7 +134,10 @@ export default function CatalogHeaderFiltersMenu({ className = "" }) {
             </button>
           </div>
 
-          <div className="flex max-w-full flex-nowrap items-center gap-x-3 gap-y-1 overflow-x-auto pb-0.5">
+          {/* Zdroje se zalamují do řádků. Dřív to byl jeden nezalomitelný řádek s vodorovným
+              posuvníkem, takže poslední položky nebyly vidět a člověk o nich nevěděl —
+              „Akcie“ na konci seznamu se daly najít jen odscrollováním do strany. */}
+          <div className="flex max-w-full flex-wrap items-center gap-x-3 gap-y-1.5">
             {HEADER_FILTER_CATALOG_OPTIONS.map((c) => (
               <label
                 key={c.id}
