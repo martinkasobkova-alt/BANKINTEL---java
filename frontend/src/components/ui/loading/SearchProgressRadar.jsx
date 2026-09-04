@@ -1,19 +1,29 @@
-import React from "react";
+import React, { useId } from "react";
 
 const SIZE = 160;
 const CENTER = SIZE / 2;
 const RING_INNER = 40;
 const RING_OUTER = 62;
+const SWEEP_ANGLE_DEG = 50;
+
+function sweepWedgePath(radius, angleDeg) {
+  const rad = (angleDeg * Math.PI) / 180;
+  const x = radius * Math.cos(rad);
+  const y = radius * Math.sin(rad);
+  return `M 0 0 L ${radius} 0 A ${radius} ${radius} 0 0 1 ${x.toFixed(2)} ${y.toFixed(2)} Z`;
+}
 
 /**
- * Dva jemné soustředné kruhy, lupa bloumající po vnitřní ploše (ne po dráze kruhu — na přání
- * "ať se pohne, ne ať se točí do kolečka") a body zdrojů rozmístěné po vnějším kruhu, rotující
- * jako skupina. Barva/stav bodu (čeká/aktivní/hotovo) je jediná věc, co se mění per-zdroj —
- * pozice se odvozuje jen z pořadí, aby appka nikdy netvrdila nic o KONKRÉTNÍM zdroji, co
- * doopravdy neví (viz `mode="catalog"` v SearchProgressCard, kde je `state` u všech zdrojů
- * buď "pending" nebo "done", nikdy "active").
+ * Dva jemné soustředné kruhy, měkký rotující "sweep" výsek na pozadí (čistě dekorativní — ať
+ * karta nepůsobí prázdně, i když je zdrojů málo/žádné), lupa bloumající po vnitřní ploše (ne
+ * po dráze kruhu — na přání "ať se pohne, ne ať se točí do kolečka") a body zdrojů rozmístěné
+ * po vnějším kruhu, rotující jako skupina. Barva/stav bodu (čeká/aktivní/hotovo) je jediná věc,
+ * co se mění per-zdroj — pozice se odvozuje jen z pořadí, aby appka nikdy netvrdila nic o
+ * KONKRÉTNÍM zdroji, co doopravdy neví (viz `mode="catalog"` v SearchProgressCard, kde je
+ * `state` u všech zdrojů buď "pending" nebo "done", nikdy "active").
  */
 export default function SearchProgressRadar({ sources = [], size = SIZE }) {
+  const gradientId = useId();
   return (
     <div
       className="relative shrink-0"
@@ -21,6 +31,20 @@ export default function SearchProgressRadar({ sources = [], size = SIZE }) {
       aria-hidden="true"
     >
       <svg viewBox={`0 0 ${SIZE} ${SIZE}`} width={size} height={size}>
+        <defs>
+          <radialGradient id={gradientId} cx="0" cy="0" r={RING_OUTER} gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="0.3" />
+            <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0" />
+          </radialGradient>
+        </defs>
+        <g
+          className="motion-safe:animate-[radar-spin_6s_linear_infinite]"
+          style={{ transformOrigin: `${CENTER}px ${CENTER}px` }}
+        >
+          <g transform={`translate(${CENTER} ${CENTER})`}>
+            <path d={sweepWedgePath(RING_OUTER, SWEEP_ANGLE_DEG)} fill={`url(#${gradientId})`} />
+          </g>
+        </g>
         <circle
           cx={CENTER}
           cy={CENTER}
