@@ -1,20 +1,20 @@
 import React from "react";
-import { Search } from "lucide-react";
 
 const SIZE = 160;
 const CENTER = SIZE / 2;
 const RING_INNER = 40;
 const RING_OUTER = 62;
+const SWEEP_RADIUS = (RING_INNER + RING_OUTER) / 2;
 
 /**
- * Střed + dva jemné soustředné kruhy, body zdrojů rozmístěné po vnějším kruhu a pomalu
+ * Dva jemné soustředné kruhy, lupa obíhající po dráze mezi nimi (ne fixně uprostřed — na
+ * přání uživatelky ať se appka viditelně "hýbe") a body zdrojů rozmístěné po vnějším kruhu,
  * rotující jako skupina. Barva/stav bodu (čeká/aktivní/hotovo) je jediná věc, co se mění
  * per-zdroj — pozice se odvozuje jen z pořadí, aby appka nikdy netvrdila nic o KONKRÉTNÍM
  * zdroji, co doopravdy neví (viz `mode="catalog"` v SearchProgressCard, kde je `state`
  * u všech zdrojů buď "pending" nebo "done", nikdy "active").
  */
 export default function SearchProgressRadar({ sources = [], size = SIZE }) {
-  const scale = size / SIZE;
   return (
     <div
       className="relative shrink-0"
@@ -36,6 +36,41 @@ export default function SearchProgressRadar({ sources = [], size = SIZE }) {
           className="fill-none stroke-[hsl(var(--primary)/0.12)]"
           strokeWidth={1.5}
         />
+        <circle cx={CENTER} cy={CENTER} r={2.5} className="fill-[hsl(var(--primary)/0.35)]" />
+
+        {/* Lupa obíhá po dráze mezi oběma kruhy; vnitřní <g> se otáčí opačným směrem, aby
+            samotná ikona zůstala vzpřímená (nesměřuje šikmo), jen mění pozici po kružnici. */}
+        <g
+          className="motion-safe:animate-[radar-spin_9s_linear_infinite]"
+          style={{ transformOrigin: `${CENTER}px ${CENTER}px` }}
+        >
+          <g transform={`translate(${CENTER + SWEEP_RADIUS} ${CENTER})`}>
+            <g className="motion-safe:animate-[radar-spin_9s_linear_infinite_reverse]">
+              <circle
+                r={9}
+                className="fill-white stroke-[hsl(var(--primary)/0.22)]"
+                strokeWidth={1}
+              />
+              <circle
+                cx={-1.3}
+                cy={-1.3}
+                r={3.6}
+                className="fill-none stroke-[hsl(var(--primary-deep))]"
+                strokeWidth={1.6}
+              />
+              <line
+                x1={1.1}
+                y1={1.1}
+                x2={3.3}
+                y2={3.3}
+                className="stroke-[hsl(var(--primary-deep))]"
+                strokeWidth={1.6}
+                strokeLinecap="round"
+              />
+            </g>
+          </g>
+        </g>
+
         <g
           className="motion-safe:animate-[radar-spin_22s_linear_infinite]"
           style={{ transformOrigin: `${CENTER}px ${CENTER}px` }}
@@ -72,14 +107,6 @@ export default function SearchProgressRadar({ sources = [], size = SIZE }) {
           })}
         </g>
       </svg>
-      <div className="absolute inset-0 flex items-center justify-center">
-        <div
-          className="rounded-full bg-white shadow-sm border border-[hsl(var(--primary)/0.22)] flex items-center justify-center motion-safe:animate-[radar-breathe_2.4s_ease-in-out_infinite]"
-          style={{ width: 36 * scale, height: 36 * scale }}
-        >
-          <Search className="text-[hsl(var(--primary-deep))]" style={{ width: 16 * scale, height: 16 * scale }} />
-        </div>
-      </div>
     </div>
   );
 }
