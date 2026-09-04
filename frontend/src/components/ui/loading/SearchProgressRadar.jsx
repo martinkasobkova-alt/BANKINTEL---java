@@ -4,15 +4,14 @@ const SIZE = 160;
 const CENTER = SIZE / 2;
 const RING_INNER = 40;
 const RING_OUTER = 62;
-const SWEEP_RADIUS = (RING_INNER + RING_OUTER) / 2;
 
 /**
- * Dva jemné soustředné kruhy, lupa obíhající po dráze mezi nimi (ne fixně uprostřed — na
- * přání uživatelky ať se appka viditelně "hýbe") a body zdrojů rozmístěné po vnějším kruhu,
- * rotující jako skupina. Barva/stav bodu (čeká/aktivní/hotovo) je jediná věc, co se mění
- * per-zdroj — pozice se odvozuje jen z pořadí, aby appka nikdy netvrdila nic o KONKRÉTNÍM
- * zdroji, co doopravdy neví (viz `mode="catalog"` v SearchProgressCard, kde je `state`
- * u všech zdrojů buď "pending" nebo "done", nikdy "active").
+ * Dva jemné soustředné kruhy, lupa bloumající po vnitřní ploše (ne po dráze kruhu — na přání
+ * "ať se pohne, ne ať se točí do kolečka") a body zdrojů rozmístěné po vnějším kruhu, rotující
+ * jako skupina. Barva/stav bodu (čeká/aktivní/hotovo) je jediná věc, co se mění per-zdroj —
+ * pozice se odvozuje jen z pořadí, aby appka nikdy netvrdila nic o KONKRÉTNÍM zdroji, co
+ * doopravdy neví (viz `mode="catalog"` v SearchProgressCard, kde je `state` u všech zdrojů
+ * buď "pending" nebo "done", nikdy "active").
  */
 export default function SearchProgressRadar({ sources = [], size = SIZE }) {
   return (
@@ -36,38 +35,32 @@ export default function SearchProgressRadar({ sources = [], size = SIZE }) {
           className="fill-none stroke-[hsl(var(--primary)/0.12)]"
           strokeWidth={1.5}
         />
-        <circle cx={CENTER} cy={CENTER} r={2.5} className="fill-[hsl(var(--primary)/0.35)]" />
 
-        {/* Lupa obíhá po dráze mezi oběma kruhy; vnitřní <g> se otáčí opačným směrem, aby
-            samotná ikona zůstala vzpřímená (nesměřuje šikmo), jen mění pozici po kružnici. */}
-        <g
-          className="motion-safe:animate-[radar-spin_9s_linear_infinite]"
-          style={{ transformOrigin: `${CENTER}px ${CENTER}px` }}
-        >
-          <g transform={`translate(${CENTER + SWEEP_RADIUS} ${CENTER})`}>
-            <g className="motion-safe:animate-[radar-spin_9s_linear_infinite_reverse]">
-              <circle
-                r={9}
-                className="fill-white stroke-[hsl(var(--primary)/0.22)]"
-                strokeWidth={1}
-              />
-              <circle
-                cx={-1.3}
-                cy={-1.3}
-                r={3.6}
-                className="fill-none stroke-[hsl(var(--primary-deep))]"
-                strokeWidth={1.6}
-              />
-              <line
-                x1={1.1}
-                y1={1.1}
-                x2={3.3}
-                y2={3.3}
-                className="stroke-[hsl(var(--primary-deep))]"
-                strokeWidth={1.6}
-                strokeLinecap="round"
-              />
-            </g>
+        {/* Lupa se přesouvá mezi několika body uvnitř kruhu (doprava, doleva, dolů, ...) -
+            translate, ne rotace po dráze, ať to vypadá jako hledání, ne jako hodinový strojek. */}
+        <g transform={`translate(${CENTER} ${CENTER})`}>
+          <g className="motion-safe:animate-[radar-wander_7s_ease-in-out_infinite]">
+            <circle
+              r={9}
+              className="fill-white stroke-[hsl(var(--primary)/0.22)]"
+              strokeWidth={1}
+            />
+            <circle
+              cx={-1.3}
+              cy={-1.3}
+              r={3.6}
+              className="fill-none stroke-[hsl(var(--primary-deep))]"
+              strokeWidth={1.6}
+            />
+            <line
+              x1={1.1}
+              y1={1.1}
+              x2={3.3}
+              y2={3.3}
+              className="stroke-[hsl(var(--primary-deep))]"
+              strokeWidth={1.6}
+              strokeLinecap="round"
+            />
           </g>
         </g>
 

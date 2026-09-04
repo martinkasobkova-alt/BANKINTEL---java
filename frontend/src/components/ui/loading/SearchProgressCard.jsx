@@ -64,7 +64,11 @@ export default function SearchProgressCard({
   const shownIds = useMemo(() => new Set(radarSources.map((s) => s.id)), [radarSources]);
   const extraCount = normSources.length - radarSources.length;
 
-  const totalKnown = normSources.length > 0;
+  // Katalogové AI hledání jen honestně čeká/hotovo, bez postupného odškrtávání (viz komentář
+  // u komponenty) - "X z Y zdrojů" by tam celou dobu ukazovalo 0 a pak skočilo na konec, což
+  // vypadá jako rozbité počítadlo, ne jako průběh. Manager Explorer průběžné odškrtávání
+  // doopravdy má, tam číslo zůstává.
+  const totalKnown = mode === "manager-explorer" && normSources.length > 0;
   const completedCount = normSources.filter((s) => completedSet.has(s.id)).length;
   const progressLabel = totalKnown ? `${completedCount} z ${normSources.length} zdrojů` : "";
 
