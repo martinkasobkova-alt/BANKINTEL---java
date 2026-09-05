@@ -215,6 +215,21 @@ function isManagerVisibleOecdDim(dim) {
   );
 }
 
+/**
+ * Sirsi nez isManagerVisibleOecdDim - jen rika, ktere dimenze dostanou VIDITELNY vyber, ne
+ * ktere se automaticky predvyplni hodnotou (o to se stara defaultOecdDimValue/probedDefaults,
+ * beze zmeny). Zivy nalez: dimenze jako ADJUSTMENT/TRANSACTION/PRICE_BASE maji realne, ruzne
+ * hodnoty, ale appka pro ne nemela zadny ovladaci prvek vubec - zustavaly navzdy jako wildcard
+ * bez moznosti to rucne zmenit. Ted dostanou stejny <select>, jen defaultne prazdny (wildcard),
+ * presne jako driv - zadna zmena v tom, co se posle, pokud uzivatel dropdown sam nezmeni.
+ */
+function isManagerPickableOecdDim(dim) {
+  const did = oecdDimId(dim).toUpperCase();
+  if (!did) return false;
+  if (OECD_TIME_DIM_IDS.has(did)) return false;
+  return true;
+}
+
 function topCategoryOpenPaths(categories) {
   return new Set((categories || []).map((c) => c.path).filter(Boolean));
 }
@@ -1168,7 +1183,7 @@ export default function OecdCatalogPage() {
               <span className="font-normal text-muted-foreground"> (ostatni technicke dimenze doplni aplikace)</span>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-              {dimsMeta.filter(isManagerVisibleOecdDim).map((dim) => {
+              {dimsMeta.filter(isManagerPickableOecdDim).map((dim) => {
                 const did = dim.id || dim.dimensionId;
                 if (!did || !orderedDimIds.includes(String(did))) return null;
                 const rawCodes = Array.isArray(dim.codes) ? dim.codes : [];
