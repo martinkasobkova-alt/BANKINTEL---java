@@ -44,9 +44,19 @@ class EurostatDimensionServiceManualTest {
 
     /**
      * End-to-end reprodukce přesně toho, co viděla uživatelka: čerstvé otevření náhledu
-     * naio_10_pyp1620 pro Česko dřív dorazilo na ind_use="T" (prázdná data). Po kroku 2 plánu
-     * (preferovaný kód G45 + zpřísněné ověření z kroku 1) musí cascade dojít k jinému,
-     * skutečně naplněnému výběru.
+     * naio_10_pyp1620 pro Česko dřív dorazilo na ind_use=T/cpa2_1=CPA_T (prázdná data). Po
+     * kroku 2 plánu (preferovaný kód G45 + zpřísněné ověření z kroku 1) musí cascade dojít
+     * k výběru se skutečnými daty.
+     *
+     * <p>Živě ověřeno (2026-09-05), že KTERÁ konkrétní reálná kombinace to bude, se může
+     * lišit běh od běhu - cascade je omezený, souběžný live-probe proti Eurostatu (viz
+     * {@code filterOptionsByLiveProbe}), takže na jednom běhu vyhraje jiný kandidát než na
+     * jiném podle toho, jak rychle Eurostat odpoví. Appka to jednou dokonce sama nechala
+     * doběhnout zpátky na ind_use=T - ale spárované s jiným, skutečně naplněným cpa2_1 (ne
+     * CPA_T), takže to NENÍ ta stará chyba: {@code combinationHasData} přesně tenhle výběr
+     * před vrácením ověřuje, takže vrácená kombinace má vždy nenulová data bez ohledu na to,
+     * který konkrétní kód nakonec vyhraje. Testujeme tedy jen to, co appka doopravdy garantuje:
+     * (1) není to znovu přesně ten starý prázdný pár T/CPA_T, (2) výsledek má opravdu data.
      */
     @Test
     void resolvePreviewQueryParams_liveNetwork_naio10Pyp1620NoLongerDefaultsToTheEmptyTCombination() {
@@ -55,7 +65,9 @@ class EurostatDimensionServiceManualTest {
         Map<String, Object> qp = service.resolvePreviewQueryParams("naio_10_pyp1620", "CZ");
 
         assertFalse(qp.isEmpty(), "resolved params: " + qp);
-        assertThat(String.valueOf(qp.get("ind_use"))).isNotEqualTo("T");
+        boolean isOldBrokenPair =
+                "T".equals(String.valueOf(qp.get("ind_use"))) && "CPA_T".equals(String.valueOf(qp.get("cpa2_1")));
+        assertThat(isOldBrokenPair).as("must not resolve back to the old empty T/CPA_T pair: " + qp).isFalse();
         Map<String, String> selected = new java.util.LinkedHashMap<>();
         qp.forEach((k, v) -> selected.put(k, String.valueOf(v)));
         assertThat(service.combinationHasData("naio_10_pyp1620", selected))
