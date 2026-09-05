@@ -3392,22 +3392,26 @@ export default function SourcePreview({
             <div className="flex min-w-0 flex-wrap items-center gap-1.5">
               {annotatedUserChoiceDimensions.map((dim) => (
                 <label key={`toolbar-user-choice-${dim.field}`} className="inline-flex min-w-0 items-center gap-1.5">
-                  <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">
+                  <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500 shrink-0">
                     {dim.label}:
                   </span>
-                  <select
-                    value={dim.selected || dim.options[0]?.value || ""}
-                    onChange={(e) => applyUserChoiceDimensionChange(dim.field, e.target.value)}
-                    disabled={loading}
-                    className="h-7 max-w-[min(52vw,18rem)] rounded-md border border-border/70 bg-white px-2 text-[11px]"
-                  >
-                    {dim.options.map((opt) => (
-                      <option key={`${dim.field}-${opt.value}`} value={opt.value} disabled={opt.hasData === false}>
-                        {formatUserChoiceOptionLabel(opt)}
-                        {opt.hasData === false ? " (bez dat)" : ""}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="relative min-w-0 max-w-[min(52vw,18rem)]">
+                    <select
+                      value={dim.selected || dim.options[0]?.value || ""}
+                      onChange={(e) => applyUserChoiceDimensionChange(dim.field, e.target.value)}
+                      disabled={loading}
+                      title={dim.selectedLabel || dim.selected}
+                      className="appearance-none h-7 w-full rounded-md border border-border/70 bg-white pl-2 pr-6 text-[11px] truncate"
+                    >
+                      {dim.options.map((opt) => (
+                        <option key={`${dim.field}-${opt.value}`} value={opt.value} disabled={opt.hasData === false}>
+                          {formatUserChoiceOptionLabel(opt)}
+                          {opt.hasData === false ? " (bez dat)" : ""}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="absolute right-1.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
+                  </div>
                 </label>
               ))}
             </div>
@@ -3814,18 +3818,22 @@ export default function SourcePreview({
               {annotatedUserChoiceDimensions.length > 1 ? (
                 <span className="text-[11px] font-medium text-slate-700">{dim.label}</span>
               ) : null}
-              <select
-                value={dim.selected || dim.options[0]?.value || ""}
-                onChange={(e) => applyUserChoiceDimensionChange(dim.field, e.target.value)}
-                className="h-8 w-full max-w-md text-[12px] border border-border/70 rounded-md px-2 bg-white"
-              >
-                {dim.options.map((opt) => (
-                  <option key={`${dim.field}-${opt.value}`} value={opt.value} disabled={opt.hasData === false}>
-                    {formatUserChoiceOptionLabel(opt)}
-                    {opt.hasData === false ? " (bez dat)" : ""}
-                  </option>
-                ))}
-              </select>
+              <div className="relative w-full max-w-md">
+                <select
+                  value={dim.selected || dim.options[0]?.value || ""}
+                  onChange={(e) => applyUserChoiceDimensionChange(dim.field, e.target.value)}
+                  title={dim.selectedLabel || dim.selected}
+                  className="appearance-none h-8 w-full text-[12px] border border-border/70 rounded-md pl-2 pr-6 bg-white truncate"
+                >
+                  {dim.options.map((opt) => (
+                    <option key={`${dim.field}-${opt.value}`} value={opt.value} disabled={opt.hasData === false}>
+                      {formatUserChoiceOptionLabel(opt)}
+                      {opt.hasData === false ? " (bez dat)" : ""}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="absolute right-1.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
+              </div>
             </label>
           ))}
           <p className="text-[10px] text-slate-600 leading-snug">
