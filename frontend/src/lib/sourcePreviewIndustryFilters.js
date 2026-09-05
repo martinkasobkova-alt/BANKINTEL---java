@@ -119,7 +119,7 @@ export function applyIndustryLinkedFilters(queryParams, availableDimensions, dat
     if (cepa) out.ceparema = cepa;
   }
 
-  if (ds.startsWith("naio_10_cp") && !indUse) {
+  if ((ds.startsWith("naio_10_cp") || ds.startsWith("naio_10_pyp")) && !indUse) {
     out.ind_use = out.ind_use || "G45";
     const paired = pairedCpaFromIndUse(out.ind_use, availableDimensions);
     if (paired) out.cpa2_1 = paired;

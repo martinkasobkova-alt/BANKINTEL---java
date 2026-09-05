@@ -28,6 +28,23 @@ describe("sourcePreviewIndustryFilters", () => {
     expect(out.geo).toBe("CZ");
   });
 
+  it("defaults ind_use (and its paired cpa2_1) for naio_10_cp input-output tables when none chosen", () => {
+    const out = applyIndustryLinkedFilters({ geo: "CZ" }, dims, "naio_10_cp1620");
+    expect(out.ind_use).toBe("G45");
+    expect(out.cpa2_1).toBe("CPA_G45");
+  });
+
+  it("applies the same default to the naio_10_pyp sibling family (previous year's prices)", () => {
+    // Zivy nalez: naio_10_pyp* zrcadli naio_10_cp* tabulka za tabulkou (stejne kategorie,
+    // jen v cenach predchoziho roku) a ma stejnou dimenzi ind_use/cpa2_1 (overeno primo proti
+    // Eurostat API - naio_10_pyp1620 ma 121 hodnot ind_use, presne jako sesterky z naio_10_cp).
+    // Puvodni kod defaultoval ind_use jen pro "naio_10_cp" predponu, tuhle sesterskou rodinu
+    // vynechal.
+    const out = applyIndustryLinkedFilters({ geo: "CZ" }, dims, "naio_10_pyp1620");
+    expect(out.ind_use).toBe("G45");
+    expect(out.cpa2_1).toBe("CPA_G45");
+  });
+
   it("picks single primary industry field", () => {
     expect(
       pickPrimaryIndustryField(["ceparema", "nace_r2", "ind_use"], {
