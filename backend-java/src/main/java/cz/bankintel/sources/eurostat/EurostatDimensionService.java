@@ -39,7 +39,12 @@ public class EurostatDimensionService {
     private final ObjectMapper objectMapper;
     private final HttpClient httpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(22)).build();
     private final ConcurrentHashMap<String, CachedMeta> cache = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<String, Map<String, Object>> resolvedPreviewCache = new ConcurrentHashMap<>();
+    /** TTL'd, unlike a plain map - živě zjištěno (2026-09-05): dřív bez expirace, takže JEDNA
+     * nešťastná živá kombinace (Eurostatova API odpověď se může lišit běh od běhu - viz
+     * hasNonZeroMagnitude) zůstala navěky "vyřešená" pro daný dataset+zemi, dokud backend
+     * nerestartoval - servírovala se STEJNÁ špatná/prázdná kombinace úplně všem uživatelům.
+     * Stejná 1h TTL jako {@link #cache} - žádný důvod řešit to jinak. */
+    private final ConcurrentHashMap<String, CachedResolvedPreview> resolvedPreviewCache = new ConcurrentHashMap<>();
     /** Bounded, I/O-bound live-probe fan-out — virtual threads so probes for a dimension run
      * concurrently instead of sequentially (cold-start dimension resolution was ~8 serial round
      * trips per dimension, ~25s; running them in parallel bounds it to ~1 round trip). */
@@ -124,9 +129,9 @@ public class EurostatDimensionService {
                 ? preferredGeo.trim().toUpperCase(Locale.ROOT)
                 : "";
         String cacheKey = sid + "|" + preferredGeoCode;
-        Map<String, Object> cachedResolved = resolvedPreviewCache.get(cacheKey);
-        if (cachedResolved != null) {
-            return cachedResolved;
+        CachedResolvedPreview cachedResolved = resolvedPreviewCache.get(cacheKey);
+        if (cachedResolved != null && cachedResolved.expiresAtMs() > System.currentTimeMillis()) {
+            return cachedResolved.queryParams();
         }
         Map<String, Object> meta = fetchMetadata(sid);
         if (meta == null) {
@@ -151,7 +156,7 @@ public class EurostatDimensionService {
         qp.put("format", "JSON");
         qp.put("lang", "EN");
         qp.put("lastTimePeriod", "1");
-        resolvedPreviewCache.put(cacheKey, qp);
+        resolvedPreviewCache.put(cacheKey, new CachedResolvedPreview(qp, System.currentTimeMillis() + Duration.ofHours(1).toMillis()));
         return qp;
     }
 
@@ -813,4 +818,6 @@ public class EurostatDimensionService {
     }
 
     private record CachedMeta(Map<String, Object> body, long expiresAtMs) {}
+
+    private record CachedResolvedPreview(Map<String, Object> queryParams, long expiresAtMs) {}
 }
