@@ -18,6 +18,7 @@ import cz.bankintel.search.v2.entity.SearchV2SourceCapabilityRegistry;
 import cz.bankintel.search.v2.geo.SearchV2GeoCompatibility;
 import cz.bankintel.search.v2.ontology.SearchV2ConceptRegistry;
 import cz.bankintel.search.v2.ontology.SearchV2ConceptRegistry.ConceptResolution;
+import cz.bankintel.search.v2.ontology.SearchV2IndustrySectorRegistry;
 import cz.bankintel.search.v2.ontology.SearchV2InstitutionalSectorRegistry;
 import cz.bankintel.search.v2.ontology.SearchV2MetricIntentRegistry;
 import cz.bankintel.search.v2.schema.ExactEntityResolution;
@@ -77,6 +78,7 @@ public class SearchV2QueryPlanner {
     private final SearchV2SourceCapabilityRegistry sourceCapabilityRegistry;
     private final SearchV2InstitutionalSectorRegistry institutionalSectorRegistry;
     private final SearchV2MetricIntentRegistry metricIntentRegistry;
+    private final SearchV2IndustrySectorRegistry industrySectorRegistry;
 
     /**
      * Deterministic (never LLM-driven) institutional sector detection from the user's own wording -
@@ -97,6 +99,17 @@ public class SearchV2QueryPlanner {
     private List<String> metricIntentsFor(String query) {
         String metric = metricIntentRegistry.resolve(query);
         return metric.isBlank() ? List.of() : List.of(metric);
+    }
+
+    /**
+     * Deterministic (never LLM-driven) NACE section detection - a RANKING signal (see {@code
+     * SearchV2FinalReranker}), never a retrieval gate. Blank/empty means "free_industry_intent": the
+     * query names no section this registry recognizes, which is a valid, common state - ranking
+     * still works via plain lexical/vector overlap with the query's own words in that case.
+     */
+    private List<String> industrySectorsFor(String query) {
+        String sector = industrySectorRegistry.resolve(query);
+        return sector.isBlank() ? List.of() : List.of(sector);
     }
 
     public SearchQueryPlan plan(Map<String, Object> request) {
@@ -168,6 +181,7 @@ public class SearchV2QueryPlanner {
         ExactEntityResolution entityResolution = resolution.entityResolution();
         List<String> institutionalSectors = institutionalSectorsFor(fallback.originalQuery());
         List<String> metricIntents = metricIntentsFor(fallback.originalQuery());
+        List<String> industrySectors = industrySectorsFor(fallback.originalQuery());
         SourceRoutingDecision conceptRouting = conceptResolution.highConfidence()
                 ? sourceCapabilityRegistry.routeConcepts(conceptResolution.concepts())
                 : SourceRoutingDecision.empty();
@@ -225,7 +239,8 @@ public class SearchV2QueryPlanner {
                 Map.of(),
                 Map.of(),
                 institutionalSectors,
-                metricIntents);
+                metricIntents,
+                industrySectors);
         return validated;
     }
 
@@ -341,7 +356,8 @@ public class SearchV2QueryPlanner {
                 Map.of(),
                 Map.of(),
                 institutionalSectorsFor(q),
-                metricIntentsFor(q));
+                metricIntentsFor(q),
+                industrySectorsFor(q));
     }
 
     private SearchQueryPlan localPlan(
@@ -403,7 +419,8 @@ public class SearchV2QueryPlanner {
                 llmTrace == null ? Map.of() : llmTrace,
                 fallbackTrace == null || fallbackTrace.isEmpty() ? fallbackTrace(status, safeToSearch(terms)) : fallbackTrace,
                 institutionalSectorsFor(q),
-                metricIntentsFor(q));
+                metricIntentsFor(q),
+                industrySectorsFor(q));
     }
 
     private static SearchQueryPlan fromJson(

@@ -54,6 +54,8 @@ class SearchV2GiantDumpProductionPathTest {
         SearchV2InstitutionalSectorRegistry institutionalSectorRegistry =
                 new SearchV2InstitutionalSectorRegistry(objectMapper);
         SearchV2MetricIntentRegistry metricIntentRegistry = new SearchV2MetricIntentRegistry(objectMapper);
+        cz.bankintel.search.v2.ontology.SearchV2IndustrySectorRegistry industrySectorRegistry =
+                new cz.bankintel.search.v2.ontology.SearchV2IndustrySectorRegistry(objectMapper);
         OpenAiClient unconfiguredOpenAiClient = mock(OpenAiClient.class);
 
         SearchV2QueryPlanner planner = new SearchV2QueryPlanner(
@@ -62,7 +64,8 @@ class SearchV2GiantDumpProductionPathTest {
                 conceptRegistry,
                 sourceCapabilityRegistry,
                 institutionalSectorRegistry,
-                metricIntentRegistry);
+                metricIntentRegistry,
+                industrySectorRegistry);
 
         SearchQueryPlan plan = planner.plan(Map.of(
                 "q", "bank profit Czech Republic",

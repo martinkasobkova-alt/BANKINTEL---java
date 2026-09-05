@@ -246,7 +246,8 @@ class SearchV2QueryExpanderTest {
                 Map.of(),
                 Map.of(),
                 List.of(),
-                metricIntents);
+                metricIntents,
+                List.of());
     }
 
     private static SearchQueryPlan plan(String query, List<String> geographies) {

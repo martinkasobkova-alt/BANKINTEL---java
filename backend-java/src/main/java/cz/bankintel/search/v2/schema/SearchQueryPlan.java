@@ -31,7 +31,8 @@ public record SearchQueryPlan(
         Map<String, Object> llmPlannerTrace,
         Map<String, Object> fallbackTrace,
         List<String> institutionalSectors,
-        List<String> metricIntents) {
+        List<String> metricIntents,
+        List<String> industrySectors) {
 
     /**
      * Deterministically detected from the user's own wording (never the LLM planner) - see
@@ -56,6 +57,19 @@ public record SearchQueryPlan(
      */
     public List<String> metricIntents() {
         return metricIntents == null ? List.of() : metricIntents;
+    }
+
+    /**
+     * Deterministically detected NACE Rev.2 section (agriculture, construction, manufacturing...) -
+     * see {@code SearchV2IndustrySectorRegistry.resolve}. A third axis alongside {@code
+     * institutionalSectors} (WHO) and {@code metricIntents} (WHAT metric): this says WHICH INDUSTRY.
+     * Consumed only as a RANKING signal by {@code SearchV2FinalReranker} - never a retrieval gate.
+     * Blank/empty is a valid, common state ("free_industry_intent" - the query names no section this
+     * registry recognizes); retrieval and ranking still work in that case via plain lexical/vector
+     * overlap with the query's own words.
+     */
+    public List<String> industrySectors() {
+        return industrySectors == null ? List.of() : industrySectors;
     }
 
     public SearchQueryPlan(
@@ -110,6 +124,7 @@ public record SearchQueryPlan(
                 llmPlannerTrace,
                 fallbackTrace,
                 institutionalSectors,
+                List.of(),
                 List.of());
     }
 
@@ -301,6 +316,7 @@ public record SearchQueryPlan(
         out.put("fallback_trace", fallbackTrace == null ? Map.of() : fallbackTrace);
         out.put("institutional_sectors", institutionalSectors());
         out.put("metric_intents", metricIntents());
+        out.put("industry_sectors", industrySectors());
         return out;
     }
 
@@ -331,7 +347,8 @@ public record SearchQueryPlan(
                 llmTrace == null ? Map.of() : llmTrace,
                 deterministicFallbackTrace == null ? Map.of() : deterministicFallbackTrace,
                 institutionalSectors,
-                metricIntents);
+                metricIntents,
+                industrySectors);
     }
 
     public List<String> allSearchTerms() {

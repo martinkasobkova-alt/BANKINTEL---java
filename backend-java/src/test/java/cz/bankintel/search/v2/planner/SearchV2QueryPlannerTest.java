@@ -10,6 +10,7 @@ import cz.bankintel.search.openai.OpenAiModelTask;
 import cz.bankintel.search.v2.entity.ExactEntityResolver;
 import cz.bankintel.search.v2.entity.SearchV2SourceCapabilityRegistry;
 import cz.bankintel.search.v2.ontology.SearchV2ConceptRegistry;
+import cz.bankintel.search.v2.ontology.SearchV2IndustrySectorRegistry;
 import cz.bankintel.search.v2.ontology.SearchV2InstitutionalSectorRegistry;
 import cz.bankintel.search.v2.ontology.SearchV2MetricIntentRegistry;
 import cz.bankintel.search.v2.schema.SearchQueryPlan;
@@ -28,9 +29,10 @@ class SearchV2QueryPlannerTest {
     private final SearchV2InstitutionalSectorRegistry institutionalSectorRegistry =
             new SearchV2InstitutionalSectorRegistry(objectMapper);
     private final SearchV2MetricIntentRegistry metricIntentRegistry = new SearchV2MetricIntentRegistry(objectMapper);
+    private final SearchV2IndustrySectorRegistry industrySectorRegistry = new SearchV2IndustrySectorRegistry(objectMapper);
     private final SearchV2QueryPlanner planner = new SearchV2QueryPlanner(
             openAiClient, exactEntityResolver, conceptRegistry, capabilityRegistry, institutionalSectorRegistry,
-            metricIntentRegistry);
+            metricIntentRegistry, industrySectorRegistry);
 
     @Test
     void localPlanKeepsExplicitSourceAsHardConstraint() {

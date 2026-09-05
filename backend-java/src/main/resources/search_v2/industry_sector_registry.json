@@ -1,0 +1,152 @@
+{
+  "version": 1,
+  "sectors": [
+    {
+      "id": "A",
+      "aliases": [
+        "agriculture", "farming", "forestry", "fishing", "agriculture forestry and fishing",
+        "zemedelstvi", "zemedelska vyroba", "lesnictvi", "rybolov", "rybarstvi", "zemedelec", "zemedelci"
+      ]
+    },
+    {
+      "id": "B",
+      "aliases": [
+        "mining", "quarrying", "mining and quarrying",
+        "tezba", "dobyvani", "dobyvani nerostnych surovin", "hornictvi", "tezebni prumysl"
+      ]
+    },
+    {
+      "id": "C",
+      "aliases": [
+        "manufacturing", "manufacture", "manufacturing industry",
+        "zpracovatelsky prumysl", "vyroba", "prumyslova vyroba", "vyrobni prumysl"
+      ]
+    },
+    {
+      "id": "D",
+      "aliases": [
+        "electricity", "gas supply", "electricity gas steam", "power supply", "energy supply",
+        "energetika", "elektrina", "elektroenergetika", "plyn", "teplo", "dodavky energie"
+      ]
+    },
+    {
+      "id": "E",
+      "aliases": [
+        "water supply", "sewerage", "waste management", "waste management and remediation",
+        "vodarenstvi", "odpadni hospodarstvi", "nakladani s odpady", "kanalizace", "vodohospodarstvi"
+      ]
+    },
+    {
+      "id": "F",
+      "aliases": [
+        "construction", "construction industry", "building industry",
+        "stavebnictvi", "stavebni prumysl", "stavby", "stavebnictvi a stavby"
+      ]
+    },
+    {
+      "id": "G",
+      "aliases": [
+        "wholesale", "retail trade", "wholesale and retail trade", "trade", "repair of motor vehicles",
+        "obchod", "velkoobchod", "maloobchod", "obchod a opravy vozidel"
+      ]
+    },
+    {
+      "id": "H",
+      "aliases": [
+        "transportation", "transport", "storage", "transportation and storage", "logistics",
+        "doprava", "skladovani", "logistika", "dopravni sluzby"
+      ]
+    },
+    {
+      "id": "I",
+      "aliases": [
+        "accommodation", "food service", "accommodation and food service", "hospitality", "hotels and restaurants",
+        "ubytovani", "stravovani", "pohostinstvi", "hotelnictvi", "restauracni sluzby"
+      ]
+    },
+    {
+      "id": "J",
+      "aliases": [
+        "information and communication", "information technology", "telecommunications", "software", "publishing",
+        "informacni technologie", "telekomunikace", "informacni a komunikacni cinnosti", "software", "vydavatelstvi"
+      ]
+    },
+    {
+      "id": "K",
+      "aliases": [
+        "financial and insurance", "financial services", "insurance", "banking",
+        "bankovnictvi", "pojistovnictvi", "financni sluzby", "financni a pojistovaci cinnosti"
+      ]
+    },
+    {
+      "id": "L",
+      "aliases": [
+        "real estate", "real estate activities",
+        "nemovitosti", "realitni cinnost", "realitni trh", "cinnosti v oblasti nemovitosti"
+      ]
+    },
+    {
+      "id": "M",
+      "aliases": [
+        "professional scientific and technical", "scientific activities", "consultancy", "legal and accounting",
+        "odborne vedecke a technicke cinnosti", "poradenstvi", "pravni a ucetni sluzby", "vyzkum a vyvoj"
+      ]
+    },
+    {
+      "id": "N",
+      "aliases": [
+        "administrative and support service", "administrative services", "employment activities",
+        "administrativni a podpurne cinnosti", "podpurne cinnosti", "agenturni zamestnavani"
+      ]
+    },
+    {
+      "id": "O",
+      "aliases": [
+        "public administration", "defence", "compulsory social security", "public administration and defence",
+        "verejna sprava", "obrana", "socialni zabezpeceni", "statni sprava"
+      ]
+    },
+    {
+      "id": "P",
+      "aliases": [
+        "education",
+        "skolstvi", "vzdelavani", "vzdelavaci cinnosti"
+      ]
+    },
+    {
+      "id": "Q",
+      "aliases": [
+        "human health", "social work", "human health and social work",
+        "zdravotnictvi", "socialni pece", "zdravotni a socialni pece"
+      ]
+    },
+    {
+      "id": "R",
+      "aliases": [
+        "arts entertainment and recreation", "entertainment", "recreation",
+        "kultura", "zabava", "sport", "volny cas", "kulturni a zabavni cinnosti"
+      ]
+    },
+    {
+      "id": "S",
+      "aliases": [
+        "other service activities",
+        "ostatni cinnosti", "ostatni sluzby"
+      ]
+    },
+    {
+      "id": "T",
+      "aliases": [
+        "households as employers", "activities of households as employers",
+        "domacnosti jako zamestnavatele"
+      ]
+    },
+    {
+      "id": "U",
+      "aliases": [
+        "extraterritorial organisations", "activities of extraterritorial organisations",
+        "exteritorialni organizace", "mezinarodni organizace"
+      ]
+    }
+  ]
+}

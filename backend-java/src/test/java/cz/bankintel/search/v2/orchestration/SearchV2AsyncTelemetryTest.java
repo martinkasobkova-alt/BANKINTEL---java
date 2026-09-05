@@ -215,8 +215,14 @@ class SearchV2AsyncTelemetryTest {
 
         return new SearchV2Service(
                 planner, retriever, merger, batchReranker,
-                new SearchV2FinalReranker(new cz.bankintel.search.v2.ontology.SearchV2MetricIntentRegistry(
-                        new com.fasterxml.jackson.databind.ObjectMapper())),
+                new SearchV2FinalReranker(
+                        new cz.bankintel.search.v2.ontology.SearchV2MetricIntentRegistry(
+                                new com.fasterxml.jackson.databind.ObjectMapper()),
+                        new cz.bankintel.search.v2.ontology.SearchV2IndustrySectorRegistry(
+                                new com.fasterxml.jackson.databind.ObjectMapper()),
+                        new cz.bankintel.sources.eurostat.EurostatDimensionService(
+                                new com.fasterxml.jackson.databind.ObjectMapper(),
+                                new cz.bankintel.sources.eurostat.EurostatRateLimiter())),
                 new SearchV2CoverageChecker(),
                 retryPlanner, previewVerifier, new SearchV2TraceStore(), new SearchV2CacheService(), indexStore,
                 sidecarIndex, new SearchV2ExactEntityScorer(), conceptRegistry, answerService(),
