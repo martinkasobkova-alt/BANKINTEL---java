@@ -103,6 +103,8 @@ import {
   isUserSelectableDimensionKey,
   resolveDimensionValueLabel,
 } from "@/lib/sourcePreviewUserChoiceDimensions";
+import { applyLiveAvailabilityToDimensionOptions } from "@/lib/sourcePreviewDimensionMeta";
+import { fetchEurostatDimensionOptions } from "@/lib/eurostatDimensionAvailability";
 import EurostatCascadingDimensionPicker from "@/components/sources/EurostatCascadingDimensionPicker";
 import { formatPreviewMessage } from "@/lib/previewNormalizer";
 
@@ -1986,6 +1988,90 @@ export default function SourcePreview({
     onDimensionFiltersApply(finalizeDimensionFilters(merged));
   };
 
+  // Živě zjištěno: appka dřív dovolila v rychlém ODVĚTVÍ menu ručně vybrat kombinaci bez dat
+  // (naio_10_pyp1620, ind_use=T), aniž by o tom uživatel dopředu věděl — appka na to má už hotový
+  // živý probe (EurostatCascadingDimensionPicker/`fetchEurostatDimensionOptions`), jen ho tohle
+  // rychlé menu dosud nepoužívalo. Fetch je bounded na pár polí (userChoiceDimensions bývá 1-3) a
+  // nikdy nic neblokuje sám o sobě — chyba/timeout = žádné označení, appka se chová jako dnes.
+  const [eurostatUserChoiceAvailability, setEurostatUserChoiceAvailability] = useState({});
+  useEffect(() => {
+    if (!isEurostatPreview || !previewDatasetId || userChoiceDimensions.length === 0) {
+      setEurostatUserChoiceAvailability({});
+      return;
+    }
+    let cancelled = false;
+    // Živě zjištěno: buildDimensionFiltersWithCurrentGeo() odráží jen to, co uživatel SÁM ručně
+    // změnil (requestedFilters) - u čerstvě otevřeného náhledu appka tiše doplní ind_use/cpa2_1/
+    // freq/... na pozadí (viz krok 1-2 tohoto plánu) a tenhle výběr NIKDY nedorazí do
+    // requestedFilters, jen do preview.applied_filters (backendem zpětně poslaná skutečná
+    // kombinace). Bez téhle základny by probe testoval "unit=MIO_EUR bez ind_use" místo skutečně
+    // aktivní kombinace - moc široký/neurčený dotaz, co Eurostat sám o sobě může odmítnout, i když
+    // ta SKUTEČNÁ (plně zadaná) kombinace v pohodě má data. buildDimensionFiltersWithCurrentGeo()
+    // může navíc vracet vícehodnotové dimenze (geo) jako pole - poslané tak, jak je, backend
+    // (Java) na poli zavolá String.valueOf a pošle Eurostatu doslova "[CZ]" místo "CZ", což
+    // spolehlivě rozbije každý probe s geo (stejnou normalizaci pole→první hodnota už dělá
+    // EurostatCascadingDimensionPicker.jsx:24).
+    const normalizeFilterMap = (raw) => {
+      const out = {};
+      for (const [key, value] of Object.entries(raw || {})) {
+        const single = Array.isArray(value) ? value[0] : value;
+        const trimmed = String(single ?? "").trim();
+        if (trimmed) out[key] = trimmed;
+      }
+      return out;
+    };
+    const selected = {
+      ...normalizeFilterMap(preview?.applied_filters),
+      ...normalizeFilterMap(buildDimensionFiltersWithCurrentGeo()),
+    };
+    const userQuery = preview?.user_query || preview?.metadata?.user_query || "";
+    Promise.all(
+      userChoiceDimensions.map((dim) =>
+        fetchEurostatDimensionOptions({
+          datasetId: previewDatasetId,
+          selectedDimensions: selected,
+          targetDimension: dim.field,
+          userQuery,
+        })
+          .then((data) => [dim.field, data])
+          .catch(() => [dim.field, null]),
+      ),
+    ).then((entries) => {
+      if (cancelled) return;
+      const next = {};
+      for (const [field, data] of entries) {
+        const invalidCodes = new Set(
+          Array.isArray(data?.invalid_removed) ? data.invalid_removed.map((c) => String(c ?? "").trim()) : [],
+        );
+        next[field] = { invalidCodes, complete: data?.complete !== false };
+      }
+      setEurostatUserChoiceAvailability(next);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    isEurostatPreview,
+    previewDatasetId,
+    userChoiceDimensions,
+    buildDimensionFiltersWithCurrentGeo,
+    preview?.applied_filters,
+    preview?.user_query,
+    preview?.metadata?.user_query,
+  ]);
+  const annotatedUserChoiceDimensions = useMemo(
+    () =>
+      userChoiceDimensions.map((dim) => ({
+        ...dim,
+        options: applyLiveAvailabilityToDimensionOptions(
+          dim.options,
+          eurostatUserChoiceAvailability[dim.field],
+          dim.selected,
+        ),
+      })),
+    [userChoiceDimensions, eurostatUserChoiceAvailability],
+  );
+
   const applyDimensionFilters = () => {
     const selected = {};
     for (const item of dimensionPanelItems) {
@@ -3302,9 +3388,9 @@ export default function SourcePreview({
             Zobrazení:
           </span>
           {renderCatalogDisplayModeControls()}
-          {userChoiceDimensions.length > 0 && onDimensionFiltersApply ? (
+          {annotatedUserChoiceDimensions.length > 0 && onDimensionFiltersApply ? (
             <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-              {userChoiceDimensions.map((dim) => (
+              {annotatedUserChoiceDimensions.map((dim) => (
                 <label key={`toolbar-user-choice-${dim.field}`} className="inline-flex min-w-0 items-center gap-1.5">
                   <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">
                     {dim.label}:
@@ -3316,8 +3402,9 @@ export default function SourcePreview({
                     className="h-7 max-w-[min(52vw,18rem)] rounded-md border border-border/70 bg-white px-2 text-[11px]"
                   >
                     {dim.options.map((opt) => (
-                      <option key={`${dim.field}-${opt.value}`} value={opt.value}>
+                      <option key={`${dim.field}-${opt.value}`} value={opt.value} disabled={opt.hasData === false}>
                         {formatUserChoiceOptionLabel(opt)}
+                        {opt.hasData === false ? " (bez dat)" : ""}
                       </option>
                     ))}
                   </select>
@@ -3717,14 +3804,14 @@ export default function SourcePreview({
           1 země ({selectedGeo[0]})
         </div>
       ) : null}
-      {userChoiceDimensions.length > 0 && onDimensionFiltersApply && !useEurostatCascadePicker && !catalogUnifiedToolbar ? (
+      {annotatedUserChoiceDimensions.length > 0 && onDimensionFiltersApply && !useEurostatCascadePicker && !catalogUnifiedToolbar ? (
         <div className="px-5 py-3 border-b border-border/60 bg-emerald-50/40 space-y-2">
           <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-emerald-800">
-            {userChoiceDimensionsSectionTitle(userChoiceDimensions)}
+            {userChoiceDimensionsSectionTitle(annotatedUserChoiceDimensions)}
           </div>
-          {userChoiceDimensions.map((dim) => (
+          {annotatedUserChoiceDimensions.map((dim) => (
             <label key={`user-choice-${dim.field}`} className="block space-y-1">
-              {userChoiceDimensions.length > 1 ? (
+              {annotatedUserChoiceDimensions.length > 1 ? (
                 <span className="text-[11px] font-medium text-slate-700">{dim.label}</span>
               ) : null}
               <select
@@ -3733,15 +3820,16 @@ export default function SourcePreview({
                 className="h-8 w-full max-w-md text-[12px] border border-border/70 rounded-md px-2 bg-white"
               >
                 {dim.options.map((opt) => (
-                  <option key={`${dim.field}-${opt.value}`} value={opt.value}>
+                  <option key={`${dim.field}-${opt.value}`} value={opt.value} disabled={opt.hasData === false}>
                     {formatUserChoiceOptionLabel(opt)}
+                    {opt.hasData === false ? " (bez dat)" : ""}
                   </option>
                 ))}
               </select>
             </label>
           ))}
           <p className="text-[10px] text-slate-600 leading-snug">
-            {userChoiceDimensionsHelpText(userChoiceDimensions)}
+            {userChoiceDimensionsHelpText(annotatedUserChoiceDimensions)}
           </p>
         </div>
       ) : null}

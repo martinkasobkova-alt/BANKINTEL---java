@@ -83,3 +83,31 @@ export function readOptionsFromDimensionMeta(raw) {
 export function buildLabelLookupFromDimensionMeta(raw) {
   return buildLabelLookupFromMeta(raw);
 }
+
+/**
+ * Označí (nemaže) možnosti bez živě ověřených dat pro aktuální výběr ostatních dimenzí — appka
+ * dřív dovolila ručně vybrat kombinaci bez dat (zjištěno živě na naio_10_pyp1620/ind_use=T), aniž
+ * by o tom uživatel dopředu věděl. Chybějící/neúplná dostupnost (fetch ještě neproběhl, selhal,
+ * nebo daný kód prostě nebyl mezi ověřenými) znamená `hasData: true` — radši nechat vybratelné,
+ * než falešně zablokovat kombinaci, o které nevíme jistě (stejná zásada jako
+ * EurostatDimensionService.hasNonZeroMagnitude na backendu).
+ *
+ * `currentValue` (nepovinné) nikdy neoznačí jako bez dat — živě zjištěno na naio_10_pyp1620: probe
+ * kontroluje jen nejnovější období (`lastTimePeriod=1`), takže kombinace s bohatou historií (2011-
+ * 2023) může vyjít jako "bez dat", pokud ještě nemá zveřejněný jen ten úplně poslední rok (běžné
+ * roční zpoždění zveřejnění). Appka už PRÁVĚ TEĎ zobrazuje reálná data pro aktuálně vybranou
+ * hodnotu — to je silnější důkaz než jeden úzký probe, který se s tím může neshodnout.
+ */
+export function applyLiveAvailabilityToDimensionOptions(options, availability, currentValue) {
+  const list = Array.isArray(options) ? options : [];
+  const current = String(currentValue ?? "").trim();
+  const invalidCodes = availability?.invalidCodes;
+  if (!invalidCodes || typeof invalidCodes.has !== "function" || invalidCodes.size === 0) {
+    return list.map((opt) => ({ ...opt, hasData: true }));
+  }
+  return list.map((opt) => {
+    const value = String(opt?.value ?? "").trim();
+    const hasData = value === current || !invalidCodes.has(value);
+    return { ...opt, hasData };
+  });
+}
