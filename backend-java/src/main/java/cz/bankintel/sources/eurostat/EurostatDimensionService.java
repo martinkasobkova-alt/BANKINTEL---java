@@ -416,6 +416,18 @@ public class EurostatDimensionService {
         pickDefault(selection, dims, "indic_bt", List.of("PRD", "NETTUR", "PRC_PRR"));
         pickDefault(selection, dims, "nace_r2", List.of("B_C", "C", "B-D"));
         pickDefault(selection, dims, "s_adj", List.of("SCA", "CA", "NSA"));
+        // Input-output/national-accounts tables (naio_10_cp*/naio_10_pyp*) expose ind_use
+        // ("Industries and final uses") and its paired cpa2_1 product classification - both
+        // default, unverified, to the generic aggregate "T"/"CPA_T" ("activities of households
+        // as employers"), which often has zero observations for a specific country (live-verified:
+        // naio_10_pyp1620/geo=CZ). G45 (wholesale/retail trade) is a real, populated category for
+        // most countries - same preferred code the frontend already hand-picked for this dataset
+        // family (sourcePreviewIndustryFilters.js), now applied at the source instead of only on
+        // re-interaction. Unlike coicop/indic_bt/nace_r2 above this isn't dataset-scoped - the
+        // live probe below (now magnitude-checked, not just presence-checked) verifies it either
+        // way, so a dataset where G45 doesn't pan out just falls through to the cascade.
+        pickDefault(selection, dims, "ind_use", List.of("G45", "TOTAL", "T"));
+        pickDefault(selection, dims, "cpa2_1", List.of("CPA_G45", "CPA_TOTAL", "CPA_T"));
         for (String key : orderedDimensionKeys(dims)) {
             if (selection.containsKey(key) || SKIP_DIM_KEYS.contains(key.toLowerCase(Locale.ROOT))) {
                 continue;
