@@ -1,9 +1,11 @@
 package cz.bankintel.search.v2.planner;
 
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
+import static org.mockito.Mockito.mock;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import cz.bankintel.search.CatalogIndexStore;
 import cz.bankintel.search.v2.entity.ExactEntityResolver;
 import cz.bankintel.search.v2.entity.SearchV2SourceCapabilityRegistry;
 import cz.bankintel.search.v2.ontology.SearchV2ConceptRegistry;
@@ -59,7 +61,7 @@ class QueryPlannerEvalTest {
         }
         String systemPrompt = plannerSystemPrompt();
         ExactEntityResolver resolver = new ExactEntityResolver(
-                MAPPER, new SearchV2SourceCapabilityRegistry(MAPPER));
+                MAPPER, new SearchV2SourceCapabilityRegistry(MAPPER), mock(CatalogIndexStore.class));
         SearchV2ConceptRegistry conceptRegistry = new SearchV2ConceptRegistry(MAPPER);
         HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofMillis(3000)).build();
 

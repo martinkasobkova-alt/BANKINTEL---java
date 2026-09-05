@@ -1,8 +1,10 @@
 package cz.bankintel.search.v2.retrieval;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import cz.bankintel.search.CatalogIndexStore;
 import cz.bankintel.search.v2.entity.ExactEntityResolver;
 import cz.bankintel.search.v2.entity.ExactEntityResolver.ResolutionResult;
 import cz.bankintel.search.v2.entity.SearchV2SourceCapabilityRegistry;
@@ -25,7 +27,8 @@ class SearchV2QueryExpanderTest {
                     new SearchV2MetricIntentRegistry(new ObjectMapper()));
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final ExactEntityResolver resolver =
-            new ExactEntityResolver(objectMapper, new SearchV2SourceCapabilityRegistry(objectMapper));
+            new ExactEntityResolver(
+                    objectMapper, new SearchV2SourceCapabilityRegistry(objectMapper), mock(CatalogIndexStore.class));
 
     @Test
     void expandsCompactCurrencyPairIntoSearchableFxTerms() {

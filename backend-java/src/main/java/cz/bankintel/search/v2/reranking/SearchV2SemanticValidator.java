@@ -145,6 +145,7 @@ public class SearchV2SemanticValidator {
             if (outcome.error() == null) {
                 List<SemanticDecision> settled =
                         enforceProvenStructuredConflicts(plan, outcome.candidates(), outcome.decisions());
+                settled = enforceLiteralIdentifierSurvival(plan, outcome.candidates(), settled);
                 rememberDecisions(planSignature, outcome.candidates(), settled);
                 out.addAll(settled);
                 batches.add(batchStat(
@@ -224,6 +225,53 @@ public class SearchV2SemanticValidator {
                     semanticConflicts.stream().distinct().toList(),
                     "Candidate rejected because structured catalog metadata contradicts an explicit query constraint.",
                     "reject"));
+        }
+        return reconciled;
+    }
+
+    /**
+     * Symmetric counterpart to {@link #enforceProvenStructuredConflicts} (which only escalates
+     * keep -&gt; drop): here, a candidate whose OWN series/dataset id verbatim-matches the
+     * resolved entity survives regardless of what the LLM decided - the reranker prompt itself
+     * says "no later deterministic semantic gate will override you", but a wrong LLM-invented
+     * query interpretation (live case: a bare dataset code like "naio_10_pyp1620" misread as
+     * "10-year yield") can otherwise drop the one candidate that is PROVABLY what the user asked
+     * for. Runs after {@link #enforceProvenStructuredConflicts} so a literal identity match is the
+     * final word, including the rare case where both would otherwise fire on the same candidate.
+     */
+    private List<SemanticDecision> enforceLiteralIdentifierSurvival(
+            SearchQueryPlan plan,
+            List<SearchCandidate> candidates,
+            List<SemanticDecision> decisions) {
+        if (plan == null || plan.entityResolution() == null) {
+            return decisions;
+        }
+        Map<String, SearchCandidate> bySeriesId = candidates.stream()
+                .collect(Collectors.toMap(SearchCandidate::seriesId, candidate -> candidate, (left, right) -> left));
+        List<SemanticDecision> reconciled = new ArrayList<>(decisions.size());
+        for (SemanticDecision decision : decisions) {
+            SearchCandidate candidate = bySeriesId.get(decision.seriesId());
+            if (candidate == null
+                    || decision.keepLike()
+                    || !exactEntityScorer.literalIdentifierMatches(plan.entityResolution(), candidate)) {
+                reconciled.add(decision);
+                continue;
+            }
+            List<String> matchedUserNeed = new ArrayList<>(
+                    decision.matchedUserNeed() == null ? List.of() : decision.matchedUserNeed());
+            if (!matchedUserNeed.contains("literal_identifier_match")) {
+                matchedUserNeed.add("literal_identifier_match");
+            }
+            reconciled.add(new SemanticDecision(
+                    decision.seriesId(),
+                    "keep",
+                    Math.max(decision.relevanceScore(), 0.9),
+                    Math.max(decision.confidence(), 0.9),
+                    matchedUserNeed.stream().distinct().toList(),
+                    decision.semanticConflicts(),
+                    "Candidate's own series/dataset id literally matches the resolved entity - kept regardless"
+                            + " of the semantic verdict.",
+                    "primary"));
         }
         return reconciled;
     }

@@ -14,8 +14,10 @@ import cz.bankintel.search.openai.OpenAiModelTask;
 import cz.bankintel.search.v2.entity.SearchV2ExactEntityScorer;
 import cz.bankintel.search.v2.ontology.SearchV2ConceptOntology;
 import cz.bankintel.search.v2.ontology.SearchV2InstitutionalSectorRegistry;
+import cz.bankintel.search.v2.schema.ExactEntityResolution;
 import cz.bankintel.search.v2.schema.SearchCandidate;
 import cz.bankintel.search.v2.schema.SearchQueryPlan;
+import cz.bankintel.search.v2.schema.SourceRoutingDecision;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -344,6 +346,93 @@ class SearchV2SemanticValidatorTest {
         assertThat(result.decisions().get(0).semanticConflicts())
                 .contains("institutional_sector_mismatch:insurance:banks", "proven_structured_conflict");
         assertThat(result.decisions().get(1).decision()).isEqualTo("keep");
+    }
+
+    /**
+     * Živě reprodukováno (2026-09-05): dotaz "naio_10_pyp1620" (holý kód datasetu) donutil LLM
+     * plánovač vymyslet si špatný "10-year yield" výklad, což zahodilo všech 25 reálných
+     * kandidátů - appka na to dřív neměla žádnou pojistku (reranker_prompt.md výslovně říká "no
+     * later deterministic semantic gate will override you"). Tenhle test dokazuje novou pojistku
+     * napřímo: kandidát, jehož vlastní id doslova odpovídá vyřešené entitě, přežije i vyložený
+     * "drop" od LLM - nezávisle na tom, jestli entita vyšla jako exact_entity nebo jen
+     * probable_entity (kód sám o sobě je dost silný důkaz).
+     */
+    @Test
+    void literalIdentifierMatchSurvivesAnIncorrectLlmDropVerdict() throws Exception {
+        ObjectMapper objectMapper = new ObjectMapper();
+        OpenAiClient client = mock(OpenAiClient.class);
+        when(client.isConfigured()).thenReturn(true);
+        when(client.modelFor(OpenAiModelTask.RERANKER)).thenReturn("test-model");
+        when(client.chatCompletionJson(anyString(), anyString(), eq(OpenAiModelTask.RERANKER)))
+                .thenReturn(objectMapper.readTree("""
+                        {
+                          "decisions": [
+                            {
+                              "series_id": "naio_10_pyp1620",
+                              "decision": "drop",
+                              "relevance_score": 0.1,
+                              "confidence": 0.8,
+                              "matched_user_need": [],
+                              "semantic_conflicts": ["unrelated_to_10_year_yield"],
+                              "reason": "Not a bond yield series.",
+                              "result_role": "reject"
+                            }
+                          ]
+                        }
+                        """));
+        SearchV2SemanticValidator aiValidator = new SearchV2SemanticValidator(
+                client,
+                objectMapper,
+                new cz.bankintel.search.v2.orchestration.SearchV2CacheService(),
+                new SearchV2ConceptOntology(objectMapper),
+                new SearchV2ExactEntityScorer(),
+                new SearchV2InstitutionalSectorRegistry(objectMapper));
+        ExactEntityResolution codeResolution = new ExactEntityResolution(
+                "probable_entity",
+                0.78,
+                "series_code",
+                "NAIO_10_PYP1620",
+                List.of("NAIO_10_PYP1620"),
+                List.of("naio_10_pyp1620"),
+                "",
+                List.of(),
+                List.of("naio_10_pyp1620", "NAIO_10_PYP1620"),
+                List.of(),
+                true,
+                "Generic code-like token parser matched a possible dataset/series code.",
+                Map.of());
+        SearchQueryPlan plan = new SearchQueryPlan(
+                "naio_10_pyp1620",
+                "cs",
+                "find_series",
+                List.of("naio_10_pyp1620"),
+                List.of(),
+                List.of(),
+                List.of("eurostat"),
+                List.of(),
+                List.of(),
+                null,
+                List.of("naio_10_pyp1620"),
+                List.of("naio_10_pyp1620", "10-year yield (NAIO_10_PYP1620)"),
+                List.of(),
+                List.of(),
+                List.of(),
+                List.of("primary"),
+                new SearchQueryPlan.Clarification(false, null, null),
+                "openai",
+                "test-model",
+                codeResolution,
+                SourceRoutingDecision.empty(),
+                List.of());
+
+        var result = aiValidator.validate(
+                plan,
+                List.of(candidate("naio_10_pyp1620", "Obchodni a dopravni marze (historie)")),
+                true);
+
+        assertThat(result.decisions().get(0).decision()).isEqualTo("keep");
+        assertThat(result.decisions().get(0).resultRole()).isEqualTo("primary");
+        assertThat(result.decisions().get(0).matchedUserNeed()).contains("literal_identifier_match");
     }
 
     @Test

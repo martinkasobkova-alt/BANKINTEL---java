@@ -27,6 +27,16 @@ public class SearchV2SourceCapabilityRegistry {
         this.capabilities = load(objectMapper);
     }
 
+    /**
+     * Every source this deployment's capability registry declares - the generic "which sources
+     * exist to check" list for callers that must try every known source without hardcoding a
+     * duplicate copy of the source id list (e.g. {@code ExactEntityResolver}'s catalog
+     * verification for code-like queries).
+     */
+    public Set<String> knownSources() {
+        return capabilities.keySet();
+    }
+
     public SourceRoutingDecision route(ExactEntityResolution resolution) {
         if (resolution == null || resolution.catalogFamily().isBlank()) {
             return SourceRoutingDecision.empty();

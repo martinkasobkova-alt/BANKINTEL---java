@@ -3,8 +3,10 @@ package cz.bankintel.explore;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import cz.bankintel.search.CatalogIndexStore;
 import cz.bankintel.search.v2.entity.ExactEntityResolver;
 import cz.bankintel.search.v2.entity.SearchV2SourceCapabilityRegistry;
 import cz.bankintel.search.v2.ontology.SearchV2ConceptRegistry;
@@ -31,7 +33,7 @@ class ExploreDiscoveryCacheTest {
                 new SearchV2MetricIntentRegistry(mapper),
                 new SearchV2InstitutionalSectorRegistry(mapper),
                 new SearchV2ConceptRegistry(mapper),
-                new ExactEntityResolver(mapper, new SearchV2SourceCapabilityRegistry(mapper)));
+                new ExactEntityResolver(mapper, new SearchV2SourceCapabilityRegistry(mapper), mock(CatalogIndexStore.class)));
     }
 
     @Test

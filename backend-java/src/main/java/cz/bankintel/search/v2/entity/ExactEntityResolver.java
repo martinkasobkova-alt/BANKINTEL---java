@@ -2,6 +2,7 @@ package cz.bankintel.search.v2.entity;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import cz.bankintel.search.CatalogIndexStore;
 import cz.bankintel.search.CatalogTextUtils;
 import cz.bankintel.search.model.CatalogMapSupport;
 import cz.bankintel.search.v2.schema.ExactEntityResolution;
@@ -15,6 +16,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Pattern;
 import org.springframework.stereotype.Service;
@@ -27,13 +29,22 @@ public class ExactEntityResolver {
     private static final Set<String> QUERY_CONTEXT_WORDS = Set.of(
             "vyvoj", "vývoj", "hodnota", "hodnoty", "graf", "rada", "řada", "serie", "series", "index", "price",
             "cena", "kurz", "rate", "total", "return", "tr", "data", "casova", "časová", "time");
+    /** Confidence assigned once a code-like query is verified to be a REAL, currently-indexed
+     * dataset/series id (not just shape-matched) - see {@link #verifyAgainstCatalog}. A fixed
+     * policy constant, not a hardcode of any specific dataset. */
+    private static final double CATALOG_VERIFIED_CONFIDENCE = 0.95;
 
     private final List<EntityDefinition> entities;
     private final SearchV2SourceCapabilityRegistry sourceCapabilityRegistry;
+    private final CatalogIndexStore catalogIndexStore;
 
-    public ExactEntityResolver(ObjectMapper objectMapper, SearchV2SourceCapabilityRegistry sourceCapabilityRegistry) {
+    public ExactEntityResolver(
+            ObjectMapper objectMapper,
+            SearchV2SourceCapabilityRegistry sourceCapabilityRegistry,
+            CatalogIndexStore catalogIndexStore) {
         this.entities = load(objectMapper);
         this.sourceCapabilityRegistry = sourceCapabilityRegistry;
+        this.catalogIndexStore = catalogIndexStore;
     }
 
     public ResolutionResult resolve(String query) {
@@ -73,7 +84,7 @@ public class ExactEntityResolver {
         }
         ExactEntityResolution inferred = inferCodeLikeEntity(raw);
         if (!"open_topic".equals(inferred.resolutionType())) {
-            SourceRoutingDecision routing = sourceCapabilityRegistry.route(inferred);
+            SourceRoutingDecision routing = routingFor(inferred);
             return new ResolutionResult(inferred, routing, variants(raw, inferred));
         }
         return new ResolutionResult(inferred, SourceRoutingDecision.empty(), List.of(new SearchQueryVariant(raw, "original_exact", 1.0)));
@@ -106,6 +117,29 @@ public class ExactEntityResolver {
                     Map.of("instrument_type", "exchange_rate", "market", "FX"));
         }
         if (SERIES_CODE.matcher(compact).matches() && containsLetterAndDigit(compact)) {
+            // Multi-word queries also compact down to this same code-shape ("unemployment rate
+            // 2024" -> "unemploymentrate2024") - only a query typed as ONE token is worth a
+            // catalog-existence check; verifying/narrowing a real sentence on a coincidental
+            // shape match would be a regression, not a fix (see live investigation notes).
+            CatalogMatch verified = query.contains(" ") ? null : verifyAgainstCatalog(compact);
+            if (verified != null) {
+                String canonical = verified.setId().toUpperCase(Locale.ROOT);
+                return new ExactEntityResolution(
+                        "exact_entity",
+                        CATALOG_VERIFIED_CONFIDENCE,
+                        "series_code",
+                        canonical,
+                        List.of(canonical, verified.setId()),
+                        List.of(query),
+                        "",
+                        List.of(verified.source()),
+                        List.of(query, canonical, verified.setId()),
+                        List.of(),
+                        false,
+                        "Verified against the real catalog: an existing " + verified.source()
+                                + " dataset/series id matches this query exactly.",
+                        Map.of());
+            }
             return new ExactEntityResolution(
                     "probable_entity",
                     0.78,
@@ -123,6 +157,47 @@ public class ExactEntityResolver {
         }
         return ExactEntityResolution.openTopic("No exact entity, symbol, ticker, code or known abbreviation matched.");
     }
+
+    /**
+     * Live-verifies a code-shaped query against the real, currently-indexed catalog (not a
+     * hardcoded list) via the same {@link CatalogIndexStore#lookupRow} an existing/proven fast,
+     * indexed lookup, looping every known source until the first hit. set_id casing isn't
+     * normalized across sources (confirmed live: Eurostat stores "naio_10_pyp1620" lowercase),
+     * so each candidate string is tried as-is, lowercased, and uppercased.
+     */
+    private CatalogMatch verifyAgainstCatalog(String compact) {
+        List<String> candidateIds = new ArrayList<>(new LinkedHashSet<>(List.of(
+                compact, compact.toLowerCase(Locale.ROOT), compact.toUpperCase(Locale.ROOT))));
+        for (String source : sourceCapabilityRegistry.knownSources()) {
+            for (String candidateId : candidateIds) {
+                Optional<Map<String, Object>> hit = catalogIndexStore.lookupRow(source, candidateId);
+                if (hit.isPresent()) {
+                    String realSetId = CatalogMapSupport.firstNonBlank(
+                            hit.get().get("set_id"), hit.get().get("id"));
+                    return new CatalogMatch(source, realSetId.isBlank() ? candidateId : realSetId);
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * {@link SearchV2SourceCapabilityRegistry#route} requires a non-blank {@code catalogFamily} -
+     * always blank for the generic series-code branch - so a catalog-verified resolution's
+     * {@code preferredSources} would otherwise silently never reach {@code SourceRoutingDecision}.
+     * Build the routing decision directly from the verified source instead, for this case only.
+     */
+    private SourceRoutingDecision routingFor(ExactEntityResolution resolution) {
+        if ("exact_entity".equals(resolution.resolutionType())
+                && resolution.preferredSources() != null
+                && !resolution.preferredSources().isEmpty()
+                && resolution.catalogFamily().isBlank()) {
+            return new SourceRoutingDecision(List.of(), resolution.preferredSources(), List.of(), Map.of());
+        }
+        return sourceCapabilityRegistry.route(resolution);
+    }
+
+    private record CatalogMatch(String source, String setId) {}
 
     private static boolean looksLikeFxPair(String compact) {
         if (compact == null) {
