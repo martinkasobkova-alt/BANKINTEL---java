@@ -738,6 +738,29 @@ public class CatalogIndexStore {
         return lookupJsonl(src, sid);
     }
 
+    /**
+     * Same indexed exact lookup as {@link #lookupRow}, but WITHOUT its JSONL fallback on a miss -
+     * for callers that speculatively probe many (source, id) pairs expecting most to miss (e.g.
+     * {@code ExactEntityResolver} verifying a code-like query against every known source). {@code
+     * lookupJsonl} does a full line-by-line file scan (parsing every row as JSON) - fine for a
+     * single targeted lookup with a known source as a resilience fallback when the FTS index is
+     * unavailable, but live-measured to add ~seconds when triggered on every miss across a dozen
+     * sources. Falls back to the same JSONL scan only when the FTS index itself isn't there at all
+     * (mirrors every other {@code ftsDbAvailable()} gate in this class) - never silently misses a
+     * real row just because this method is faster.
+     */
+    public Optional<Map<String, Object>> lookupRowIndexedOnly(String source, String setId) {
+        String src = CatalogSourceRegistry.normalizeSearchSource(source);
+        String sid = setId == null ? "" : setId.trim();
+        if (src.isBlank() || sid.isBlank()) {
+            return Optional.empty();
+        }
+        if (ftsDbAvailable()) {
+            return lookupSqlite(src, sid);
+        }
+        return lookupJsonl(src, sid);
+    }
+
     private List<Map<String, Object>> ftsSuggestSqlite(String queryRaw, int limit, List<String> sources) {
         int lim = Math.max(1, Math.min(limit, 50));
         int perSource = Math.max(12, Math.min(lim * 3, 40));

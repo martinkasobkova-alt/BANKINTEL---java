@@ -160,17 +160,21 @@ public class ExactEntityResolver {
 
     /**
      * Live-verifies a code-shaped query against the real, currently-indexed catalog (not a
-     * hardcoded list) via the same {@link CatalogIndexStore#lookupRow} an existing/proven fast,
-     * indexed lookup, looping every known source until the first hit. set_id casing isn't
-     * normalized across sources (confirmed live: Eurostat stores "naio_10_pyp1620" lowercase),
-     * so each candidate string is tried as-is, lowercased, and uppercased.
+     * hardcoded list), looping every known source until the first hit. Uses {@link
+     * CatalogIndexStore#lookupRowIndexedOnly} - NOT {@code lookupRow} - since this speculatively
+     * probes many sources expecting most to miss; {@code lookupRow}'s JSONL-scan fallback on a
+     * miss is fine for a single targeted lookup but live-measured to add multiple seconds here
+     * (a full per-source file scan on every one of the ~11 sources that don't have the id).
+     * set_id casing isn't normalized across sources (confirmed live: Eurostat stores
+     * "naio_10_pyp1620" lowercase), so each candidate string is tried as-is, lowercased, and
+     * uppercased.
      */
     private CatalogMatch verifyAgainstCatalog(String compact) {
         List<String> candidateIds = new ArrayList<>(new LinkedHashSet<>(List.of(
                 compact, compact.toLowerCase(Locale.ROOT), compact.toUpperCase(Locale.ROOT))));
         for (String source : sourceCapabilityRegistry.knownSources()) {
             for (String candidateId : candidateIds) {
-                Optional<Map<String, Object>> hit = catalogIndexStore.lookupRow(source, candidateId);
+                Optional<Map<String, Object>> hit = catalogIndexStore.lookupRowIndexedOnly(source, candidateId);
                 if (hit.isPresent()) {
                     String realSetId = CatalogMapSupport.firstNonBlank(
                             hit.get().get("set_id"), hit.get().get("id"));

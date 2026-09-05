@@ -143,7 +143,7 @@ class ExactEntityResolverTest {
      */
     @Test
     void catalogVerifiedCodeBecomesExactEntityWithVerifiedSource() {
-        when(catalogIndexStore.lookupRow("eurostat", "naio_10_pyp1620"))
+        when(catalogIndexStore.lookupRowIndexedOnly("eurostat", "naio_10_pyp1620"))
                 .thenReturn(Optional.of(Map.of("set_id", "naio_10_pyp1620")));
 
         ResolutionResult result = resolver.resolve("naio_10_pyp1620");
@@ -177,12 +177,12 @@ class ExactEntityResolverTest {
      */
     @Test
     void multiWordQueryNeverTriggersCatalogVerificationEvenIfCodeShapedAfterStrippingWhitespace() {
-        when(catalogIndexStore.lookupRow(anyString(), anyString()))
+        when(catalogIndexStore.lookupRowIndexedOnly(anyString(), anyString()))
                 .thenReturn(Optional.of(Map.of("set_id", "unemploymentrate2024")));
 
         ResolutionResult result = resolver.resolve("unemployment rate 2024");
 
         assertThat(result.entityResolution().resolutionType()).isEqualTo("probable_entity");
-        verify(catalogIndexStore, never()).lookupRow(anyString(), anyString());
+        verify(catalogIndexStore, never()).lookupRowIndexedOnly(anyString(), anyString());
     }
 }

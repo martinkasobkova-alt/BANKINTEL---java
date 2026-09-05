@@ -51,7 +51,7 @@ class SearchV2QueryPlannerTest {
     @Test
     void catalogVerifiedDatasetCodeBypassesLlmPlannerJustLikeCuratedEntities() {
         when(openAiClient.isConfigured()).thenReturn(true);
-        when(catalogIndexStore.lookupRow("eurostat", "naio_10_pyp1620"))
+        when(catalogIndexStore.lookupRowIndexedOnly("eurostat", "naio_10_pyp1620"))
                 .thenReturn(java.util.Optional.of(Map.of("set_id", "naio_10_pyp1620")));
 
         SearchQueryPlan plan = planner.plan(Map.of(
