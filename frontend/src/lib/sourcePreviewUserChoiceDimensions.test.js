@@ -19,6 +19,17 @@ describe("sourcePreviewUserChoiceDimensions", () => {
     ).toBe(true);
   });
 
+  it("exposes unit_measure/unit_mult/comp_breakdown for Data360 and OECD4, not just hides them as 'technical'", () => {
+    // Zivy nalez: tyhle ctyri pole mely realne, ruzne hodnoty u Data360 (World Bank) a
+    // unit_measure i u OECD4, ale byly na pevnem seznamu "vzdy skryte technicke" dimenze bez
+    // ohledu na to, kolik skutecnych hodnot mely - stejny druh chyby jako nace_r2 u Eurostatu.
+    expect(isUserSelectableDimensionKey("unit_measure", { optionCount: 4 })).toBe(true);
+    expect(isUserSelectableDimensionKey("unit_mult", { optionCount: 3 })).toBe(true);
+    expect(isUserSelectableDimensionKey("comp_breakdown_1", { optionCount: 5 })).toBe(true);
+    expect(isUserSelectableDimensionKey("comp_breakdown_2", { optionCount: 5 })).toBe(true);
+    expect(isUserSelectableDimensionKey("comp_breakdown_3", { optionCount: 5 })).toBe(true);
+  });
+
   it("hides cpa2_1 and ceparema from user choice", () => {
     expect(isUserSelectableDimensionKey("cpa2_1", { optionCount: 10 })).toBe(false);
     expect(isUserSelectableDimensionKey("ceparema", { optionCount: 5 })).toBe(false);

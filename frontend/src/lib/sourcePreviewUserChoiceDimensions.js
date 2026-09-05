@@ -94,16 +94,11 @@ const TECHNICAL_USER_DIMENSION_KEYS = new Set([
 
 [
   "agg_method",
-  "comp_breakdown_1",
-  "comp_breakdown_2",
-  "comp_breakdown_3",
   "database_id",
   "latest_data",
   "obs_conf",
   "obs_status",
   "time_format",
-  "unit_measure",
-  "unit_mult",
   "set_id",
   "snapshot_id",
   "indicator_name",
@@ -114,6 +109,11 @@ const TECHNICAL_USER_DIMENSION_KEYS = new Set([
   "catalog_label",
   "path",
 ].forEach((key) => TECHNICAL_USER_DIMENSION_KEYS.add(key));
+
+// unit_measure/unit_mult/comp_breakdown_1-3 byly dřív vždy skryté jako "technické" - u Data360 a
+// OECD4 ale mají reálné, různé hodnoty (živě zjištěno). Necháváme je projít na obecnou kontrolu
+// podle počtu možností (viz konec isUserSelectableDimensionKey), stejně jako ostatní datové
+// dimenze - už nejsou na pevném seznamu vždy-skrytých polí.
 
 function dimKey(value) {
   return String(value ?? "")

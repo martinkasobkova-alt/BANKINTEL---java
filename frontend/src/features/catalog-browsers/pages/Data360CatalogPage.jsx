@@ -20,6 +20,13 @@ export default function Data360CatalogPage() {
   const [timeFrom, setTimeFrom] = useState("");
   const [timeTo, setTimeTo] = useState("");
   const [sex, setSex] = useState("");
+  const [age, setAge] = useState("");
+  const [urbanisation, setUrbanisation] = useState("");
+  const [unitMeasure, setUnitMeasure] = useState("");
+  const [unitMult, setUnitMult] = useState("");
+  const [compBreakdown1, setCompBreakdown1] = useState("");
+  const [compBreakdown2, setCompBreakdown2] = useState("");
+  const [compBreakdown3, setCompBreakdown3] = useState("");
   const [advDatabaseId, setAdvDatabaseId] = useState("");
   const [advIndicator, setAdvIndicator] = useState("");
   const [adding, setAdding] = useState(null);
@@ -51,6 +58,13 @@ export default function Data360CatalogPage() {
     if (timeFrom.trim()) o.timePeriodFrom = timeFrom.trim();
     if (timeTo.trim()) o.timePeriodTo = timeTo.trim();
     if (sex.trim()) o.SEX = sex.trim();
+    if (age.trim()) o.AGE = age.trim();
+    if (urbanisation.trim()) o.URBANISATION = urbanisation.trim();
+    if (unitMeasure.trim()) o.UNIT_MEASURE = unitMeasure.trim();
+    if (unitMult.trim()) o.UNIT_MULT = unitMult.trim();
+    if (compBreakdown1.trim()) o.COMP_BREAKDOWN_1 = compBreakdown1.trim();
+    if (compBreakdown2.trim()) o.COMP_BREAKDOWN_2 = compBreakdown2.trim();
+    if (compBreakdown3.trim()) o.COMP_BREAKDOWN_3 = compBreakdown3.trim();
     return o;
   };
 
@@ -185,8 +199,36 @@ export default function Data360CatalogPage() {
               <input className="w-full mt-1 h-9 border rounded-lg px-2 font-mono" value={timeTo} onChange={(e) => setTimeTo(e.target.value)} />
             </label>
             <label>
-              SEX / pokročilé
+              SEX
               <input className="w-full mt-1 h-9 border rounded-lg px-2 font-mono" value={sex} onChange={(e) => setSex(e.target.value)} />
+            </label>
+            <label>
+              AGE
+              <input className="w-full mt-1 h-9 border rounded-lg px-2 font-mono" value={age} onChange={(e) => setAge(e.target.value)} />
+            </label>
+            <label>
+              URBANISATION
+              <input className="w-full mt-1 h-9 border rounded-lg px-2 font-mono" value={urbanisation} onChange={(e) => setUrbanisation(e.target.value)} />
+            </label>
+            <label>
+              UNIT_MEASURE
+              <input className="w-full mt-1 h-9 border rounded-lg px-2 font-mono" value={unitMeasure} onChange={(e) => setUnitMeasure(e.target.value)} />
+            </label>
+            <label>
+              UNIT_MULT
+              <input className="w-full mt-1 h-9 border rounded-lg px-2 font-mono" value={unitMult} onChange={(e) => setUnitMult(e.target.value)} />
+            </label>
+            <label>
+              COMP_BREAKDOWN_1
+              <input className="w-full mt-1 h-9 border rounded-lg px-2 font-mono" value={compBreakdown1} onChange={(e) => setCompBreakdown1(e.target.value)} />
+            </label>
+            <label>
+              COMP_BREAKDOWN_2
+              <input className="w-full mt-1 h-9 border rounded-lg px-2 font-mono" value={compBreakdown2} onChange={(e) => setCompBreakdown2(e.target.value)} />
+            </label>
+            <label>
+              COMP_BREAKDOWN_3
+              <input className="w-full mt-1 h-9 border rounded-lg px-2 font-mono" value={compBreakdown3} onChange={(e) => setCompBreakdown3(e.target.value)} />
             </label>
           </div>
           <p className="mt-2 text-[11px] text-muted-foreground">
