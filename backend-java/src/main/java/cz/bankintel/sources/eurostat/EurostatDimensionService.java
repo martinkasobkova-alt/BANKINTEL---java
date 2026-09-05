@@ -538,8 +538,8 @@ public class EurostatDimensionService {
             Map<String, Object> body = objectMapper.readValue(
                     response.body(), objectMapper.getTypeFactory().constructMapType(LinkedHashMap.class, String.class, Object.class));
             Object valueObj = body.get("value");
-            if (valueObj instanceof Map<?, ?> values && !values.isEmpty()) {
-                return true;
+            if (valueObj instanceof Map<?, ?> values) {
+                return hasNonZeroMagnitude(values);
             }
             Object dimObj = body.get("dimension");
             return dimObj instanceof Map<?, ?> dims && !dims.isEmpty() && body.containsKey("size");
@@ -550,6 +550,48 @@ public class EurostatDimensionService {
             if (acquired) {
                 eurostatCallLimiter.release();
             }
+        }
+    }
+
+    /**
+     * Přítomná mapa hodnot ještě neznamená použitelná data - Eurostat umí vrátit úplně
+     * PRÁZDNOU mapu (živě zjištěno: naio_10_pyp1620 s ind_use=T/cpa2_1=CPA_T pro Česko vrací
+     * doslova {@code "value":{}}) nebo neprázdnou mapu samých nul pro kombinaci, která formálně
+     * existuje, ale pro danou zemi nic neměří. Prázdná mapa je jednoznačně "žádná data" - false.
+     * Neprázdná mapa vrací false jen když jsme reálně přečetli čísla a všechna byla nula;
+     * nečíselné/neparsovatelné hodnoty (ale aspoň nějaké položky v mapě) se počítají jako
+     * "nejednoznačné, projít radši než falešně selhat", stejně jako to dělá frontendová obdoba
+     * (SourcePreview.jsx).
+     */
+    static boolean hasNonZeroMagnitude(Map<?, ?> values) {
+        if (values.isEmpty()) {
+            return false;
+        }
+        boolean sawNumeric = false;
+        for (Object raw : values.values()) {
+            Double parsed = parseNumeric(raw);
+            if (parsed == null) {
+                continue;
+            }
+            sawNumeric = true;
+            if (parsed != 0.0) {
+                return true;
+            }
+        }
+        return !sawNumeric;
+    }
+
+    private static Double parseNumeric(Object raw) {
+        if (raw instanceof Number number) {
+            return number.doubleValue();
+        }
+        if (raw == null) {
+            return null;
+        }
+        try {
+            return Double.parseDouble(String.valueOf(raw).trim());
+        } catch (NumberFormatException ex) {
+            return null;
         }
     }
 
