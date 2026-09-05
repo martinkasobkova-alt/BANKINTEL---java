@@ -156,6 +156,51 @@ class ConnectorParseSupportTest {
         }
 
         @Test
+        void keepsEveryDimensionFromTheSeriesKeyNotJustCountry() {
+            // Zivy nalez: driv se ze "seriesDims" cetla jen dimenze zeme, zbytek (tady FREQ) se
+            // zahodil jeste pred vznikem radku - ruzne serie se stejnou zemi se tak tise slily
+            // do jedne, i kdyz predstavovaly jinou realnou radu (napr. jinou frekvenci, protistranu
+            // nebo sektor).
+            List<Map<String, Object>> rows = ConnectorParseSupport.parseImfSdmxDataJson(imfBody());
+
+            assertThat(rows).allSatisfy(row -> assertThat(row).containsEntry("FREQ", "A"));
+        }
+
+        @Test
+        void distinguishesTwoSeriesThatShareACountryButDifferInAnotherDimension() {
+            // "0:1" a "1:1" sdilej REF_AREA index 1 (CZ), ale maji jiny FREQ index (0=A, 1=Q) -
+            // driv by oba proudy pozorovani skoncily ve "stejnem" (jen podle zeme rozlisenem)
+            // radku a tise se smichaly; ted musi zustat rozlisitelne podle FREQ.
+            Map<String, Object> body = new LinkedHashMap<>(imfBody());
+            Map<String, Object> data = new LinkedHashMap<>(castMap(body.get("data")));
+            Map<String, Object> structure = castMap(((List<?>) data.get("structures")).get(0));
+            Map<String, Object> dims = castMap(structure.get("dimensions"));
+            Map<String, Object> freqDim = new LinkedHashMap<>(castMap(((List<?>) dims.get("series")).get(0)));
+            freqDim.put("values", List.of(Map.of("id", "A"), Map.of("id", "Q")));
+            List<Object> newSeriesDims = List.of(freqDim, ((List<?>) dims.get("series")).get(1));
+            Map<String, Object> newDims = new LinkedHashMap<>(dims);
+            newDims.put("series", newSeriesDims);
+            Map<String, Object> newStructure = new LinkedHashMap<>(structure);
+            newStructure.put("dimensions", newDims);
+            data.put("structures", List.of(newStructure));
+            data.put(
+                    "dataSets",
+                    List.of(Map.of(
+                            "series",
+                            Map.of(
+                                    "0:1", Map.of("observations", Map.of("0", List.of(3.2))),
+                                    "1:1", Map.of("observations", Map.of("0", List.of(9.9)))))));
+            body.put("data", data);
+
+            List<Map<String, Object>> rows = ConnectorParseSupport.parseImfSdmxDataJson(body);
+
+            assertThat(rows).hasSize(2);
+            assertThat(rows).allSatisfy(row -> assertThat(row).containsEntry("COUNTRY", "CZ"));
+            assertThat(rows).extracting(row -> row.get("FREQ")).containsExactlyInAnyOrder("A", "Q");
+            assertThat(rows).extracting(row -> row.get("value")).containsExactlyInAnyOrder(3.2, 9.9);
+        }
+
+        @Test
         void returnsRowsSortedByPeriod() {
             List<Map<String, Object>> rows = ConnectorParseSupport.parseImfSdmxDataJson(imfBody());
 
