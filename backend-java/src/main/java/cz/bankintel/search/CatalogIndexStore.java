@@ -25,6 +25,7 @@ import cz.bankintel.search.model.CatalogHit;
 import cz.bankintel.search.model.CatalogMapSupport;
 import cz.bankintel.search.model.CatalogRawRow;
 import cz.bankintel.search.scoring.CatalogScoringPipeline;
+import cz.bankintel.sources.ecb.EcbItemCodeHints;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.env.Environment;
@@ -737,6 +738,29 @@ public class CatalogIndexStore {
         return lookupJsonl(src, sid);
     }
 
+    /**
+     * Same indexed exact lookup as {@link #lookupRow}, but WITHOUT its JSONL fallback on a miss -
+     * for callers that speculatively probe many (source, id) pairs expecting most to miss (e.g.
+     * {@code ExactEntityResolver} verifying a code-like query against every known source). {@code
+     * lookupJsonl} does a full line-by-line file scan (parsing every row as JSON) - fine for a
+     * single targeted lookup with a known source as a resilience fallback when the FTS index is
+     * unavailable, but live-measured to add ~seconds when triggered on every miss across a dozen
+     * sources. Falls back to the same JSONL scan only when the FTS index itself isn't there at all
+     * (mirrors every other {@code ftsDbAvailable()} gate in this class) - never silently misses a
+     * real row just because this method is faster.
+     */
+    public Optional<Map<String, Object>> lookupRowIndexedOnly(String source, String setId) {
+        String src = CatalogSourceRegistry.normalizeSearchSource(source);
+        String sid = setId == null ? "" : setId.trim();
+        if (src.isBlank() || sid.isBlank()) {
+            return Optional.empty();
+        }
+        if (ftsDbAvailable()) {
+            return lookupSqlite(src, sid);
+        }
+        return lookupJsonl(src, sid);
+    }
+
     private List<Map<String, Object>> ftsSuggestSqlite(String queryRaw, int limit, List<String> sources) {
         int lim = Math.max(1, Math.min(limit, 50));
         int perSource = Math.max(12, Math.min(lim * 3, 40));
@@ -759,7 +783,7 @@ public class CatalogIndexStore {
                 // the final search still performs the full ranked retrieval.
                 FtsQueryPlan plan = CatalogSourceRegistry.BIG_FTS_SOURCES.contains(source)
                         ? new FtsQueryPlan(matchExpr, false)
-                        : resolveFtsQueryPlan(conn, source, matchExpr);
+                        : resolveFtsQueryPlan(conn, source, matchExpr, queryRaw);
                 String sql = plan.ordered() ? SQL_FTS_SUGGEST_ORDERED : SQL_FTS_SUGGEST_FAST;
                 try (PreparedStatement ps = conn.prepareStatement(sql)) {
                     ps.setString(1, source);
@@ -791,33 +815,70 @@ public class CatalogIndexStore {
         List<String> needles = CatalogTextUtils.needlesFromQuery(queryRaw.trim());
         String matchExpr = CatalogTextUtils.buildFtsMatch(needles, queryRaw);
         List<Map<String, Object>> rows = new ArrayList<>();
+        List<Map<String, Object>> scored = List.of();
         try (PooledConnection pooled = borrowPooled()) {
             Connection conn = pooled.connection();
-            FtsQueryPlan plan = resolveFtsQueryPlan(conn, source, matchExpr);
+            FtsQueryPlan plan = resolveFtsQueryPlan(conn, source, matchExpr, queryRaw);
             int fetch = computeFtsFetchLimit(conn, source, lim, plan);
-            String sql = plan.ordered() ? SQL_FTS_SEARCH_ORDERED : SQL_FTS_SEARCH_FAST;
-            try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                ps.setString(1, source);
-                ps.setString(2, plan.matchExpr());
-                ps.setInt(3, fetch);
-                try (ResultSet rs = ps.executeQuery()) {
-                    while (rs.next()) {
-                        Map<String, Object> parsed = parseRowJson(rs.getString("row_json"));
-                        if (parsed != null) {
-                            parsed.put("_fts_rank", rs.getDouble("rank"));
-                            rows.add(parsed);
-                        }
-                    }
-                }
-            }
+            rows = fetchFtsRows(conn, plan, source, fetch);
             rows = mergeEntityRescueRows(conn, source, queryRaw, needles, rows, fetch);
             if (rows.isEmpty() && !"\"\"".equals(matchExpr)) {
                 rows.addAll(lookupLikeFallback(conn, source, queryRaw, lim));
             }
+            scored = scoreRows(source, queryRaw, rows, lim);
+
+            // Geo filtr zahodil úplně všechno, co FTS stihlo vytáhnout. U velkého zdroje to
+            // znamená, že se do vzorku prostě nedostaly řádky správné země (FRED má 260 tis. řad,
+            // vytáhne se jen omezené okno — "GDP Germany" tak vracelo 0, přestože německé řady
+            // v indexu jsou). Zopakujeme dotaz se zemí zatlačenou přímo do FTS.
+            //
+            // Když ani takhle zaměřený dotaz nic nenajde, vracíme prázdno záměrně: zdroj prostě
+            // pro tu zemi data nemá. Vrátit místo toho odmítnuté řádky by uživateli na dotaz
+            // o Německu podstrčilo české nebo americké řady.
+            if (scored.isEmpty() && !rows.isEmpty()) {
+                String geoAnchored = CatalogTextUtils.buildGeoAnchoredFtsMatch(matchExpr, queryRaw);
+                if (geoAnchored != null) {
+                    // Vždy bm25-seřazený plán, i u velkého zdroje: tenhle dotaz běží jen ve chvíli,
+                    // kdy bychom jinak vrátili nulu, a neseřazené okno by z desítek tisíc řádků
+                    // vytáhlo prvních pár v pořadí indexu (živě: "GDP Germany" vracelo obce
+                    // "San Germán, PR" místo německých řad).
+                    FtsQueryPlan geoPlan = new FtsQueryPlan(geoAnchored, true);
+                    List<Map<String, Object>> geoRows = fetchFtsRows(
+                            conn, geoPlan, source, computeFtsFetchLimit(conn, source, lim, geoPlan));
+                    if (!geoRows.isEmpty()) {
+                        return scoreRows(source, queryRaw, geoRows, lim);
+                    }
+                }
+            }
         } catch (SQLException ex) {
             log.warn("fts_search sqlite source={}: {}", source, ex.getMessage());
+            return scoreRows(source, queryRaw, rows, lim);
         }
-        return scoreRows(source, queryRaw, rows, lim);
+        return scored;
+    }
+
+    private List<Map<String, Object>> fetchFtsRows(Connection conn, FtsQueryPlan plan, String source, int fetch)
+            throws SQLException {
+        List<Map<String, Object>> rows = new ArrayList<>();
+        if ("\"\"".equals(plan.matchExpr())) {
+            return rows;
+        }
+        String sql = plan.ordered() ? SQL_FTS_SEARCH_ORDERED : SQL_FTS_SEARCH_FAST;
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, source);
+            ps.setString(2, plan.matchExpr());
+            ps.setInt(3, fetch);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    Map<String, Object> parsed = parseRowJson(rs.getString("row_json"));
+                    if (parsed != null) {
+                        parsed.put("_fts_rank", rs.getDouble("rank"));
+                        rows.add(parsed);
+                    }
+                }
+            }
+        }
+        return rows;
     }
 
     private SqliteFtsOutcome ftsSearchSqliteWithinBudget(
@@ -842,7 +903,7 @@ public class CatalogIndexStore {
                 });
                 progressHandlerInstalled = true;
 
-                FtsQueryPlan plan = resolveFtsQueryPlan(conn, source, matchExpr);
+                FtsQueryPlan plan = resolveFtsQueryPlan(conn, source, matchExpr, queryRaw);
                 int fetch = computeFtsFetchLimit(conn, source, lim, plan);
                 String sql = plan.ordered() ? SQL_FTS_SEARCH_ORDERED : SQL_FTS_SEARCH_FAST;
                 try (PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -1098,7 +1159,8 @@ public class CatalogIndexStore {
      * the match set first and only fall back to the legacy fast path when ordering would be too
      * expensive, optionally narrowing to the rarest quoted token from the OR-expanded match expr.
      */
-    static FtsQueryPlan resolveFtsQueryPlan(Connection conn, String source, String matchExpr) throws SQLException {
+    static FtsQueryPlan resolveFtsQueryPlan(Connection conn, String source, String matchExpr, String queryRaw)
+            throws SQLException {
         if (!CatalogSourceRegistry.BIG_FTS_SOURCES.contains(source)) {
             return new FtsQueryPlan(matchExpr, true);
         }
@@ -1107,7 +1169,7 @@ public class CatalogIndexStore {
         }
         int matchCount = countFtsMatches(conn, source, matchExpr);
         if (matchCount <= FTS_BM25_ORDER_THRESHOLD) {
-            String anchored = anchoredMatchExpr(conn, source, matchExpr);
+            String anchored = anchoredMatchExpr(conn, source, matchExpr, queryRaw);
             if (!anchored.equals(matchExpr)) {
                 int anchoredCount = countFtsMatches(conn, source, anchored);
                 if (anchoredCount > 0
@@ -1118,7 +1180,7 @@ public class CatalogIndexStore {
             }
             return new FtsQueryPlan(matchExpr, true);
         }
-        String anchored = anchoredMatchExpr(conn, source, matchExpr);
+        String anchored = anchoredMatchExpr(conn, source, matchExpr, queryRaw);
         if (!anchored.equals(matchExpr)) {
             int anchoredCount = countFtsMatches(conn, source, anchored);
             if (anchoredCount <= FTS_BM25_ORDER_THRESHOLD) {
@@ -1145,13 +1207,33 @@ public class CatalogIndexStore {
     }
 
     /**
-     * When a broad OR match explodes (e.g. {@code "nasdaq" OR "cena" OR "price"}), retry with the
-     * rarest quoted token so bm25 ordering stays tractable and major entities are not drowned out.
+     * When a broad OR match explodes (e.g. {@code "nasdaq" OR "cena" OR "price"}), retry with a
+     * single quoted token so bm25 ordering stays tractable and major entities are not drowned out.
+     *
+     * <p>The user's own literal query phrase wins whenever it is affordable on its own, even if
+     * some other token has a lower raw match count. {@code needlesFromQuery} expands a query into
+     * a cluster of related concept words (e.g. "Return on assets" in {@code ecb2} pulls in
+     * "assets", "liabilities", "deposits", "balance", "sheet", "total", "bank"...) and some of
+     * those expansion words can co-occur into a phrase that is numerically rarer than what the
+     * user actually typed — live-measured: "total assets" (2 170 matches) beats the literal
+     * "return on assets" (11 200 matches) in {@code ecb2}. Anchoring on raw rarity alone picked
+     * "total assets" and silently dropped every literally-titled "Return on assets (ROA)" row
+     * from the fetch window before {@code CatalogScoringPipeline} ever got a chance to rank them.
+     * Preferring the literal phrase (when its own count is already under the bm25 threshold) means
+     * the anchor tracks what the user asked for, not an artifact of concept expansion.
      */
-    static String anchoredMatchExpr(Connection conn, String source, String matchExpr) throws SQLException {
+    static String anchoredMatchExpr(Connection conn, String source, String matchExpr, String queryRaw)
+            throws SQLException {
         List<String> tokens = parseQuotedFtsTokens(matchExpr);
         if (tokens.isEmpty()) {
             return matchExpr;
+        }
+        String literalPhrase = literalQueryToken(queryRaw);
+        if (literalPhrase != null && tokens.contains(literalPhrase)) {
+            int literalCount = countFtsMatches(conn, source, ftsQuotedToken(literalPhrase));
+            if (literalCount > 0 && literalCount <= FTS_BM25_ORDER_THRESHOLD) {
+                return ftsQuotedToken(literalPhrase);
+            }
         }
         String bestToken = null;
         int bestCount = Integer.MAX_VALUE;
@@ -1173,6 +1255,19 @@ public class CatalogIndexStore {
             return matchExpr;
         }
         return ftsQuotedToken(bestToken);
+    }
+
+    /** Reconstructs the unquoted phrase token {@link CatalogTextUtils#buildFtsMatch} derives from the raw query. */
+    private static String literalQueryToken(String queryRaw) {
+        if (queryRaw == null || queryRaw.isBlank()) {
+            return null;
+        }
+        String topicQuery = CatalogGeoIntent.topicQueryWithoutGeo(queryRaw);
+        if (topicQuery.isBlank()) {
+            topicQuery = queryRaw.trim();
+        }
+        String phrase = CatalogTextUtils.ftsEscapeToken(topicQuery);
+        return phrase.isBlank() ? null : phrase;
     }
 
     static List<String> parseQuotedFtsTokens(String matchExpr) {
@@ -1201,6 +1296,26 @@ public class CatalogIndexStore {
     private List<Map<String, Object>> lookupLikeFallback(
             Connection conn, String source, String queryRaw, int limit) throws SQLException {
         String folded = CatalogTextUtils.foldAscii(queryRaw);
+
+        // Jednoslovný dotaz je typicky vložené ID řady ("DEURHARMMDSMEI"). Přesné vyhledání
+        // přes idx_catalog_rows_lookup(source, set_id) stojí 0 ms, kdežto LIKE níž je plný sken.
+        String trimmed = queryRaw == null ? "" : queryRaw.trim();
+        if (!trimmed.isEmpty() && trimmed.indexOf(' ') < 0) {
+            for (String candidate : List.of(trimmed, trimmed.toUpperCase(Locale.ROOT))) {
+                Optional<Map<String, Object>> exact = lookupSqliteOnConnection(conn, source, candidate);
+                if (exact.isPresent()) {
+                    return new ArrayList<>(List.of(exact.get()));
+                }
+            }
+        }
+
+        // `row_json LIKE '%…%'` neumí použít žádný index. U malých zdrojů je to levná záchrana,
+        // u velkých je to plný sken celé tabulky: naměřeno 8,4 s nad 262 tis. řádky FRED — a to
+        // pro dotaz, který stejně nic nenajde. Zdroj, kde už selhalo FTS i přesné ID, tuhle cenu
+        // platit nemá.
+        if (CatalogSourceRegistry.BIG_FTS_SOURCES.contains(source)) {
+            return List.of();
+        }
         String like = "%" + folded.substring(0, Math.min(40, folded.length())) + "%";
         String sql =
                 "SELECT row_json, 0 AS rank FROM catalog_rows_lookup WHERE source = ? AND row_json LIKE ? LIMIT ?";
@@ -1279,6 +1394,7 @@ public class CatalogIndexStore {
                     continue;
                 }
                 Map<String, Object> row = objectMapper.readValue(line, MAP_TYPE);
+                applyEcbUnresolvedItemHint(row);
                 String sid = String.valueOf(row.getOrDefault("set_id", row.getOrDefault("id", ""))).trim();
                 if (!sid.isBlank() && sid.equalsIgnoreCase(target)) {
                     return Optional.of(row);
@@ -1312,6 +1428,7 @@ public class CatalogIndexStore {
                     continue;
                 }
                 Map<String, Object> row = objectMapper.readValue(line, MAP_TYPE);
+                applyEcbUnresolvedItemHint(row);
                 String sid = String.valueOf(row.getOrDefault("set_id", row.getOrDefault("id", ""))).trim();
                 if (sid.isBlank()) {
                     continue;
@@ -1370,14 +1487,40 @@ public class CatalogIndexStore {
         return scoringPipeline.scoreAndRankAsMaps(source, queryRaw, rows, limit);
     }
 
+
     private Map<String, Object> parseRowJson(String raw) {
         if (raw == null || raw.isBlank()) {
             return null;
         }
         try {
-            return objectMapper.readValue(raw, MAP_TYPE);
+            Map<String, Object> parsed = objectMapper.readValue(raw, MAP_TYPE);
+            applyEcbUnresolvedItemHint(parsed);
+            return parsed;
         } catch (Exception ex) {
             return null;
+        }
+    }
+
+    /**
+     * Stejny dodatek pro 11 ICP polozkovych kodu bez lidskeho nazvu jako v
+     * {@code EcbSeriesAvailabilityService} (browse strom) - tady se tyka VSECH konzumentu
+     * teto tridy (klasicke i AI katalogove hledani), ktere ctou syrovy `name` primo z
+     * ecb2.jsonl a nikdy neprochazi browse-strom kod.
+     */
+    private void applyEcbUnresolvedItemHint(Map<String, Object> row) {
+        if (row == null || !"ecb2".equals(row.get("source"))) {
+            return;
+        }
+        Object nameObj = row.get("name");
+        Object flowObj = row.get("ecb_flow");
+        Object seriesKeyObj = row.get("ecb_series_key");
+        if (!(nameObj instanceof String name) || !(flowObj instanceof String flow)
+                || !(seriesKeyObj instanceof String seriesKey)) {
+            return;
+        }
+        String hinted = EcbItemCodeHints.withUnresolvedItemHint(name, flow, seriesKey);
+        if (!hinted.equals(name)) {
+            row.put("name", hinted);
         }
     }
 

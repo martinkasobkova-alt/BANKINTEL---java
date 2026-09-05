@@ -11,6 +11,7 @@ import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import cz.bankintel.explore.ExploreDtos.ExploreSectorRequest;
+import cz.bankintel.search.CatalogIndexStore;
 import cz.bankintel.search.openai.OpenAiClient;
 import cz.bankintel.service.research.WebResearchService;
 import java.util.List;
@@ -48,7 +49,8 @@ class ExploreSectorServiceFallbackObservabilityTest {
                 mock(ExplorePresetPreviewService.class),
                 cache,
                 mock(Environment.class),
-                mock(WebResearchService.class));
+                mock(WebResearchService.class),
+                mock(CatalogIndexStore.class));
         ExploreSectorService.PreparedAnalysis prep = new ExploreSectorService.PreparedAnalysis(
                 null,
                 "banking",
@@ -73,6 +75,7 @@ class ExploreSectorServiceFallbackObservabilityTest {
                 "banking",
                 "question",
                 "",
+                List.of(),
                 "",
                 "",
                 null,
@@ -126,13 +129,14 @@ class ExploreSectorServiceFallbackObservabilityTest {
                 mock(ExplorePresetPreviewService.class),
                 cache,
                 environment,
-                mock(WebResearchService.class));
+                mock(WebResearchService.class),
+                mock(CatalogIndexStore.class));
         ExploreSectorService.PreparedAnalysis prep = new ExploreSectorService.PreparedAnalysis(
                 null, "banking", "question", Map.of(), Map.of("sector", "banking"), Map.of(), 1L);
         ExploreDiscoveryService.IndicatorBundle emptyDiscovery = new ExploreDiscoveryService.IndicatorBundle(
                 List.of(), List.of(), 0, false, 10L, 10L, Map.of());
         ExploreSectorRequest request = new ExploreSectorRequest(
-                "banking", "question", "", "", "", null, null, "sector", false, false, true, false,
+                "banking", "question", "", List.of(), "", "", null, null, "sector", false, false, true, false,
                 List.of(), "strict_private", "auto", null, true);
 
         Map<String, Object> result = service.finalizeAnalysis(prep, emptyDiscovery, request);

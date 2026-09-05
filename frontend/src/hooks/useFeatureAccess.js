@@ -4,6 +4,9 @@ import { useFeatureAccessContextOptional } from "@/contexts/FeatureAccessContext
 
 const LOADING_MSG = "Kontrola oprávnění…";
 
+/** Funkce, u kterých jde o práci s daty — hláška je konkrétnější než obecné „po přihlášení". */
+const DATA_WORK_KEYS = ["export_data", "chart_image_export", "save_widget", "personal_dashboard", "multiple_dashboards", "saved_calculations", "upload_custom_data", "company_data_analysis", "rss_monitoring"];
+
 /**
  * @param {string} featureKey
  * @param {{ user?: object | null | false, accessLevel: string, featureKey: string }} opts
@@ -13,7 +16,10 @@ function buildLockMessage({ user, accessLevel, featureKey }) {
     return "Tato funkce je dostupná pouze administrátorům.";
   }
   if (accessLevel === "registered") {
-    return "Tato funkce je dostupná po přihlášení.";
+    // U funkcí, které data odnášejí ven nebo je ukládají, řekneme rovnou proč se registrovat.
+    return DATA_WORK_KEYS.includes(featureKey)
+      ? "Pokud chcete data stahovat, exportovat, ukládat a dál s nimi pracovat, zaregistrujte se."
+      : "Tato funkce je dostupná po přihlášení.";
   }
   if (accessLevel === "subscriber") {
     if (featureKey === "export_data") {

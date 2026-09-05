@@ -88,7 +88,7 @@ public final class ExploreSectorContract {
         out.put("index_hits", 0);
         out.put("deep_search_status", null);
         out.put("empty_hint", null);
-        out.put("warnings", List.of());
+        out.put("warnings", list(ctx.get("geo_warnings")));
         out.put("source_statuses", List.of());
         out.put("company_indicators", List.of());
         out.put("company_vs_market", List.of());
@@ -96,6 +96,16 @@ public final class ExploreSectorContract {
         out.put("user_uploads_used", List.of());
         return out;
     }
+
+    /**
+     * 5 sekcí, do kterých appka dřív nikdy nic nedala - byly natvrdo vždy prázdné, přestože UI je
+     * slibovalo. Discovery teď každému ne-makro řádku nastaví jemnější {@code manager_category}
+     * ({@link ExploreDiscoveryService#toIndicator}, {@link
+     * ExploreSectorService#refineReportSections}) - tady se podle ní řádky rozdělí. Nerozpoznaná
+     * kategorie zůstává v {@code sector_indicators}, dosavadní výchozí chování.
+     */
+    private static final List<String> FINE_SECTOR_CATEGORIES = List.of(
+            "leading_indicators", "cost_indicators", "financial_indicators", "external_indicators", "risk_indicators");
 
     public static Map<String, Object> mergeIndicators(
             Map<String, Object> base,
@@ -105,13 +115,19 @@ public final class ExploreSectorContract {
             String deepSearchStatus,
             boolean partial) {
         Map<String, Object> out = new LinkedHashMap<>(base);
-        out.put("sector_indicators", sectorIndicators);
+        Map<String, List<Map<String, Object>>> bySection = splitByReportSection(sectorIndicators);
+        for (Map.Entry<String, List<Map<String, Object>>> entry : bySection.entrySet()) {
+            out.put(entry.getKey(), entry.getValue());
+        }
         out.put("macro_indicators", macroIndicators);
         out.put("sector_indicators_total", sectorIndicators.size());
         out.put("macro_indicators_total", macroIndicators.size());
         out.put("total_candidates", totalCandidates);
         out.put("partial", partial);
         out.put("deep_search_status", deepSearchStatus);
+        // Z PLNÉHO sector setu, ne jen z toho, co po rozdělení do jemných sekcí zbylo v
+        // "sector_indicators" - jinak by se doporučené grafy nesmyslně zmenšily o všechno, co
+        // odteklo do leading/cost/financial/external/risk.
         out.put("recommended_chart_set", new ArrayList<>(sectorIndicators));
         if (sectorIndicators.isEmpty() && !partial) {
             out.put(
@@ -122,6 +138,21 @@ public final class ExploreSectorContract {
                             : "Pro odvětví „" + out.get("sector") + "“ jsme nenašli žádné specifické ukazatele — "
                                     + "níže je jen obecný makroekonomický kontext (HDP, inflace, sazby apod.), "
                                     + "který nemusí přímo odpovídat na váš dotaz. Zkuste přesnější název nebo širší hledání.");
+        }
+        return out;
+    }
+
+    private static Map<String, List<Map<String, Object>>> splitByReportSection(List<Map<String, Object>> rows) {
+        Map<String, List<Map<String, Object>>> out = new LinkedHashMap<>();
+        out.put("sector_indicators", new ArrayList<>());
+        for (String key : FINE_SECTOR_CATEGORIES) {
+            out.put(key, new ArrayList<>());
+        }
+        for (Map<String, Object> row : rows) {
+            String category = str(row.get("manager_category"));
+            List<Map<String, Object>> bucket =
+                    FINE_SECTOR_CATEGORIES.contains(category) ? out.get(category) : out.get("sector_indicators");
+            bucket.add(row);
         }
         return out;
     }

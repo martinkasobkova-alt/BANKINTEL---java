@@ -39,7 +39,12 @@ public class EurostatDimensionService {
     private final ObjectMapper objectMapper;
     private final HttpClient httpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(22)).build();
     private final ConcurrentHashMap<String, CachedMeta> cache = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<String, Map<String, Object>> resolvedPreviewCache = new ConcurrentHashMap<>();
+    /** TTL'd, unlike a plain map - živě zjištěno (2026-09-05): dřív bez expirace, takže JEDNA
+     * nešťastná živá kombinace (Eurostatova API odpověď se může lišit běh od běhu - viz
+     * hasNonZeroMagnitude) zůstala navěky "vyřešená" pro daný dataset+zemi, dokud backend
+     * nerestartoval - servírovala se STEJNÁ špatná/prázdná kombinace úplně všem uživatelům.
+     * Stejná 1h TTL jako {@link #cache} - žádný důvod řešit to jinak. */
+    private final ConcurrentHashMap<String, CachedResolvedPreview> resolvedPreviewCache = new ConcurrentHashMap<>();
     /** Bounded, I/O-bound live-probe fan-out — virtual threads so probes for a dimension run
      * concurrently instead of sequentially (cold-start dimension resolution was ~8 serial round
      * trips per dimension, ~25s; running them in parallel bounds it to ~1 round trip). */
@@ -124,9 +129,9 @@ public class EurostatDimensionService {
                 ? preferredGeo.trim().toUpperCase(Locale.ROOT)
                 : "";
         String cacheKey = sid + "|" + preferredGeoCode;
-        Map<String, Object> cachedResolved = resolvedPreviewCache.get(cacheKey);
-        if (cachedResolved != null) {
-            return cachedResolved;
+        CachedResolvedPreview cachedResolved = resolvedPreviewCache.get(cacheKey);
+        if (cachedResolved != null && cachedResolved.expiresAtMs() > System.currentTimeMillis()) {
+            return cachedResolved.queryParams();
         }
         Map<String, Object> meta = fetchMetadata(sid);
         if (meta == null) {
@@ -151,7 +156,7 @@ public class EurostatDimensionService {
         qp.put("format", "JSON");
         qp.put("lang", "EN");
         qp.put("lastTimePeriod", "1");
-        resolvedPreviewCache.put(cacheKey, qp);
+        resolvedPreviewCache.put(cacheKey, new CachedResolvedPreview(qp, System.currentTimeMillis() + Duration.ofHours(1).toMillis()));
         return qp;
     }
 
@@ -416,6 +421,18 @@ public class EurostatDimensionService {
         pickDefault(selection, dims, "indic_bt", List.of("PRD", "NETTUR", "PRC_PRR"));
         pickDefault(selection, dims, "nace_r2", List.of("B_C", "C", "B-D"));
         pickDefault(selection, dims, "s_adj", List.of("SCA", "CA", "NSA"));
+        // Input-output/national-accounts tables (naio_10_cp*/naio_10_pyp*) expose ind_use
+        // ("Industries and final uses") and its paired cpa2_1 product classification - both
+        // default, unverified, to the generic aggregate "T"/"CPA_T" ("activities of households
+        // as employers"), which often has zero observations for a specific country (live-verified:
+        // naio_10_pyp1620/geo=CZ). G45 (wholesale/retail trade) is a real, populated category for
+        // most countries - same preferred code the frontend already hand-picked for this dataset
+        // family (sourcePreviewIndustryFilters.js), now applied at the source instead of only on
+        // re-interaction. Unlike coicop/indic_bt/nace_r2 above this isn't dataset-scoped - the
+        // live probe below (now magnitude-checked, not just presence-checked) verifies it either
+        // way, so a dataset where G45 doesn't pan out just falls through to the cascade.
+        pickDefault(selection, dims, "ind_use", List.of("G45", "TOTAL", "T"));
+        pickDefault(selection, dims, "cpa2_1", List.of("CPA_G45", "CPA_TOTAL", "CPA_T"));
         for (String key : orderedDimensionKeys(dims)) {
             if (selection.containsKey(key) || SKIP_DIM_KEYS.contains(key.toLowerCase(Locale.ROOT))) {
                 continue;
@@ -538,8 +555,8 @@ public class EurostatDimensionService {
             Map<String, Object> body = objectMapper.readValue(
                     response.body(), objectMapper.getTypeFactory().constructMapType(LinkedHashMap.class, String.class, Object.class));
             Object valueObj = body.get("value");
-            if (valueObj instanceof Map<?, ?> values && !values.isEmpty()) {
-                return true;
+            if (valueObj instanceof Map<?, ?> values) {
+                return hasNonZeroMagnitude(values);
             }
             Object dimObj = body.get("dimension");
             return dimObj instanceof Map<?, ?> dims && !dims.isEmpty() && body.containsKey("size");
@@ -550,6 +567,48 @@ public class EurostatDimensionService {
             if (acquired) {
                 eurostatCallLimiter.release();
             }
+        }
+    }
+
+    /**
+     * Přítomná mapa hodnot ještě neznamená použitelná data - Eurostat umí vrátit úplně
+     * PRÁZDNOU mapu (živě zjištěno: naio_10_pyp1620 s ind_use=T/cpa2_1=CPA_T pro Česko vrací
+     * doslova {@code "value":{}}) nebo neprázdnou mapu samých nul pro kombinaci, která formálně
+     * existuje, ale pro danou zemi nic neměří. Prázdná mapa je jednoznačně "žádná data" - false.
+     * Neprázdná mapa vrací false jen když jsme reálně přečetli čísla a všechna byla nula;
+     * nečíselné/neparsovatelné hodnoty (ale aspoň nějaké položky v mapě) se počítají jako
+     * "nejednoznačné, projít radši než falešně selhat", stejně jako to dělá frontendová obdoba
+     * (SourcePreview.jsx).
+     */
+    static boolean hasNonZeroMagnitude(Map<?, ?> values) {
+        if (values.isEmpty()) {
+            return false;
+        }
+        boolean sawNumeric = false;
+        for (Object raw : values.values()) {
+            Double parsed = parseNumeric(raw);
+            if (parsed == null) {
+                continue;
+            }
+            sawNumeric = true;
+            if (parsed != 0.0) {
+                return true;
+            }
+        }
+        return !sawNumeric;
+    }
+
+    private static Double parseNumeric(Object raw) {
+        if (raw instanceof Number number) {
+            return number.doubleValue();
+        }
+        if (raw == null) {
+            return null;
+        }
+        try {
+            return Double.parseDouble(String.valueOf(raw).trim());
+        } catch (NumberFormatException ex) {
+            return null;
         }
     }
 
@@ -759,4 +818,6 @@ public class EurostatDimensionService {
     }
 
     private record CachedMeta(Map<String, Object> body, long expiresAtMs) {}
+
+    private record CachedResolvedPreview(Map<String, Object> queryParams, long expiresAtMs) {}
 }

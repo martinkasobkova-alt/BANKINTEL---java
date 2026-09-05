@@ -3,8 +3,11 @@ package cz.bankintel.search;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -28,6 +31,13 @@ public class CatalogSqliteReadPool {
     private final BlockingQueue<Connection> pool = new ArrayBlockingQueue<>(POOL_SIZE);
     private volatile String jdbcUrl;
 
+    // Generace souboru indexu. Rebuild ({@link ClassicCatalogFtsIndexBuilder}) soubor vymění pod
+    // rukama, takže spojení otevřená před výměnou už ukazují na starý (odlinkovaný) soubor.
+    // isValid() je na nich pořád true — čtou dál, jen stará data — proto se nepoznají jinak než
+    // podle generace, ve které byla vypůjčena.
+    private final AtomicLong generation = new AtomicLong();
+    private final Map<Connection, Long> issuedGeneration = new ConcurrentHashMap<>();
+
     public CatalogSqliteReadPool(CatalogSearchProperties properties) {
         this.properties = properties;
     }
@@ -41,18 +51,24 @@ public class CatalogSqliteReadPool {
         if (conn != null) {
             try {
                 if (conn.isValid(2)) {
-                    return conn;
+                    return track(conn);
                 }
                 closeQuietly(conn);
             } catch (SQLException ex) {
                 closeQuietly(conn);
             }
         }
-        return openNew();
+        return track(openNew());
     }
 
     public void release(Connection conn) {
         if (conn == null) {
+            return;
+        }
+        Long borrowedIn = issuedGeneration.remove(conn);
+        if (borrowedIn == null || borrowedIn != generation.get()) {
+            // Vypůjčeno před výměnou souboru indexu — zpátky do poolu nesmí, četlo by starý soubor.
+            closeQuietly(conn);
             return;
         }
         try {
@@ -66,6 +82,33 @@ public class CatalogSqliteReadPool {
         } catch (SQLException ex) {
             closeQuietly(conn);
         }
+    }
+
+    /**
+     * Zavře nakešovaná spojení a zneplatní ta právě vypůjčená — volá se těsně před atomickou
+     * výměnou souboru indexu (Python ekvivalent {@code close_fts_connection()}).
+     *
+     * <p>Bez toho drží pool až {@value #POOL_SIZE} otevřených handlů na starý soubor. Na Windows
+     * kvůli tomu selže samotný přesun, na Linuxu projde, ale spojení dál čtou odlinkovaný inode —
+     * hledání by vracelo předrebuildová data až do restartu aplikace.
+     *
+     * @return kolik nakešovaných spojení se zavřelo
+     */
+    public int drain() {
+        generation.incrementAndGet();
+        int closed = 0;
+        Connection conn;
+        while ((conn = pool.poll()) != null) {
+            issuedGeneration.remove(conn);
+            closeQuietly(conn);
+            closed++;
+        }
+        return closed;
+    }
+
+    private Connection track(Connection conn) {
+        issuedGeneration.put(conn, generation.get());
+        return conn;
     }
 
     private Connection openNew() throws SQLException {

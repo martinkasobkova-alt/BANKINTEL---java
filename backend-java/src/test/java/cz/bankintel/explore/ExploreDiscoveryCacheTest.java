@@ -3,8 +3,10 @@ package cz.bankintel.explore;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import cz.bankintel.search.CatalogIndexStore;
 import cz.bankintel.search.v2.entity.ExactEntityResolver;
 import cz.bankintel.search.v2.entity.SearchV2SourceCapabilityRegistry;
 import cz.bankintel.search.v2.ontology.SearchV2ConceptRegistry;
@@ -18,7 +20,7 @@ import org.junit.jupiter.api.Test;
  * ETAPA 6: {@link ExploreDiscoveryCache#buildKey} must be a pure function of deterministic
  * signals only - the raw query text plus the existing metric-intent/institutional-sector/concept/
  * exact-entity/geo registries the Search V2 planner already uses - never of the LLM planner's own
- * free-form search-term variants (which MANAGER_EXPLORER_AUDIT.md section P2 showed can differ
+ * free-form search-term variants (which docs/archive/MANAGER_EXPLORER_AUDIT.md section P2 showed can differ
  * between two calls for the identical query: 6 back-to-back identical requests returned {@code
  * verified} counts of 6, 5, 4, 3, 3, 5). These tests use REAL registry instances (JSON-backed, no
  * LLM, no mocking of the thing being tested) so the determinism claim is genuine, not assumed.
@@ -31,7 +33,7 @@ class ExploreDiscoveryCacheTest {
                 new SearchV2MetricIntentRegistry(mapper),
                 new SearchV2InstitutionalSectorRegistry(mapper),
                 new SearchV2ConceptRegistry(mapper),
-                new ExactEntityResolver(mapper, new SearchV2SourceCapabilityRegistry(mapper)));
+                new ExactEntityResolver(mapper, new SearchV2SourceCapabilityRegistry(mapper), mock(CatalogIndexStore.class)));
     }
 
     @Test

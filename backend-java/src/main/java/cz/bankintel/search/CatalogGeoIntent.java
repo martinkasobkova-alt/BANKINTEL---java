@@ -504,7 +504,12 @@ public final class CatalogGeoIntent {
             return new GeoRowAdjustment(0.85, false, "row_non_eu_deboosted");
         }
         if (codes.contains(rowCc)) {
-            return new GeoRowAdjustment(1.55, true, "row_requested_country_match");
+            // Druhý parametr je hardReject — řádek se zahodí. Tady jde ale o řádek, jehož země
+            // PŘESNĚ odpovídá dotazu, takže se má naopak zvýhodnit (1.55). S `true` se zahazoval
+            // a scoring nikdy nedostal šanci boost uplatnit: dotaz na konkrétní zemi ("GDP
+            // Germany", "unemployment Germany") vracel u FRED/ECB/Eurostatu nulu, přestože ty
+            // řady v indexu jsou — vypadly právě ty, které se trefily.
+            return new GeoRowAdjustment(1.55, false, "row_requested_country_match");
         }
         if ("country".equals(geoType) || "multi_country".equals(geoType) || "czech_region".equals(geoType)) {
             return new GeoRowAdjustment(0.07, true, "row_country_mismatch");

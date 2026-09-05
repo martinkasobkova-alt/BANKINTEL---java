@@ -14,18 +14,26 @@ import { Settings2, TrendingDown, TrendingUp, Minus, Pencil, Check, X as XIcon }
 import api from "@/lib/api";
 import HeadlineKpiAdminPanel from "@/components/HeadlineKpiAdminPanel";
 import { useLocalizedContent } from "@/hooks/useLocalizedContent";
+import { fmtCompact } from "@/lib/format";
 
 /* ── helpers ─────────────────────────────────────────────────────────────── */
 
+/**
+ * Velká čísla se na dlaždici zkracují po tisících (tis. / mil. / mld. / bil.) — stejně
+ * jako na osách grafů, přes sdílený `fmtCompact`. Bez toho tu stálo
+ * „1 007 626 000 000,0", což se nedá přečíst ani porovnat.
+ *
+ * `decimalPlaces` z konfigurace dlaždice má přednost — kdo si nastaví přesnost, dostane
+ * plné číslo bez zkracování.
+ */
 function fmtValue(value, unit, decimalPlaces) {
   if (value == null) return "—";
   const num = typeof value === "number" ? value : parseFloat(value);
   if (Number.isNaN(num)) return "—";
-  const dp = decimalPlaces != null ? decimalPlaces : (Math.abs(num) >= 1000 ? 1 : 2);
-  const formatted = num.toLocaleString("cs-CZ", {
-    minimumFractionDigits: dp,
-    maximumFractionDigits: dp,
-  });
+  const formatted =
+    decimalPlaces != null
+      ? num.toLocaleString("cs-CZ", { minimumFractionDigits: decimalPlaces, maximumFractionDigits: decimalPlaces })
+      : fmtCompact(num);
   return unit ? `${formatted} ${unit}` : formatted;
 }
 
@@ -33,8 +41,11 @@ function fmtDiff(value, prevValue, decimalPlaces) {
   if (value == null || prevValue == null) return null;
   const diff = value - prevValue;
   const sign = diff > 0 ? "+" : "";
-  const dp = decimalPlaces != null ? decimalPlaces : (Math.abs(diff) >= 1000 ? 1 : 2);
-  return `${sign}${diff.toLocaleString("cs-CZ", { minimumFractionDigits: dp, maximumFractionDigits: dp })}`;
+  const formatted =
+    decimalPlaces != null
+      ? diff.toLocaleString("cs-CZ", { minimumFractionDigits: decimalPlaces, maximumFractionDigits: decimalPlaces })
+      : fmtCompact(diff);
+  return `${sign}${formatted}`;
 }
 
 const COMPARISON_LABELS = {
@@ -217,21 +228,26 @@ function KpiSkeleton() {
 
 /* ── Main component ──────────────────────────────────────────────────────── */
 
-export default function HeadlineKpiStrip({ mode = "homepage", slug, isAdmin = false }) {
+export default function HeadlineKpiStrip({ mode = "homepage", slug, pageId, isAdmin = false }) {
   const [kpisRaw,      setKpisRaw]      = useState([]); // raw config (for admin panel)
   const [kpisResolved, setKpisResolved] = useState([]); // resolved values (for display)
   const [loading,      setLoading]      = useState(true);
   const [adminOpen,    setAdminOpen]    = useState(false);
 
+  /** `personal` = dlaždice osobní stránky (Můj dashboard), vázané na pageId místo slugu. */
   const resolvedUrl =
     mode === "homepage"
       ? "/homepage/kpis-resolved"
-      : `/sections/${slug}/kpis-resolved`;
+      : mode === "personal"
+        ? `/me/dashboard/pages/${pageId}/kpis-resolved`
+        : `/sections/${slug}/kpis-resolved`;
 
   const configUrl =
     mode === "homepage"
       ? "/homepage/config"
-      : `/sections/${slug}`;
+      : mode === "personal"
+        ? `/me/dashboard/pages/${pageId}/kpis`
+        : `/sections/${slug}`;
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -241,10 +257,8 @@ export default function HeadlineKpiStrip({ mode = "homepage", slug, isAdmin = fa
         api.get(configUrl),
       ]);
       setKpisResolved(resolvedRes.data?.kpis || []);
-      const raw = mode === "homepage"
-        ? (configRes.data?.headline_kpis || [])
-        : (configRes.data?.headline_kpis || []);
-      setKpisRaw(raw);
+      // osobní endpoint vrací {kpis}, homepage i sekce {headline_kpis}
+      setKpisRaw(configRes.data?.headline_kpis || configRes.data?.kpis || []);
     } catch {
       // silently ignore — strip simply doesn't show
       setKpisResolved([]);
@@ -264,12 +278,17 @@ export default function HeadlineKpiStrip({ mode = "homepage", slug, isAdmin = fa
   }, [load]);
 
   const saveKpiList = useCallback(async (updated) => {
-    const url = mode === "homepage" ? "/homepage/kpis" : `/sections/${slug}/kpis`;
+    const url =
+      mode === "homepage"
+        ? "/homepage/kpis"
+        : mode === "personal"
+          ? `/me/dashboard/pages/${pageId}/kpis`
+          : `/sections/${slug}/kpis`;
     const { data } = await api.put(url, { kpis: updated });
     const saved = data.kpis || updated;
     setKpisRaw(saved);
     return saved;
-  }, [mode, slug]);
+  }, [mode, slug, pageId]);
 
   /** Admin inline title edit from a KPI card */
   const handleTitleSave = useCallback(async (kpiId, newTitle) => {

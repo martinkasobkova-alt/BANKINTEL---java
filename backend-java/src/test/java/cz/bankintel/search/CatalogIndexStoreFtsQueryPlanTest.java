@@ -34,7 +34,7 @@ class CatalogIndexStoreFtsQueryPlanTest {
 
         try (Connection conn = DriverManager.getConnection("jdbc:sqlite:" + fts.toAbsolutePath())) {
             CatalogIndexStore.FtsQueryPlan plan =
-                    CatalogIndexStore.resolveFtsQueryPlan(conn, "fred", matchExpr);
+                    CatalogIndexStore.resolveFtsQueryPlan(conn, "fred", matchExpr, query);
             assertTrue(plan.ordered(), "broad nasdaq+cena match should stay bm25-ordered on fred");
             assertEquals(matchExpr, plan.matchExpr());
         }
@@ -47,8 +47,30 @@ class CatalogIndexStoreFtsQueryPlanTest {
 
         String matchExpr = "\"nasdaq\" OR \"cena\" OR \"price\"";
         try (Connection conn = DriverManager.getConnection("jdbc:sqlite:" + fts.toAbsolutePath())) {
-            String anchored = CatalogIndexStore.anchoredMatchExpr(conn, "fred", matchExpr);
+            String anchored = CatalogIndexStore.anchoredMatchExpr(conn, "fred", matchExpr, "nasdaq cena");
             assertEquals("\"nasdaq\"", anchored, "cena has 0 fred matches; nasdaq is the rarest active token");
+        }
+    }
+
+    @Test
+    void anchoredMatchExprPrefersLiteralPhraseOverConceptExpansionArtifact() throws Exception {
+        Path fts = resolveFtsDb();
+        Assumptions.assumeTrue(Files.isRegularFile(fts), "FTS DB missing: " + fts);
+
+        // "Return on assets" v ecb2 se přes needlesFromQuery rozšíří o shluk bankovních pojmů
+        // (assets, liabilities, deposits, balance, sheet, total, bank...) a mezi odvozenými
+        // frázemi má "total assets" nižší počet shod (živě změřeno: 2170) než doslovné
+        // "return on assets" (11200) - před opravou se ukotvilo na "total assets" a všech 49
+        // řad doslova pojmenovaných "Return on assets (ROA)" zmizelo z okna kandidátů dřív,
+        // než je CatalogScoringPipeline vůbec stihla podle názvu ohodnotit.
+        String query = "Return on assets";
+        String matchExpr = CatalogTextUtils.buildFtsMatch(CatalogTextUtils.needlesFromQuery(query), query);
+        try (Connection conn = DriverManager.getConnection("jdbc:sqlite:" + fts.toAbsolutePath())) {
+            String anchored = CatalogIndexStore.anchoredMatchExpr(conn, "ecb2", matchExpr, query);
+            assertTrue(
+                    anchored.toLowerCase(java.util.Locale.ROOT).contains("return on assets"),
+                    "anchor should track the user's literal phrase, not a rarer concept-expansion artifact: "
+                            + anchored);
         }
     }
 
@@ -59,7 +81,7 @@ class CatalogIndexStoreFtsQueryPlanTest {
 
         try (Connection conn = DriverManager.getConnection("jdbc:sqlite:" + fts.toAbsolutePath())) {
             CatalogIndexStore.FtsQueryPlan plan =
-                    CatalogIndexStore.resolveFtsQueryPlan(conn, "eurostat", "\"gdp\" OR \"hdp\"");
+                    CatalogIndexStore.resolveFtsQueryPlan(conn, "eurostat", "\"gdp\" OR \"hdp\"", "gdp");
             assertTrue(plan.ordered());
         }
     }
@@ -77,7 +99,7 @@ class CatalogIndexStoreFtsQueryPlanTest {
                     "index cardinality below threshold in this mirror: " + count);
 
             CatalogIndexStore.FtsQueryPlan plan =
-                    CatalogIndexStore.resolveFtsQueryPlan(conn, "fred", matchExpr);
+                    CatalogIndexStore.resolveFtsQueryPlan(conn, "fred", matchExpr, "index");
             assertFalse(plan.ordered(), "degenerate broad token should use fast fallback");
         }
     }

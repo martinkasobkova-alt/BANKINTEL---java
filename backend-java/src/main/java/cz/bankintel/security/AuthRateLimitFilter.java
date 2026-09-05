@@ -52,7 +52,8 @@ public class AuthRateLimitFilter extends OncePerRequestFilter {
         filterChain.doFilter(request, response);
     }
 
-    private static Integer limitForPath(String path) {
+    /** Package-private so {@code AiEndpointExposureTest} can assert the AI paths stay covered. */
+    static Integer limitForPath(String path) {
         return switch (path) {
             case "/api/auth/login" -> 10;
             case "/api/auth/register",
@@ -64,7 +65,33 @@ public class AuthRateLimitFilter extends OncePerRequestFilter {
                     "/api/catalog/search-v2",
                     "/api/catalog/search-v2/evaluate",
                     "/api/catalog/deep-search/followup",
-                    "/api/catalog/deep-search/results-chat" -> 8;
+                    "/api/catalog/deep-search/results-chat",
+                    // These reach OpenAI too — explain/related directly, the routing and intent
+                    // endpoints through the query planner — but were left uncapped. Anonymous
+                    // callers could spend the AI budget through them at will.
+                    "/api/catalog/explain-series",
+                    "/api/catalog/explain-series/ask",
+                    "/api/catalog/related-series",
+                    "/api/catalog/source-route",
+                    "/api/catalog/deep-search/source-route",
+                    "/api/catalog/deep-search/results-intent",
+                    // Explore synthesis is the heaviest AI path in the product (a single sector run
+                    // fans out across sources and several completions); magazine chat and the chart
+                    // economist reach OpenAI through OpenAiJsonSupport.
+                    "/api/explore/sector",
+                    "/api/explore/sector/refine",
+                    "/api/explore/summarize",
+                    "/api/explore/summarize/followup",
+                    "/api/magazines/ai/chat",
+                    "/api/magazines/ai/search",
+                    "/api/chart-agent/ask" -> 8;
+            // Lighter AI helpers: still billable, but small and called several times per user flow,
+            // so a tight cap would break normal use.
+            case "/api/explore/query-understanding",
+                    "/api/explore/related-suggestions",
+                    "/api/explore/country-suggestions",
+                    "/api/explore/manager/analysis-plan",
+                    "/api/chart-agent/intent" -> 20;
             case "/api/me/change-password" -> 5;
             default -> null;
         };

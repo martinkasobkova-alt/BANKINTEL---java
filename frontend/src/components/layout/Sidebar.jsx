@@ -51,6 +51,7 @@ import {
 } from "lucide-react";
 import SidebarPodcastPlayer from "@/components/podcast/SidebarPodcastPlayer";
 import { useAuth } from "@/contexts/AuthContext";
+import { useFeatureAccess } from "@/hooks/useFeatureAccess";
 import { useBugReport } from "@/contexts/BugReportContext";
 import api from "@/lib/api";
 import AdWidget from "@/components/widgets/AdWidget";
@@ -105,18 +106,14 @@ const NAV_USER = [
     icon: Search,
     testid: "nav-catalog-search",
     visible: () => true,
-    isActive: (pathname) => pathname.startsWith("/search/catalog"),
-    kind: "link",
-  },
-  {
-    id: "nav-user-stock-search",
-    to: "/search/stocks",
-    labelKey: "nav.stockSearch",
-    icon: TrendingUp,
-    testid: "nav-stock-search",
-    visible: () => true,
+    // Akcie mají vlastní stránku, ale ne vlastní položku v menu: katalogové vyhledávání
+    // se ptá i akciového backendu a akcie ukazuje jako samostatnou skupinu výsledků.
+    // Samostatný odkaz vedl na stránku, která bez dotazu nic neukazuje — jen odkazovala
+    // zpátky na horní hledání. Zvýrazňujeme ji tedy pod touhle položkou.
     isActive: (pathname) =>
-      pathname.startsWith("/search/stocks") || pathname.startsWith("/search/akcie"),
+      pathname.startsWith("/search/catalog")
+      || pathname.startsWith("/search/stocks")
+      || pathname.startsWith("/search/akcie"),
     kind: "link",
   },
   {
@@ -125,7 +122,9 @@ const NAV_USER = [
     labelKey: "nav.managerExplorer",
     icon: Briefcase,
     testid: "nav-manager-explorer",
-    visible: () => true,
+    // Úroveň se nastavuje v /admin/feature-access; nemá smysl nabízet odkaz,
+    // který by route guard stejně odmítl.
+    visible: ({ canManagerExplorer }) => canManagerExplorer !== false,
     isActive: (pathname) => pathname.startsWith("/explore"),
     kind: "link",
   },
@@ -296,6 +295,7 @@ export default function Sidebar({
   const { t } = useTranslation();
   const cmsLoc = useLocalizedContent();
   const { user, ready, isAdmin, isEditor, canEditContent, isSubscriber, logout, openLogin } = useAuth();
+  const { allowed: canManagerExplorer } = useFeatureAccess("manager_explorer");
   /** Stav účtu pro štítek v patičce sidebaru — barva podle role (viditelnost u všech motivů). */
   const accountStatus = useMemo(() => {
     if (!ready) return null;
@@ -587,7 +587,7 @@ export default function Sidebar({
             {t("nav.userInterface")}
           </div>
           {userNavItems.map((n) => {
-            const visible = n.visible({ user, isAdmin, isSubscriber });
+            const visible = n.visible({ user, isAdmin, isSubscriber, canManagerExplorer });
             if (!visible) return null;
             const active = typeof n.isActive === "function" ? n.isActive(loc.pathname) : false;
             const dndEnabled = Boolean(user);

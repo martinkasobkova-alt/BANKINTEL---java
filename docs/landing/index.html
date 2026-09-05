@@ -1,0 +1,1074 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#1e3a5f" />
+<meta name="description" content="Bankovnictvi - inflace, sazby, mzdy, ceny energii i akcie z CNB, CSU, Eurostatu, ECB a dalsich zdroju. Napisete cesky, co hledate, a hned to vidite jako graf." />
+<meta property="og:type" content="website" />
+<meta property="og:locale" content="cs_CZ" />
+<meta property="og:site_name" content="Bankovnictvi" />
+<meta property="og:title" content="Bankovnictvi - ekonomicka cisla na jednom miste" />
+<meta property="og:description" content="Inflace, sazby, mzdy, ceny energii i akcie. Napisete cesky, co vas zajima, a hned to vidite jako graf." />
+<meta property="og:image" content="/favicon.png" />
+<meta name="twitter:card" content="summary" />
+<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+<link rel="icon" href="/favicon.png" type="image/png" sizes="any" />
+<title>Bankovnictví</title>
+<style>
+  @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap");
+  @import url("https://fonts.googleapis.com/css2?family=Manrope:wght@600;700;800&display=swap");
+  @import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap");
+
+  /* ------------------------------------------------------------------
+     Tokeny prevzate z frontend/src/index.css a z bezici aplikace
+     (barvy grafu, mrizka a osy odectene z ChartRenderer), aby ukazky
+     vypadaly presne jako v produktu.
+     ------------------------------------------------------------------ */
+  :root {
+    --canvas:        205 70% 90%;
+    --canvas-deep:   205 62% 84%;
+    --card:            0  0% 100%;
+    --ink:           218 55% 16%;
+    --ink-muted:     218 32% 34%;
+    --ink-faint:     215 20% 42%;
+    --primary:       202 90% 52%;
+    --primary-ink:     0  0% 100%;
+    --primary-soft:  200 92% 90%;
+    --navy:          218 65% 18%;
+    --title:         208 80% 38%;
+    --border:        205 44% 74%;
+    --border-strong: 205 40% 62%;
+    --chip-line:     205 42% 66%;
+
+    /* graf — odectene z bezici aplikace */
+    --grid:          205 70% 90%;
+    --axis:          213 29% 49%;
+    --rise:          202 96% 42%;
+    --fall:           32 79% 42%;
+
+    --shadow: 0 1px 2px hsl(215 40% 30% / 0.08), 0 8px 24px -12px hsl(215 45% 25% / 0.22);
+    --radius: 0.5rem;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --canvas:        218 45%  9%;
+      --canvas-deep:   218 48%  7%;
+      --card:          217 38% 13%;
+      --ink:           205 30% 94%;
+      --ink-muted:     208 22% 76%;
+      --ink-faint:     208 18% 62%;
+      --primary:       202 88% 62%;
+      --primary-ink:   218 50% 10%;
+      --primary-soft:  208 45% 22%;
+      --navy:          205 30% 94%;
+      --title:         200 82% 70%;
+      --border:        210 26% 26%;
+      --border-strong: 208 28% 36%;
+      --chip-line:     208 24% 32%;
+
+      --grid:          210 26% 24%;
+      --axis:          208 20% 62%;
+      --rise:          204 71% 47%;
+      --fall:           36 61% 45%;
+
+      --shadow: 0 1px 2px hsl(220 60% 3% / 0.5), 0 10px 28px -14px hsl(220 60% 2% / 0.8);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --canvas:        218 45%  9%;
+    --canvas-deep:   218 48%  7%;
+    --card:          217 38% 13%;
+    --ink:           205 30% 94%;
+    --ink-muted:     208 22% 76%;
+    --ink-faint:     208 18% 62%;
+    --primary:       202 88% 62%;
+    --primary-ink:   218 50% 10%;
+    --primary-soft:  208 45% 22%;
+    --navy:          205 30% 94%;
+    --title:         200 82% 70%;
+    --border:        210 26% 26%;
+    --border-strong: 208 28% 36%;
+    --chip-line:     208 24% 32%;
+
+    --grid:          210 26% 24%;
+    --axis:          208 20% 62%;
+    --rise:          204 71% 47%;
+    --fall:           36 61% 45%;
+
+    --shadow: 0 1px 2px hsl(220 60% 3% / 0.5), 0 10px 28px -14px hsl(220 60% 2% / 0.8);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: hsl(var(--canvas));
+    color: hsl(var(--ink));
+    font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
+    font-weight: 450;
+    font-size: 16.5px;
+    line-height: 1.6;
+    letter-spacing: -0.003em;
+    font-feature-settings: "ss01" on, "cv11" on;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+
+  .wrap { width: min(1080px, calc(100% - 2.5rem)); margin-inline: auto; }
+
+  h1, h2, h3 {
+    font-family: "Manrope", "Inter", ui-sans-serif, system-ui, sans-serif;
+    font-weight: 800; letter-spacing: -0.03em; line-height: 1.1;
+    text-wrap: balance; margin: 0;
+  }
+  h2, h3 { color: hsl(var(--title)); }
+  p { margin: 0; }
+
+  .eyebrow {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 0.72rem; font-weight: 500;
+    letter-spacing: 0.14em; text-transform: uppercase;
+    color: hsl(var(--ink-faint));
+  }
+  .num { font-family: "JetBrains Mono", ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+
+  a { color: hsl(var(--title)); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  a:focus-visible, button:focus-visible { outline: 2px solid hsl(var(--primary)); outline-offset: 2px; border-radius: 4px; }
+
+  /* ---------- hlavicka ---------- */
+  .site-head {
+    position: sticky; top: 0; z-index: 20;
+    background: hsl(var(--canvas) / 0.88);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid hsl(var(--border));
+  }
+  .site-head .wrap { display: flex; align-items: center; gap: 1.5rem; min-height: 60px; flex-wrap: wrap; }
+  .wordmark {
+    font-family: "Manrope", sans-serif; font-weight: 800; font-size: 1.18rem;
+    letter-spacing: -0.045em; color: hsl(var(--navy)); text-decoration: none;
+  }
+  .head-nav { display: flex; gap: 1.25rem; margin-left: auto; flex-wrap: wrap; }
+  .head-nav a { font-size: 0.88rem; color: hsl(var(--ink-muted)); text-decoration: none; }
+  .head-nav a:hover { color: hsl(var(--title)); text-decoration: underline; }
+  @media (max-width: 760px) {
+    .head-nav { display: none; }
+    .site-head .wrap > .btn { margin-left: auto; }
+  }
+
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem;
+    padding: 0.55rem 1.1rem; border-radius: var(--radius);
+    font-family: "Inter", sans-serif; font-size: 0.92rem; font-weight: 600;
+    text-decoration: none; border: 1px solid transparent;
+    transition: background-color 120ms ease, border-color 120ms ease;
+  }
+  .btn-primary { background: hsl(var(--primary)); color: hsl(var(--primary-ink)); box-shadow: var(--shadow); }
+  .btn-primary:hover { background: hsl(var(--primary) / 0.88); }
+  .btn-ghost { background: hsl(var(--card)); color: hsl(var(--title)); border-color: hsl(var(--border-strong)); }
+  .btn-ghost:hover { background: hsl(var(--primary-soft)); }
+  .btn-sm { padding: 0.4rem 0.85rem; font-size: 0.85rem; }
+
+  /* ---------- sekce ---------- */
+  section { padding-block: 3.5rem; }
+  section.hero { padding-block: 3.5rem 3rem; }
+  .sec-head { display: flex; flex-direction: column; gap: 0.55rem; margin-bottom: 1.75rem; }
+  .sec-head h2 { font-size: clamp(1.5rem, 3.2vw, 2rem); }
+  .sec-head p { color: hsl(var(--ink-muted)); max-width: 62ch; }
+
+  .panel {
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--border));
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 1.5rem;
+  }
+
+  /* ---------- hero ---------- */
+  .hero h1 { font-size: clamp(2rem, 4.8vw, 3.05rem); margin-block: 0.8rem 1.1rem; }
+  .hero .lede { font-size: 1.08rem; color: hsl(var(--ink-muted)); max-width: 56ch; }
+  .cta-row { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-top: 1.75rem; }
+  .hero-grid { display: grid; gap: 2.5rem; grid-template-columns: minmax(0, 1fr); align-items: center; }
+  @media (min-width: 940px) { .hero-grid { grid-template-columns: minmax(0, 0.86fr) minmax(0, 1fr); gap: 3rem; } }
+
+  /* ---------- karta grafu (chrome z aplikace) ---------- */
+  .chartcard { padding: 0.9rem 1rem 1rem; }
+  .cc-title {
+    font-family: "Inter", sans-serif; font-size: 0.78rem; font-weight: 700;
+    letter-spacing: 0.01em; text-transform: uppercase; color: hsl(var(--navy)); line-height: 1.3;
+  }
+  .cc-sub { font-size: 0.69rem; color: hsl(var(--ink-faint)); margin-top: 0.15rem; }
+  .cc-toolbar {
+    display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap;
+    margin-top: 0.85rem; padding-bottom: 0.85rem;
+    border-bottom: 1px solid hsl(var(--border) / 0.6);
+  }
+  .cc-toolbar .tb-label {
+    font-family: "JetBrains Mono", monospace; font-size: 0.6rem;
+    letter-spacing: 0.12em; text-transform: uppercase; color: hsl(var(--ink-faint));
+    width: 100%; margin-bottom: 0.15rem;
+  }
+  .pill {
+    font-family: "Inter", sans-serif;
+    font-size: 0.69rem; line-height: 1.75; padding: 0.05rem 0.75rem; border-radius: 9999px;
+    border: 1px solid hsl(var(--chip-line) / 0.6); background: hsl(var(--card));
+    color: hsl(var(--ink-muted)); white-space: nowrap; cursor: pointer;
+    transition: background-color 110ms ease, color 110ms ease, border-color 110ms ease;
+  }
+  .pill:hover { border-color: hsl(var(--primary) / 0.7); color: hsl(var(--title)); }
+  .pill[aria-pressed="true"] {
+    background: hsl(var(--primary-soft)); color: hsl(var(--primary));
+    border-color: transparent; font-weight: 600;
+  }
+  .pill.is-tool { margin-left: auto; }
+
+  .cc-plot { margin-top: 0.9rem; overflow-x: auto; position: relative; }
+  .cc-plot svg { display: block; width: 100%; min-width: 520px; height: auto; touch-action: pan-y; }
+  .cc-hit { cursor: crosshair; }
+
+  .cc-tip {
+    position: absolute; pointer-events: none; opacity: 0;
+    transform: translate(-50%, -100%);
+    background: hsl(var(--navy)); color: hsl(0 0% 100%);
+    border-radius: 6px; padding: 0.4rem 0.6rem;
+    font-size: 0.72rem; line-height: 1.45; white-space: nowrap;
+    box-shadow: 0 4px 14px -4px hsl(215 50% 20% / 0.5);
+    z-index: 3;
+  }
+  .cc-tip[data-show="1"] { opacity: 1; }
+  .cc-tip b { font-family: "JetBrains Mono", monospace; font-variant-numeric: tabular-nums; font-weight: 500; }
+  .cc-tip .t-k { color: hsl(205 40% 78%); }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .cc-tip { background: hsl(217 45% 22%); border: 1px solid hsl(var(--border-strong)); color: hsl(var(--ink)); }
+    :root:not([data-theme="light"]) .cc-tip .t-k { color: hsl(var(--ink-faint)); }
+  }
+  :root[data-theme="dark"] .cc-tip { background: hsl(217 45% 22%); border: 1px solid hsl(var(--border-strong)); color: hsl(var(--ink)); }
+  :root[data-theme="dark"] .cc-tip .t-k { color: hsl(var(--ink-faint)); }
+
+  .cc-foot {
+    margin-top: 0.7rem; font-size: 0.69rem; color: hsl(var(--ink-faint));
+    display: flex; gap: 0.9rem; flex-wrap: wrap; align-items: center;
+  }
+  .cc-dot { width: 8px; height: 8px; border-radius: 2px; display: inline-block; margin-right: 0.35rem; transform: translateY(-1px); }
+  .cc-table { margin-top: 0.9rem; overflow-x: auto; }
+  .cc-table[hidden] { display: none; }
+
+  /* ---------- karty prinosu ---------- */
+  .cards { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); }
+  .card h3 { font-size: 1.04rem; margin-bottom: 0.5rem; }
+  .card p { font-size: 0.93rem; color: hsl(var(--ink-muted)); }
+  .card .tag {
+    display: inline-block; margin-bottom: 0.7rem;
+    font-family: "JetBrains Mono", monospace; font-size: 0.66rem;
+    letter-spacing: 0.1em; text-transform: uppercase; color: hsl(var(--ink-faint));
+  }
+  .after-cards { margin-top: 1.1rem; font-size: 0.92rem; color: hsl(var(--ink-muted)); }
+
+  /* ---------- ukazka dashboardu ---------- */
+  .dash {
+    border: 1px solid hsl(var(--border-strong)); border-radius: var(--radius);
+    background: hsl(var(--canvas-deep)); padding: 1rem;
+    display: flex; flex-direction: column; gap: 0.9rem; box-shadow: var(--shadow);
+  }
+  .dash-bar {
+    display: flex; align-items: center; gap: 0.5rem;
+    font-size: 0.72rem; color: hsl(var(--ink-faint));
+    padding-bottom: 0.6rem; border-bottom: 1px solid hsl(var(--border));
+  }
+  .dash-bar .dot { width: 8px; height: 8px; border-radius: 50%; background: hsl(var(--border-strong)); }
+  .dash-bar strong { color: hsl(var(--ink)); font-weight: 600; font-size: 0.8rem; }
+  .tiles { display: grid; gap: 0.75rem; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
+  .tile {
+    background: hsl(var(--card)); border: 1px solid hsl(var(--border));
+    border-radius: var(--radius); padding: 0.85rem 1rem;
+    display: flex; flex-direction: column; gap: 0.2rem;
+  }
+  .tile .k {
+    font-family: "JetBrains Mono", monospace; font-size: 0.6rem;
+    letter-spacing: 0.11em; text-transform: uppercase; color: hsl(var(--ink-faint));
+  }
+  .tile .v {
+    font-family: "JetBrains Mono", monospace; font-variant-numeric: tabular-nums;
+    font-size: 1.5rem; font-weight: 500; letter-spacing: -0.02em; color: hsl(var(--navy)); line-height: 1.15;
+  }
+  .tile .s { font-size: 0.78rem; color: hsl(var(--ink-muted)); }
+  .tile .v.up { color: hsl(var(--rise)); }
+  .tile .v.down { color: hsl(var(--fall)); }
+
+  .table-scroll { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; min-width: 340px; font-size: 0.88rem; }
+  th, td { padding: 0.42rem 0.7rem; text-align: left; }
+  thead th {
+    border-bottom: 1px solid hsl(var(--border-strong));
+    font-weight: 600; font-size: 0.76rem; color: hsl(var(--ink-muted));
+  }
+  tbody td { border-bottom: 1px solid hsl(var(--border) / 0.5); }
+  tbody tr:last-child td { border-bottom: none; }
+  .n { text-align: right; font-family: "JetBrains Mono", monospace; font-variant-numeric: tabular-nums; }
+  .n.up { color: hsl(var(--rise)); }
+  .n.down { color: hsl(var(--fall)); }
+
+  .note { font-size: 0.82rem; color: hsl(var(--ink-faint)); margin-top: 1rem; max-width: 64ch; }
+  figure { margin: 0; }
+
+  /* ---------- zdroje ---------- */
+  .sources { display: grid; gap: 1.5rem; align-items: center; grid-template-columns: minmax(0, 1fr); }
+  @media (min-width: 820px) { .sources { grid-template-columns: auto minmax(0, 1fr); gap: 2.5rem; } }
+  .big-num {
+    font-family: "JetBrains Mono", monospace; font-variant-numeric: tabular-nums;
+    font-size: clamp(2rem, 5vw, 2.8rem); font-weight: 500; letter-spacing: -0.03em;
+    color: hsl(var(--navy)); line-height: 1;
+  }
+  .chips { display: flex; flex-wrap: wrap; gap: 0.45rem; }
+  .chip {
+    font-size: 0.82rem; padding: 0.3rem 0.7rem; border-radius: 9999px;
+    background: hsl(var(--card)); color: hsl(var(--ink-muted)); border: 1px solid hsl(var(--border));
+  }
+
+  /* ---------- zaverecna vyzva ---------- */
+  .final {
+    background: hsl(var(--navy)); border-radius: var(--radius);
+    padding: clamp(2rem, 5vw, 3rem);
+    display: flex; flex-direction: column; gap: 1rem; align-items: flex-start;
+  }
+  .final h2 { color: hsl(0 0% 100%); font-size: clamp(1.5rem, 3.4vw, 2.1rem); }
+  .final p { color: hsl(205 40% 82%); max-width: 54ch; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .final { background: hsl(217 42% 16%); border: 1px solid hsl(var(--border-strong)); }
+    :root:not([data-theme="light"]) .final h2 { color: hsl(var(--ink)); }
+    :root:not([data-theme="light"]) .final p  { color: hsl(var(--ink-muted)); }
+  }
+  :root[data-theme="dark"] .final { background: hsl(217 42% 16%); border: 1px solid hsl(var(--border-strong)); }
+  :root[data-theme="dark"] .final h2 { color: hsl(var(--ink)); }
+  :root[data-theme="dark"] .final p  { color: hsl(var(--ink-muted)); }
+
+  /* ---------- paticka ---------- */
+  footer {
+    border-top: 1px solid hsl(var(--border)); background: hsl(var(--canvas-deep));
+    padding-block: 2rem 2.5rem; margin-top: 3.5rem;
+  }
+  footer .wrap { display: flex; flex-direction: column; gap: 1rem; }
+  footer p { font-size: 0.83rem; color: hsl(var(--ink-faint)); max-width: 78ch; }
+  footer .foot-links { display: flex; gap: 1.25rem; flex-wrap: wrap; font-size: 0.88rem; }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
+    html { scroll-behavior: auto; }
+  }
+  html { scroll-behavior: smooth; scroll-padding-top: 76px; }
+</style>
+</head>
+<body>
+<!-- =====================================================================
+     ADRESA APLIKACE — jediné místo, kde se mění.
+     Teď míří na lokální vývoj (npm run dev). Až stránka poběží na webu
+     vedle aplikace, stačí sem dát "/" — tedy stejná doména.
+     ===================================================================== -->
+<script>window.APP_URL = "http://localhost:5173/";</script>
+
+<header class="site-head">
+  <div class="wrap">
+    <a class="wordmark" href="#top">Bankovnictví</a>
+    <nav class="head-nav" aria-label="Sekce stránky">
+      <a href="#co">Co s tím uděláte</a>
+      <a href="#ukazka">Ukázka</a>
+      <a href="#prehled">Přehled</a>
+      <a href="#zdroje">Odkud data jsou</a>
+    </nav>
+    <a class="btn btn-primary btn-sm" href="/" data-app-link>Otevřít aplikaci</a>
+  </div>
+</header>
+
+<main id="top">
+
+  <section class="hero">
+    <div class="wrap hero-grid">
+      <div>
+        <p class="eyebrow">Data z ČNB, ČSÚ, Eurostatu a dalších</p>
+        <h1>Ekonomická čísla, která jinak hledáte na pěti webech.</h1>
+        <p class="lede">
+          Inflace, úrokové sazby, mzdy, ceny energií i akcie. Napíšete česky, co vás
+          zajímá, a hned to vidíte jako graf — bez stahování tabulek a bez hledání
+          v katalozích jednotlivých úřadů.
+        </p>
+        <div class="cta-row">
+          <a class="btn btn-primary" href="/" data-app-link>Otevřít aplikaci</a>
+          <a class="btn btn-ghost" href="#ukazka">Podívat se na ukázku</a>
+        </div>
+      </div>
+
+      <figure class="panel chartcard" id="lineCard">
+        <div class="cc-title">Spotřebitelské ceny v Česku (HICP)</div>
+        <div class="cc-sub" id="lineSub">Bazický index 2015 = 100 · měsíčně · ČSÚ</div>
+        <div class="cc-toolbar" role="group" aria-label="Transformace grafu">
+          <span class="tb-label" id="lineTbLabel">Transformace</span>
+          <button type="button" class="pill" data-t="raw"    aria-pressed="true">Absolutní</button>
+          <button type="button" class="pill" data-t="idx100" aria-pressed="false">Index 100</button>
+          <button type="button" class="pill" data-t="mom"    aria-pressed="false">Změna v %</button>
+          <button type="button" class="pill" data-t="ma3"    aria-pressed="false">Ø klouzavý</button>
+          <button type="button" class="pill is-tool" id="lineTableBtn" aria-pressed="false" aria-controls="lineTable">Tabulka</button>
+        </div>
+        <div class="cc-plot" id="linePlot"></div>
+        <div class="cc-table" id="lineTable" hidden></div>
+        <figcaption class="cc-foot">
+          <span><span class="cc-dot" style="background:hsl(var(--rise))"></span><span id="lineLegend">Česko — HICP, úhrn</span></span>
+          <span id="lineAxis">Levá osa: index 2015 = 100</span>
+        </figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section id="co">
+    <div class="wrap">
+      <div class="sec-head">
+        <p class="eyebrow">Co s tím uděláte</p>
+        <h2>Nemusíte vědět, kdo to číslo vydává.</h2>
+        <p>
+          Každý úřad má vlastní web, vlastní kódy a vlastní logiku. Tohle je schová
+          a nechá vás pracovat s čísly, ne s katalogy.
+        </p>
+      </div>
+
+      <div class="cards">
+        <article class="card panel">
+          <span class="tag">Hledání</span>
+          <h3>Hledáte česky, nebo procházíte témata</h3>
+          <p>
+            Napíšete „inflace“ a vyberete zdroj — nebo se proklikáte tématy: Ceny
+            a inflace, Mzdy a platy, Energetika, Zahraniční obchod. U ČSÚ je takhle
+            připravených 69 řad jen k cenám a inflaci.
+          </p>
+        </article>
+
+        <article class="card panel">
+          <span class="tag">Graf</span>
+          <h3>Řadu si otevřete jako graf</h3>
+          <p>
+            Přepnete mezi časovou řadou a srovnáním hodnot, vyberete území, přidáte
+            filtry. U řad s daty přepnete i zobrazení — index 100, meziroční změna
+            nebo klouzavý průměr.
+          </p>
+        </article>
+
+        <article class="card panel">
+          <span class="tag">Práce s daty</span>
+          <h3>Srovnáte, spočítáte, stáhnete</h3>
+          <p>
+            „Srovnat s…“ přidá druhou řadu do jednoho grafu, Analytika a Forecast
+            dopočítají zbytek — a to všechno bez přihlášení. Na stažení dat do Excelu
+            nebo XLSX stačí bezplatná registrace.
+          </p>
+        </article>
+
+        <article class="card panel">
+          <span class="tag">Vysvětlení</span>
+          <h3>Zeptáte se, co to znamená</h3>
+          <p>
+            AI nad grafem rozloží název ukazatele a vysvětlí, co konkrétně měří —
+            a nabídne související řady. Česky, ne definicí z učebnice.
+            Dostupné po registraci.
+          </p>
+        </article>
+      </div>
+
+      <p class="after-cards">
+        A k tomu Manager Explorer pro procházení zdrojů, akcie, čtečka odborného
+        časopisu, zprávy a podcasty.
+      </p>
+    </div>
+  </section>
+
+  <section id="ukazka">
+    <div class="wrap">
+      <div class="sec-head">
+        <p class="eyebrow">Ukázka z aplikace</p>
+        <h2>Otázka „o kolik zdražilo co“ je na tři kliknutí.</h2>
+        <p>
+          Ukázka nad skutečnými daty ČSÚ. Zkuste si najet na sloupec nebo přepnout
+          řazení — přesně takhle se s grafem pracuje i v aplikaci.
+        </p>
+      </div>
+
+      <figure class="panel chartcard" id="barCard">
+        <div class="cc-title">Spotřebitelské ceny podle druhu zboží — meziročně</div>
+        <div class="cc-sub">Česko · prosinec 2024 → prosinec 2025 · ČSÚ, HICP</div>
+        <div class="cc-toolbar" role="group" aria-label="Řazení grafu">
+          <span class="tb-label">Řazení</span>
+          <button type="button" class="pill" data-s="change" aria-pressed="true">Podle změny</button>
+          <button type="button" class="pill" data-s="name"   aria-pressed="false">Podle názvu</button>
+          <button type="button" class="pill" data-s="index"  aria-pressed="false">Podle indexu</button>
+          <button type="button" class="pill is-tool" id="barTableBtn" aria-pressed="false" aria-controls="barTable">Tabulka</button>
+        </div>
+        <div class="cc-plot" id="barPlot"></div>
+        <div class="cc-table" id="barTable" hidden></div>
+        <figcaption class="cc-foot">
+          <span><span class="cc-dot" style="background:hsl(var(--rise))"></span>Zdražilo</span>
+          <span><span class="cc-dot" style="background:hsl(var(--fall))"></span>Zlevnilo</span>
+          <span>Dolní osa: meziroční změna v %</span>
+        </figcaption>
+      </figure>
+
+      <p class="note">
+        Zdroj: ČSÚ, Harmonizovaný index spotřebitelských cen (HICP), datová sada
+        <span class="num">CEN0101CT02</span>. Hodnoty jsou načtené přes aplikaci.
+        Grafy na téhle stránce jsou zjednodušená ukázka — v aplikaci má u řady
+        navíc „Srovnat s…“, Analytiku, Forecast, výběr území a export do Excelu.
+      </p>
+    </div>
+  </section>
+
+  <section id="prehled">
+    <div class="wrap">
+      <div class="sec-head">
+        <p class="eyebrow">Přehled</p>
+        <h2>Nejdůležitější čísla vidíte hned po otevření.</h2>
+        <p>
+          Přehled je první, co se načte — dlaždice s klíčovými ukazateli a pod nimi
+          grafy a tabulky. Nemusíte nic hledat, ta čísla tam prostě jsou.
+        </p>
+      </div>
+
+      <div class="dash">
+        <div class="dash-bar">
+          <span class="dot" aria-hidden="true"></span>
+          <strong>Přehled — ceny</strong>
+          <span>· poslední aktualizace: prosinec 2025</span>
+        </div>
+
+        <div class="tiles">
+          <div class="tile">
+            <span class="k">Spotřebitelské ceny celkem</span>
+            <span class="v up">+1,8 %</span>
+            <span class="s">za rok · index 155,0</span>
+          </div>
+          <div class="tile">
+            <span class="k">Nejvíc zdražilo</span>
+            <span class="v up">+5,0 %</span>
+            <span class="s">Stravování a ubytování</span>
+          </div>
+          <div class="tile">
+            <span class="k">Nejvíc zlevnilo</span>
+            <span class="v down">−2,2 %</span>
+            <span class="s">Oděvy a obuv</span>
+          </div>
+        </div>
+
+        <div class="tile" style="gap:0.6rem;">
+          <span class="k">Kde se ceny hnuly nejvíc</span>
+          <div class="table-scroll">
+            <table>
+              <thead>
+                <tr><th scope="col">Druh zboží a služeb</th><th scope="col" class="n">Index</th><th scope="col" class="n">Za rok</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>Stravování a ubytování</td><td class="n">200,2</td><td class="n up">+4,98 %</td></tr>
+                <tr><td>Alkoholické nápoje a tabák</td><td class="n">160,6</td><td class="n up">+4,22 %</td></tr>
+                <tr><td>Vzdělávání</td><td class="n">153,2</td><td class="n up">+4,15 %</td></tr>
+                <tr><td>Bydlení, voda, energie, paliva</td><td class="n">180,2</td><td class="n">0,00 %</td></tr>
+                <tr><td>Doprava</td><td class="n">135,0</td><td class="n down">−0,15 %</td></tr>
+                <tr><td>Oděvy a obuv</td><td class="n">146,2</td><td class="n down">−2,21 %</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <p class="note">
+        Ukázka přehledu složeného z jedné datové sady ČSÚ. Chcete-li vlastní stránky,
+        <strong>Můj dashboard</strong> stačí registrace: skládáte si na něj datové
+        i výpočtové grafy, grafy z vlastních nahraných dat, poznámky a RSS monitoring.
+      </p>
+    </div>
+  </section>
+
+  <section id="zdroje">
+    <div class="wrap">
+      <div class="sec-head">
+        <p class="eyebrow">Odkud data jsou</p>
+        <h2>Jen oficiální zdroje. Žádné přepisování čísel.</h2>
+        <p>
+          Data se berou přímo z veřejných databází institucí, které je vydávají.
+          U každé řady vidíte, odkud je a z kdy.
+        </p>
+      </div>
+
+      <div class="panel sources">
+        <div>
+          <div class="big-num">1 478 125</div>
+          <p style="font-size:0.9rem;color:hsl(var(--ink-muted));margin-top:0.3rem;">
+            datových řad připravených k vyhledání
+          </p>
+        </div>
+        <div class="chips">
+          <span class="chip">ČNB · ARAD</span>
+          <span class="chip">ČSÚ</span>
+          <span class="chip">Eurostat</span>
+          <span class="chip">ECB</span>
+          <span class="chip">IMF</span>
+          <span class="chip">BIS</span>
+          <span class="chip">OECD</span>
+          <span class="chip">World Bank</span>
+          <span class="chip">FRED</span>
+          <span class="chip">Komodity · Pink Sheet</span>
+          <span class="chip">Akcie</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <div class="final">
+        <h2>Zkuste si najít svoje číslo.</h2>
+        <p>
+          Hledat, prohlížet grafy i srovnávat řady můžete rovnou, bez účtu.
+          Chcete-li data stahovat, ukládat a dál s nimi pracovat, zaregistrujte se —
+          zdarma.
+        </p>
+        <a class="btn btn-primary" href="/" data-app-link>Otevřít aplikaci</a>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <nav class="foot-links" aria-label="Sekce stránky">
+      <a href="#co">Co s tím uděláte</a>
+      <a href="#ukazka">Ukázka</a>
+      <a href="#prehled">Přehled</a>
+      <a href="#zdroje">Odkud data jsou</a>
+    </nav>
+    <p>
+      Bankovnictví je nástroj pro vyhledávání a zobrazování veřejných ekonomických dat.
+      Není investičním poradenstvím ani doporučením ke koupi či prodeji čehokoli.
+      Zobrazené hodnoty pocházejí od institucí, které data vydávají — ČNB, ČSÚ, Eurostatu,
+      ECB, IMF, BIS, OECD, World Bank a FRED — a aplikace je nepřepočítává, pokud to
+      u grafu výslovně neuvádí. Čísla na této stránce jsou z prosince 2025 a mění se,
+      jak vycházejí nová data.
+    </p>
+  </div>
+</footer>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ---------------------------------------------------------------
+     Data: HICP Česko, ČSÚ (CEN0101CT02), načteno přes aplikaci.
+     --------------------------------------------------------------- */
+  var MONTHS = ["prosinec 2024","leden 2025","únor 2025","březen 2025","duben 2025",
+                "květen 2025","červen 2025","červenec 2025","srpen 2025","září 2025",
+                "říjen 2025","listopad 2025","prosinec 2025"];
+  var SHORT  = ["12/24","01/25","02/25","03/25","04/25","05/25","06/25","07/25",
+                "08/25","09/25","10/25","11/25","12/25"];
+  var VALUES = [152.3,154.5,154.8,154.9,154.7,155.5,155.8,156.5,156.5,155.3,156.1,155.5,155.0];
+
+  /* [název, index 12/2024, index 12/2025, meziroční změna v %] */
+  var CATS = [
+    ["Stravování a ubytování",       190.7, 200.2,  4.98],
+    ["Alkoholické nápoje a tabák",   154.1, 160.6,  4.22],
+    ["Vzdělávání",                   147.1, 153.2,  4.15],
+    ["Rekreace a kultura",           139.3, 144.3,  3.59],
+    ["Ostatní zboží a služby",       146.6, 151.5,  3.34],
+    ["Zdraví",                       148.8, 153.7,  3.29],
+    ["Úhrn",                         152.3, 155.0,  1.77],
+    ["Potraviny a nealko nápoje",    147.5, 149.9,  1.63],
+    ["Bytové vybavení",              132.6, 134.6,  1.51],
+    ["Pošty a telekomunikace",        97.0,  97.3,  0.31],
+    ["Bydlení, voda, energie",       180.2, 180.2,  0.00],
+    ["Doprava",                      135.2, 135.0, -0.15],
+    ["Oděvy a obuv",                 149.5, 146.2, -2.21]
+  ];
+
+  var SVGNS = "http://www.w3.org/2000/svg";
+  var MINUS = "−";
+
+  function fmt(v, dec) {
+    if (v === null || v === undefined || isNaN(v)) return "—";
+    var s = Math.abs(v).toFixed(dec).replace(".", ",");
+    return (v < 0 ? MINUS : "") + s;
+  }
+  function fmtSigned(v, dec) {
+    if (v === null || v === undefined || isNaN(v)) return "—";
+    if (v === 0) return "0," + new Array(dec + 1).join("0");
+    return (v > 0 ? "+" : MINUS) + Math.abs(v).toFixed(dec).replace(".", ",");
+  }
+  function el(tag, attrs, text) {
+    var n = document.createElementNS(SVGNS, tag), k;
+    for (k in attrs) if (Object.prototype.hasOwnProperty.call(attrs, k)) n.setAttribute(k, attrs[k]);
+    if (text !== undefined) n.textContent = text;
+    return n;
+  }
+  /* Hezké dělení osy — krok 1/2/5 × 10^n. */
+  function ticks(lo, hi, want) {
+    var span = hi - lo;
+    if (span <= 0) span = Math.abs(hi) || 1;
+    var raw = span / Math.max(want, 2);
+    var mag = Math.pow(10, Math.floor(Math.log(raw) / Math.LN10));
+    var norm = raw / mag, step;
+    if (norm <= 1) step = 1; else if (norm <= 2) step = 2; else if (norm <= 5) step = 5; else step = 10;
+    step *= mag;
+    var out = [], t = Math.ceil(lo / step) * step;
+    for (; t <= hi + step * 0.001; t += step) out.push(Math.round(t / step) * step);
+    return { list: out, step: step };
+  }
+
+  /* ==============================================================
+     1) Spojnicový graf — přepínatelné transformace
+     ============================================================== */
+  var TRANSFORMS = {
+    raw: {
+      label: "index 2015 = 100", dec: 1, signed: false, zero: false,
+      legend: "Česko — HICP, úhrn",
+      sub: "Bazický index 2015 = 100 · měsíčně · ČSÚ",
+      calc: function () { return VALUES.slice(); }
+    },
+    idx100: {
+      label: "prosinec 2024 = 100", dec: 2, signed: false, zero: false,
+      legend: "Česko — HICP, přepočteno na 100",
+      sub: "Přepočet na prosinec 2024 = 100 · měsíčně · ČSÚ",
+      calc: function () { return VALUES.map(function (v) { return v / VALUES[0] * 100; }); }
+    },
+    mom: {
+      label: "%", dec: 2, signed: true, zero: true,
+      legend: "Česko — změna proti předchozímu měsíci",
+      sub: "Změna proti předchozímu měsíci v % · ČSÚ",
+      calc: function () {
+        return VALUES.map(function (v, i) { return i === 0 ? null : (v / VALUES[i - 1] - 1) * 100; });
+      }
+    },
+    ma3: {
+      label: "index 2015 = 100", dec: 2, signed: false, zero: false,
+      legend: "Česko — tříměsíční klouzavý průměr",
+      sub: "Tříměsíční klouzavý průměr indexu · ČSÚ",
+      calc: function () {
+        return VALUES.map(function (v, i) {
+          if (i < 2) return null;
+          return (VALUES[i] + VALUES[i - 1] + VALUES[i - 2]) / 3;
+        });
+      }
+    }
+  };
+
+  var lineState = { t: "raw", geom: null };
+  var linePlot = document.getElementById("linePlot");
+  var lineTip = null;
+
+  function drawLine(key) {
+    var cfg = TRANSFORMS[key];
+    var series = cfg.calc();
+    var W = 620, H = 206, L = 54, R = 600, T = 16, B = 162;
+
+    var vals = series.filter(function (v) { return v !== null; });
+    var lo = Math.min.apply(null, vals), hi = Math.max.apply(null, vals);
+    if (cfg.zero) { lo = Math.min(lo, 0); hi = Math.max(hi, 0); }
+    var pad = (hi - lo) * 0.18 || 1;
+    lo -= pad; hi += pad;
+    var tk = ticks(lo, hi, 4);
+    if (tk.list.length) {
+      lo = Math.min(lo, tk.list[0]);
+      hi = Math.max(hi, tk.list[tk.list.length - 1]);
+    }
+
+    function X(i) { return L + i * (R - L) / (VALUES.length - 1); }
+    function Y(v) { return B - (v - lo) / (hi - lo) * (B - T); }
+
+    var svg = el("svg", {
+      viewBox: "0 0 " + W + " " + H,
+      role: "img",
+      "aria-label": "Spotřebitelské ceny v Česku, " + cfg.sub.toLowerCase() +
+        ". Od prosince 2024 do prosince 2025."
+    });
+    var g = el("g", { "font-family": "Inter, sans-serif", "font-size": "11" });
+
+    tk.list.forEach(function (tv) {
+      var y = Y(tv);
+      g.appendChild(el("line", {
+        x1: L, y1: y.toFixed(1), x2: R, y2: y.toFixed(1),
+        stroke: (cfg.zero && Math.abs(tv) < 1e-9) ? "hsl(var(--axis))" : "hsl(var(--grid))",
+        "stroke-width": 1
+      }));
+      g.appendChild(el("text", {
+        x: L - 8, y: (y + 3.5).toFixed(1), "text-anchor": "end",
+        fill: "hsl(var(--axis))", "font-family": "JetBrains Mono, monospace", "font-size": "10"
+      }, cfg.signed ? fmtSigned(tv, tk.step < 1 ? 1 : 0) : fmt(tv, tk.step < 1 ? 1 : 0)));
+    });
+
+    var first = series.findIndex(function (v) { return v !== null; });
+    var pts = [], d = "";
+    for (var i = first; i < series.length; i++) {
+      pts.push(X(i).toFixed(1) + "," + Y(series[i]).toFixed(1));
+      d += (i === first ? "M" : " L") + X(i).toFixed(1) + "," + Y(series[i]).toFixed(1);
+    }
+    var base = cfg.zero ? Y(0) : B;
+    var grad = el("linearGradient", { id: "lgFill", x1: "0", y1: "0", x2: "0", y2: "1" });
+    grad.appendChild(el("stop", { offset: "0%", "stop-color": "hsl(var(--rise))", "stop-opacity": "0.20" }));
+    grad.appendChild(el("stop", { offset: "100%", "stop-color": "hsl(var(--rise))", "stop-opacity": "0.02" }));
+    var defs = el("defs"); defs.appendChild(grad); g.appendChild(defs);
+
+    g.appendChild(el("path", {
+      d: "M" + X(first).toFixed(1) + "," + base.toFixed(1) + " " + d.replace(/^M/, "L") +
+         " L" + X(series.length - 1).toFixed(1) + "," + base.toFixed(1) + " Z",
+      fill: "url(#lgFill)"
+    }));
+    g.appendChild(el("polyline", {
+      points: pts.join(" "), fill: "none", stroke: "hsl(var(--rise))",
+      "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round"
+    }));
+
+    for (var j = 0; j < SHORT.length; j += 2) {
+      g.appendChild(el("text", {
+        x: X(j).toFixed(1), y: B + 18, "text-anchor": "middle", fill: "hsl(var(--axis))",
+        "font-family": "JetBrains Mono, monospace", "font-size": "10"
+      }, SHORT[j]));
+    }
+
+    var cross = el("line", {
+      id: "lineCross", x1: 0, y1: T, x2: 0, y2: B,
+      stroke: "hsl(var(--axis))", "stroke-width": 1, "stroke-dasharray": "3 3", opacity: "0"
+    });
+    var dot = el("circle", {
+      id: "lineDot", cx: 0, cy: 0, r: 4.5, fill: "hsl(var(--rise))",
+      stroke: "hsl(var(--card))", "stroke-width": 2, opacity: "0"
+    });
+    g.appendChild(cross); g.appendChild(dot);
+    g.appendChild(el("rect", {
+      class: "cc-hit", x: L - 12, y: T, width: R - L + 24, height: B - T, fill: "transparent"
+    }));
+
+    svg.appendChild(g);
+    linePlot.innerHTML = "";
+    linePlot.appendChild(svg);
+    lineTip = document.createElement("div");
+    lineTip.className = "cc-tip";
+    linePlot.appendChild(lineTip);
+
+    lineState.geom = { svg: svg, X: X, Y: Y, series: series, cfg: cfg, W: W, cross: cross, dot: dot, first: first };
+
+    document.getElementById("lineSub").textContent = cfg.sub;
+    document.getElementById("lineLegend").textContent = cfg.legend;
+    document.getElementById("lineAxis").textContent = "Levá osa: " + cfg.label;
+    renderLineTable(cfg, series);
+  }
+
+  function renderLineTable(cfg, series) {
+    var host = document.getElementById("lineTable");
+    var rows = MONTHS.map(function (m, i) {
+      var v = series[i];
+      return "<tr><td>" + m + "</td><td class=\"n\">" +
+             (v === null ? "—" : (cfg.signed ? fmtSigned(v, cfg.dec) : fmt(v, cfg.dec))) +
+             "</td></tr>";
+    }).join("");
+    host.innerHTML =
+      "<table><caption class=\"eyebrow\" style=\"text-align:left;padding-bottom:0.5rem;\">Data grafu · " +
+      cfg.label + "</caption><thead><tr><th scope=\"col\">Období</th><th scope=\"col\" class=\"n\">Hodnota</th></tr></thead><tbody>" +
+      rows + "</tbody></table>";
+  }
+
+  function lineMove(ev) {
+    var geo = lineState.geom;
+    if (!geo) return;
+    var rect = geo.svg.getBoundingClientRect();
+    var scale = rect.width / geo.W;
+    var xUser = (ev.clientX - rect.left) / scale;
+    var best = -1, bestD = Infinity;
+    for (var i = geo.first; i < geo.series.length; i++) {
+      var d = Math.abs(geo.X(i) - xUser);
+      if (d < bestD) { bestD = d; best = i; }
+    }
+    if (best < 0) return;
+    var v = geo.series[best];
+    geo.cross.setAttribute("x1", geo.X(best)); geo.cross.setAttribute("x2", geo.X(best));
+    geo.cross.setAttribute("opacity", "1");
+    geo.dot.setAttribute("cx", geo.X(best)); geo.dot.setAttribute("cy", geo.Y(v));
+    geo.dot.setAttribute("opacity", "1");
+    lineTip.innerHTML = "<span class=\"t-k\">" + MONTHS[best] + "</span><br><b>" +
+      (geo.cfg.signed ? fmtSigned(v, geo.cfg.dec) : fmt(v, geo.cfg.dec)) + "</b> " + geo.cfg.label;
+    lineTip.style.left = (geo.X(best) * scale) + "px";
+    lineTip.style.top = (geo.Y(v) * scale - 10) + "px";
+    lineTip.setAttribute("data-show", "1");
+  }
+  function lineLeave() {
+    var geo = lineState.geom;
+    if (!geo) return;
+    geo.cross.setAttribute("opacity", "0");
+    geo.dot.setAttribute("opacity", "0");
+    lineTip.removeAttribute("data-show");
+  }
+
+  linePlot.addEventListener("pointermove", lineMove);
+  linePlot.addEventListener("pointerleave", lineLeave);
+
+  document.querySelectorAll("#lineCard .pill[data-t]").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      document.querySelectorAll("#lineCard .pill[data-t]").forEach(function (b) {
+        b.setAttribute("aria-pressed", String(b === btn));
+      });
+      lineState.t = btn.getAttribute("data-t");
+      drawLine(lineState.t);
+    });
+  });
+
+  /* ==============================================================
+     2) Sloupcový graf — přepínatelné řazení
+     ============================================================== */
+  var SORTS = {
+    change: function (a, b) { return b[3] - a[3]; },
+    name:   function (a, b) { return a[0].localeCompare(b[0], "cs"); },
+    index:  function (a, b) { return b[2] - a[2]; }
+  };
+  var barState = { s: "change", geom: null };
+  var barPlot = document.getElementById("barPlot");
+  var barTip = null;
+
+  function drawBar(sortKey) {
+    var rows = CATS.slice().sort(SORTS[sortKey]);
+    var W = 620, PL = 200, PR = 520, VX = 596;
+    var pitch = 24, bh = 13, y0 = 44;
+    var H = y0 + (rows.length - 1) * pitch + Math.round(bh / 2) + 16;
+    var dmin = -2.5, dmax = 5.5;
+    function BX(v) { return PL + (v - dmin) / (dmax - dmin) * (PR - PL); }
+
+    var svg = el("svg", {
+      viewBox: "0 0 " + W + " " + H, role: "img",
+      "aria-label": "Meziroční změna spotřebitelských cen v Česku podle druhu zboží, " +
+        "prosinec 2024 na prosinec 2025. Nejvíce zdražilo stravování a ubytování o 4,98 procenta, " +
+        "celkový úhrn vzrostl o 1,77 procenta, nejvíce zlevnily oděvy a obuv o 2,21 procenta."
+    });
+    var g = el("g", { "font-family": "Inter, sans-serif", "font-size": "11" });
+    var yBot = y0 + (rows.length - 1) * pitch + 10;
+
+    [-2, 0, 2, 4].forEach(function (tv) {
+      var x = BX(tv);
+      g.appendChild(el("line", {
+        x1: x.toFixed(1), y1: 30, x2: x.toFixed(1), y2: yBot,
+        stroke: tv === 0 ? "hsl(var(--axis))" : "hsl(var(--grid))", "stroke-width": 1
+      }));
+      g.appendChild(el("text", {
+        x: x.toFixed(1), y: 24, "text-anchor": "middle", fill: "hsl(var(--axis))",
+        "font-family": "JetBrains Mono, monospace", "font-size": "10"
+      }, String(tv)));
+    });
+
+    var zx = BX(0);
+    rows.forEach(function (r, i) {
+      var cy = y0 + i * pitch;
+      var v = r[3];
+      var x1 = v >= 0 ? zx : BX(v);
+      var w = Math.max(Math.abs(BX(v) - zx), 1.5);
+      var strong = r[0] === "Úhrn";
+      var ink = strong ? "hsl(var(--ink))" : "hsl(var(--ink-muted))";
+      var fw = strong ? "600" : "450";
+
+      g.appendChild(el("text", {
+        x: 186, y: cy + 4, "text-anchor": "end", fill: ink, "font-weight": fw
+      }, r[0]));
+      g.appendChild(el("rect", {
+        x: x1.toFixed(1), y: (cy - bh / 2).toFixed(1), width: w.toFixed(1), height: bh, rx: 2,
+        fill: v >= 0 ? "hsl(var(--rise))" : "hsl(var(--fall))"
+      }));
+      g.appendChild(el("text", {
+        x: VX, y: cy + 4, "text-anchor": "end", fill: ink, "font-weight": fw,
+        "font-family": "JetBrains Mono, monospace", "font-size": "10.5"
+      }, fmtSigned(v, 2) + " %"));
+    });
+
+    var band = el("rect", {
+      id: "barBand", x: 0, y: 0, width: W, height: pitch, fill: "hsl(var(--primary))",
+      opacity: "0", rx: 3
+    });
+    g.insertBefore(band, g.firstChild);
+    g.appendChild(el("rect", { class: "cc-hit", x: 0, y: 30, width: W, height: yBot - 30, fill: "transparent" }));
+
+    svg.appendChild(g);
+    barPlot.innerHTML = "";
+    barPlot.appendChild(svg);
+    barTip = document.createElement("div");
+    barTip.className = "cc-tip";
+    barPlot.appendChild(barTip);
+
+    barState.geom = { svg: svg, rows: rows, pitch: pitch, y0: y0, W: W, band: band, BX: BX };
+    renderBarTable(rows);
+  }
+
+  function renderBarTable(rows) {
+    var host = document.getElementById("barTable");
+    var body = rows.map(function (r) {
+      var cls = r[3] > 0 ? " up" : (r[3] < 0 ? " down" : "");
+      return "<tr><td>" + r[0] + "</td><td class=\"n\">" + fmt(r[1], 1) + "</td><td class=\"n\">" +
+             fmt(r[2], 1) + "</td><td class=\"n" + cls + "\">" + fmtSigned(r[3], 2) + "&nbsp;%</td></tr>";
+    }).join("");
+    host.innerHTML =
+      "<table><caption class=\"eyebrow\" style=\"text-align:left;padding-bottom:0.5rem;\">Data grafu · index 2015 = 100</caption>" +
+      "<thead><tr><th scope=\"col\">Druh zboží a služeb</th><th scope=\"col\" class=\"n\">12/2024</th>" +
+      "<th scope=\"col\" class=\"n\">12/2025</th><th scope=\"col\" class=\"n\">Za rok</th></tr></thead><tbody>" +
+      body + "</tbody></table>";
+  }
+
+  barPlot.addEventListener("pointermove", function (ev) {
+    var geo = barState.geom;
+    if (!geo) return;
+    var rect = geo.svg.getBoundingClientRect();
+    var scale = rect.width / geo.W;
+    var yUser = (ev.clientY - rect.top) / scale;
+    var idx = Math.round((yUser - geo.y0) / geo.pitch);
+    if (idx < 0 || idx >= geo.rows.length) { barLeave(); return; }
+    var r = geo.rows[idx];
+    var cy = geo.y0 + idx * geo.pitch;
+    geo.band.setAttribute("y", cy - geo.pitch / 2);
+    geo.band.setAttribute("opacity", "0.10");
+    barTip.innerHTML = "<span class=\"t-k\">" + r[0] + "</span><br><b>" + fmtSigned(r[3], 2) +
+      " %</b> za rok<br><span class=\"t-k\">index " + fmt(r[1], 1) + " → " + fmt(r[2], 1) + "</span>";
+    var tipX = Math.min(Math.max((ev.clientX - rect.left), 90), rect.width - 90);
+    barTip.style.left = tipX + "px";
+    barTip.style.top = (cy * scale - 8) + "px";
+    barTip.setAttribute("data-show", "1");
+  });
+  function barLeave() {
+    var geo = barState.geom;
+    if (!geo) return;
+    geo.band.setAttribute("opacity", "0");
+    barTip.removeAttribute("data-show");
+  }
+  barPlot.addEventListener("pointerleave", barLeave);
+
+  document.querySelectorAll("#barCard .pill[data-s]").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      document.querySelectorAll("#barCard .pill[data-s]").forEach(function (b) {
+        b.setAttribute("aria-pressed", String(b === btn));
+      });
+      barState.s = btn.getAttribute("data-s");
+      drawBar(barState.s);
+    });
+  });
+
+  /* ---------------- přepínače tabulky ---------------- */
+  function wireTable(btnId, tableId) {
+    var btn = document.getElementById(btnId), tbl = document.getElementById(tableId);
+    btn.addEventListener("click", function () {
+      var open = tbl.hasAttribute("hidden");
+      if (open) { tbl.removeAttribute("hidden"); } else { tbl.setAttribute("hidden", ""); }
+      btn.setAttribute("aria-pressed", String(open));
+    });
+  }
+  wireTable("lineTableBtn", "lineTable");
+  wireTable("barTableBtn", "barTable");
+
+  // Adresa aplikace z jediné konstanty nahoře; href="/" zůstává jako záloha,
+  // kdyby skript neproběhl (na vlastní doméně je to stejně správný cíl).
+  if (window.APP_URL) {
+    document.querySelectorAll("[data-app-link]").forEach(function (a) {
+      a.setAttribute("href", window.APP_URL);
+    });
+  }
+
+  drawLine("raw");
+  drawBar("change");
+})();
+</script>
+</body>
+</html>

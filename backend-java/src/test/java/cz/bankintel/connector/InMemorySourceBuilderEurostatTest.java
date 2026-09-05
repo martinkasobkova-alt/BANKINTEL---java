@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
+import cz.bankintel.search.CatalogSearchMetadataSidecar;
 import cz.bankintel.sources.ecb.EcbCuratedCatalog;
 import cz.bankintel.sources.eurostat.EurostatDimensionService;
 import cz.bankintel.sources.oecd4.Oecd4BrowseService;
@@ -30,11 +31,14 @@ class InMemorySourceBuilderEurostatTest {
     @Mock
     private Oecd4BrowseService oecd4BrowseService;
 
+    @Mock
+    private CatalogSearchMetadataSidecar metadataSidecar;
+
     private InMemorySourceBuilder builder;
 
     @BeforeEach
     void setUp() {
-        builder = new InMemorySourceBuilder(ecbCuratedCatalog, eurostatDimensionService, oecd4BrowseService);
+        builder = new InMemorySourceBuilder(ecbCuratedCatalog, eurostatDimensionService, oecd4BrowseService, metadataSidecar);
     }
 
     @Test
@@ -55,6 +59,33 @@ class InMemorySourceBuilderEurostatTest {
         assertFalse(qp.containsKey("lastTimePeriod"));
         assertEquals("CZ", qp.get("geo"));
         assertEquals("CP00", qp.get("coicop"));
+    }
+
+    @Test
+    void eurostatMarksOurOwnGeoDefaultSoTheConnectorCanRetryWithoutIt() {
+        // Dotaz bez země: doplníme geo=CZ. U datasetů, kde geo nejsou země ale města
+        // (urban audit) nebo metropolitní regiony, je to neplatná hodnota a Eurostat celý
+        // dotaz odmítne (naměřeno: met_bd_slg1_sizer bez geo HTTP 200 / 965 kB, s geo=CZ
+        // HTTP 400). Konektor podle tohohle příznaku dotaz zopakuje bez geo.
+        Map<String, Object> params = new LinkedHashMap<>();
+        params.put("set_id", "met_bd_slg1_sizer");
+
+        Map<String, Object> source = builder.build("eurostat", params);
+
+        assertEquals("true", String.valueOf(source.get("eurostat_geo_is_default")));
+    }
+
+    @Test
+    void eurostatDoesNotMarkGeoAsDefaultWhenTheUserAskedForACountry() {
+        // Když zemi zadal uživatel, prázdný výsledek je správná odpověď - tiše mu ho rozšířit
+        // na celou EU by bylo horší než chyba.
+        Map<String, Object> params = new LinkedHashMap<>();
+        params.put("set_id", "nama_10_gdp");
+        params.put("query_params", Map.of("geo", "SK"));
+
+        Map<String, Object> source = builder.build("eurostat", params);
+
+        assertEquals("false", String.valueOf(source.get("eurostat_geo_is_default")));
     }
 
     @Test

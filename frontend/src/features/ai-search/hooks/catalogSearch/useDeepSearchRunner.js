@@ -92,6 +92,7 @@ export function useDeepSearchRunner({
   deepSourceLabel,
   chunkTimeoutMs,
   totalTimeoutMs,
+  onNewSearch,
 }) {
   const [deepLoading, setDeepLoading] = useState(false);
   const [deepError, setDeepError] = useState("");
@@ -715,9 +716,14 @@ export function useDeepSearchRunner({
       const dq = String(query || "").trim();
       if (dq.length < 2) return;
       skipQueryChangeAbortRef.current = true;
+      // Nový dotaz = nové téma - chat nad PŘEDCHOZÍMI výsledky (`followupMessages` ve stránce)
+      // by jinak zůstal viset nad výsledky, které už uživatel nevidí. `runDeepSearch()` bez
+      // argumentu (tlačítko "zkusit znovu") a `runDeepSearchExtended()` (rozšířit STEJNÝ dotaz)
+      // tudy neprochází, takže chat u pouhého opakování/rozšíření zůstává schválně netknutý.
+      onNewSearch?.(dq);
       await runDeepSearch(dq);
     },
-    [runDeepSearch],
+    [runDeepSearch, onNewSearch],
   );
 
   const cancelDeepSearch = useCallback(() => {

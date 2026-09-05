@@ -21,7 +21,7 @@ import java.util.concurrent.CompletableFuture;
  *
  * <p>Connectors that do not implement this interface are used through the existing synchronous
  * {@link BaseConnector#fetch(Map)} path only; see
- * {@code docs/search-v2-preview-cancellation-investigation.md} section 9 for exactly which
+ * {@code docs/archive/search-v2-preview-cancellation-investigation.md} section 9 for exactly which
  * connectors implement this and why the remaining ones do not (yet).
  */
 public interface AsyncCancellableFetch {

@@ -55,11 +55,18 @@ public final class PreviewResponseBuilder {
         List<Map<String, Object>> selectableDimensions = buildSelectableDimensions(availableDimensions);
         List<Map<String, Object>> extraDimensions = buildExtraDimensions(availableDimensions);
 
+        Map<String, Object> appliedFilters = filtersApplied(payload, source);
+        // Poznámka konektoru: data sice přišla, ale ne v plném rozsahu (např. ČSÚ neumí obsloužit
+        // celý dataset, tak se vzal jen poslední dostupný výběr). Bez toho uživatel vidí graf
+        // a nemá jak poznat, že mu chybí historie - viz CsuConnector#fetchSelectionFallback.
+        String connectorNote = stringField(source, "_preview_note_cs");
+        String emptyReason = emptyReasonCs(appliedFilters);
+
         Map<String, Object> metadata = new LinkedHashMap<>();
         metadata.put("row_count", records.size());
-        metadata.put("filters_applied", filtersApplied(payload, source));
+        metadata.put("filters_applied", appliedFilters);
         metadata.put("dimensions", availableDimensions);
-        metadata.put("warning", null);
+        metadata.put("warning", connectorNote.isBlank() ? null : connectorNote);
         metadata.put("preview_state", records.isEmpty() ? "no_data" : null);
 
         Map<String, Object> out = new LinkedHashMap<>();
@@ -82,12 +89,29 @@ public final class PreviewResponseBuilder {
         out.put("filter_display_labels", Map.of());
         out.put("applied_filters", metadata.get("filters_applied"));
         out.put("dropped_filters", Map.of());
-        out.put("warnings", List.of());
+        out.put("warnings", connectorNote.isBlank() ? List.of() : List.of(connectorNote));
         out.put("request_id", source.getOrDefault("_eurostat_request_id", ""));
         out.put("preview_state", records.isEmpty() ? "no_data" : "");
         out.put("sync_state", records.isEmpty() ? "no_data" : "");
-        out.put("message", records.isEmpty() ? "Dataset neobsahuje žádná data pro zadané filtry." : "");
+        // Prázdný náhled má říct PROČ. Dosud tu byla jedna věta pro dvě různé situace: "zdroj pro
+        // tuhle řadu nic nemá" (nedá se nic dělat) a "filtrům neodpovídá žádný záznam" (stačí
+        // filtry uvolnit). Když data přišla, ale jen omezená, vrací se poznámka konektoru.
+        out.put("message", records.isEmpty() ? emptyReason : connectorNote);
         return out;
+    }
+
+    /**
+     * Proč je náhled prázdný — rozlišuje "zdroj nic nemá" od "filtry nic nevybraly".
+     *
+     * <p>Platí pro všechny zdroje: sestavuje se tu jediná odpověď náhledu, kterou vidí frontend
+     * ({@code CatalogSetPreviewPanel} ji zobrazuje u stavu {@code no_data}).
+     */
+    private static String emptyReasonCs(Map<String, Object> appliedFilters) {
+        if (appliedFilters != null && !appliedFilters.isEmpty()) {
+            return "Zdroj data vrátil, ale zadaným filtrům neodpovídá žádný záznam. "
+                    + "Zkuste filtry uvolnit nebo vybrat jinou dimenzi.";
+        }
+        return "Zdroj pro tuhle řadu žádná data nevrací.";
     }
 
     public static Map<String, Object> buildError(

@@ -1,5 +1,8 @@
 /** Normalizace Manager Explorer odpovědi (curated katalog, CZ/EU vrstvy). */
 
+// "forecast_indicators" (Výhled IMF WEO) tu záměrně chybí - appka nemá žádná data IMF World
+// Economic Outlook, backend ho nikdy neplní; slibovat sekci, kterou appka nedokáže naplnit, je
+// horší než ji nezobrazovat vůbec.
 export const INDICATOR_SECTION_DEFS = [
   { key: "recommended_chart_set", label: "Doporučené pro srovnání", highlight: true },
   { key: "sector_indicators", label: "Odvětvové ukazatele (CZ/EU core)" },
@@ -7,7 +10,7 @@ export const INDICATOR_SECTION_DEFS = [
   { key: "cost_indicators", label: "Náklady a ceny" },
   { key: "financial_indicators", label: "Finanční podmínky" },
   { key: "external_indicators", label: "Externí trhy" },
-  { key: "forecast_indicators", label: "Výhled IMF WEO" },
+  { key: "risk_indicators", label: "Rizika" },
   { key: "macro_indicators", label: "Makro (volitelné)" },
 ];
 

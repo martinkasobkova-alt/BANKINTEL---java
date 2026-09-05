@@ -227,7 +227,15 @@ isOpen && isEmbeddedPreview && (
                     {previewData?.message || "Zdroj momentálně neobsahuje žádné hodnoty."}
                   </span>
                 ) : previewData ? (
-                  `Načteno ${previewData.total_count ?? previewData.rows?.length ?? 0} záznamů${previewData.truncated ? ` (zobrazeno ${previewData.rows?.length || 0})` : ""}`
+                  <span className="font-sans">
+                    {`Načteno ${previewData.total_count ?? previewData.rows?.length ?? 0} záznamů${previewData.truncated ? ` (zobrazeno ${previewData.rows?.length || 0})` : ""}`}
+                    {/* Data přišla, ale ne v plném rozsahu (např. ČSÚ nevrátil celý dataset, tak
+                        se vzal jen poslední výběr bez historie). Bez téhle věty uživatel vidí
+                        graf o jednom bodu a nemá jak poznat proč. */}
+                    {previewData.message ? (
+                      <span className="text-amber-700 canvas-dark:text-amber-400"> · {previewData.message}</span>
+                    ) : null}
+                  </span>
                 ) : (
                   ""
                 )}

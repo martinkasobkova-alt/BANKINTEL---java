@@ -264,8 +264,12 @@ public class BisCatalogController {
         HttpStatus status = HttpStatus.BAD_GATEWAY;
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("error", source + " error");
-        payload.put("detail", ex.getClass().getSimpleName() + ": " + ex.getMessage());
+        // `detail` frontend zobrazuje uživateli — dřív tu končila syrová Java výjimka
+        // ("ConnectException: null"). Technický popis zůstává, jen vedle v `technical_detail`.
+        payload.put("detail", "Katalog BIS se teď nepodařilo načíst. Zkuste to prosím znovu později.");
+        payload.put("technical_detail", ex.getClass().getSimpleName() + ": " + ex.getMessage());
         payload.put("source", "BIS");
+        payload.put("upstream_unavailable", true);
         return ResponseEntity.status(status).body(payload);
     }
 

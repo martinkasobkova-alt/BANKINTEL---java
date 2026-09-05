@@ -65,7 +65,6 @@ public final class ConnectorParseSupport {
 
         List<String> timeValues = new ArrayList<>();
         List<Map<String, Object>> seriesDims = List.of();
-        Integer countryDimPos = null;
 
         Object structuresObj = data.get("structures");
         if (structuresObj instanceof List<?> structures && !structures.isEmpty() && structures.get(0) instanceof Map<?, ?> st0Raw) {
@@ -103,16 +102,9 @@ public final class ConnectorParseSupport {
                 Object seriesDimsObj = dims.get("series");
                 if (seriesDimsObj instanceof List<?> sdList) {
                     seriesDims = new ArrayList<>();
-                    for (int pos = 0; pos < sdList.size(); pos++) {
-                        if (sdList.get(pos) instanceof Map<?, ?> sdRaw) {
-                            Map<String, Object> sd = ConnectorHttpSupport.stringMap(sdRaw);
-                            seriesDims.add(sd);
-                            if (countryDimPos == null) {
-                                String did = string(sd.get("id")).toUpperCase(Locale.ROOT);
-                                if (SDMX_COUNTRY_DIM_IDS.contains(did)) {
-                                    countryDimPos = pos;
-                                }
-                            }
+                    for (Object sdRaw : sdList) {
+                        if (sdRaw instanceof Map<?, ?> sdRawMap) {
+                            seriesDims.add(ConnectorHttpSupport.stringMap(sdRawMap));
                         }
                     }
                 }
@@ -132,11 +124,11 @@ public final class ConnectorParseSupport {
             Object seriesObj = ds.get("series");
             if (seriesObj instanceof Map<?, ?> seriesMap) {
                 for (Map.Entry<?, ?> entry : seriesMap.entrySet()) {
-                    appendImfSeriesRows(rows, entry.getKey(), entry.getValue(), timeValues, seriesDims, countryDimPos);
+                    appendImfSeriesRows(rows, entry.getKey(), entry.getValue(), timeValues, seriesDims);
                 }
             } else if (seriesObj instanceof List<?> seriesList) {
                 for (int idx = 0; idx < seriesList.size(); idx++) {
-                    appendImfSeriesRows(rows, String.valueOf(idx), seriesList.get(idx), timeValues, seriesDims, countryDimPos);
+                    appendImfSeriesRows(rows, String.valueOf(idx), seriesList.get(idx), timeValues, seriesDims);
                 }
             }
         }
@@ -254,39 +246,54 @@ public final class ConnectorParseSupport {
         return rows;
     }
 
+    /**
+     * Series key je dvojtecky-oddeleny seznam indexu, jeden na kazdou dimenzi z {@code seriesDims},
+     * ve stejnem poradi. Drive se z nej dekodovala jen dimenze zeme (COUNTRY/REF_AREA/...) - zbytek
+     * (napr. FREQ, protistrana, sektor, jednotka) se zahodil jeste pred vznikem radku, takze ruzne
+     * SDMX serie se stejnou zemi tise slily do jedne, i kdyz reprezentovaly jinou realnou radu.
+     * Ted se dekoduji VSECHNY dimenze, kazda pod svym skutecnym SDMX id (zeme zustava pod "COUNTRY"
+     * kvuli zpetne kompatibilite se stavajicimi konzumenty).
+     */
     @SuppressWarnings("unchecked")
     private static void appendImfSeriesRows(
             List<Map<String, Object>> rows,
             Object seriesKey,
             Object seriesObj,
             List<String> timeValues,
-            List<Map<String, Object>> seriesDims,
-            Integer countryDimPos) {
+            List<Map<String, Object>> seriesDims) {
         if (!(seriesObj instanceof Map<?, ?> serRaw)) {
             return;
         }
         Map<String, Object> ser = ConnectorHttpSupport.stringMap(serRaw);
-        String countryCode = "";
-        String countryName = "";
-        if (countryDimPos != null) {
-            String[] parts = String.valueOf(seriesKey).split(":");
-            if (countryDimPos < parts.length) {
-                try {
-                    int vidx = Integer.parseInt(parts[countryDimPos]);
-                    if (vidx >= 0 && vidx < seriesDims.size()) {
-                        Object valuesObj = seriesDims.get(countryDimPos).get("values");
-                        if (valuesObj instanceof List<?> values && vidx < values.size() && values.get(vidx) instanceof Map<?, ?> vRaw) {
-                            Map<String, Object> v = ConnectorHttpSupport.stringMap(vRaw);
-                            countryCode = string(v.get("id"));
-                            if (countryCode.isBlank()) {
-                                countryCode = string(v.get("value"));
-                            }
-                            countryName = string(v.get("name"));
+        String[] keyParts = String.valueOf(seriesKey).split(":");
+        Map<String, String> dimCodes = new LinkedHashMap<>();
+        Map<String, String> dimLabels = new LinkedHashMap<>();
+        for (int pos = 0; pos < seriesDims.size() && pos < keyParts.length; pos++) {
+            String dimId = string(seriesDims.get(pos).get("id")).toUpperCase(Locale.ROOT);
+            if (dimId.isBlank()) {
+                continue;
+            }
+            try {
+                int vidx = Integer.parseInt(keyParts[pos]);
+                Object valuesObj = seriesDims.get(pos).get("values");
+                if (valuesObj instanceof List<?> values && vidx >= 0 && vidx < values.size()
+                        && values.get(vidx) instanceof Map<?, ?> vRaw) {
+                    Map<String, Object> v = ConnectorHttpSupport.stringMap(vRaw);
+                    String code = string(v.get("id"));
+                    if (code.isBlank()) {
+                        code = string(v.get("value"));
+                    }
+                    if (!code.isBlank()) {
+                        String outKey = SDMX_COUNTRY_DIM_IDS.contains(dimId) ? "COUNTRY" : dimId;
+                        dimCodes.put(outKey, code);
+                        String name = string(v.get("name"));
+                        if (!name.isBlank()) {
+                            dimLabels.put(outKey, name);
                         }
                     }
-                } catch (NumberFormatException ignored) {
-                    // skip country enrichment
                 }
+            } catch (NumberFormatException ignored) {
+                // skip malformed key segment for this dimension
             }
         }
         Object obsObj = ser.get("observations");
@@ -311,10 +318,11 @@ public final class ConnectorParseSupport {
                 row.put("OBS_VALUE", num);
                 row.put("value", num);
                 row.put("amount", num);
-                if (!countryCode.isBlank()) {
-                    row.put("COUNTRY", countryCode);
-                    if (!countryName.isBlank()) {
-                        row.put("COUNTRY_label", countryName);
+                for (Map.Entry<String, String> dimEntry : dimCodes.entrySet()) {
+                    row.put(dimEntry.getKey(), dimEntry.getValue());
+                    String label = dimLabels.get(dimEntry.getKey());
+                    if (label != null) {
+                        row.put(dimEntry.getKey() + "_label", label);
                     }
                 }
                 rows.add(row);

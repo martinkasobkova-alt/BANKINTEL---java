@@ -1,4 +1,4 @@
-import { mergeAvailableSplitDimensions } from "./catalogDimensions";
+import { buildCatalogDimension, mergeAvailableSplitDimensions } from "./catalogDimensions";
 
 describe("mergeAvailableSplitDimensions", () => {
   test("merges config metadata with live API dimensions", () => {
@@ -80,5 +80,42 @@ describe("mergeAvailableSplitDimensions", () => {
       { source_type: "csu", chart_series_dim: "ÚZEMÍ-KRAJ", chart_series_mode: "multi" }
     );
     expect(merged.map((d) => d.field)).toContain("ÚZEMÍ-KRAJ");
+  });
+});
+
+describe("výchozí hodnota dimenze", () => {
+  // ČSÚ vrací CZ-COICOP abecedně; bez preference souhrnu naskočil graf na
+  // „Alkoholické nápoje" proti ukazateli „Úhrn" a zbyl v něm jediný bod.
+  const coicop = [
+    "Alkoholické nápoje, tabák a narkotika",
+    "Bydlení, voda, energie, paliva",
+    "Doprava",
+    "Úhrn",
+    "Zdraví",
+  ];
+
+  test("souhrn vyhraje nad prvním v abecedě", () => {
+    const dim = buildCatalogDimension("CZ-COICOP", { values: coicop });
+    expect(dim.selected).toBe("Úhrn");
+    expect(dim.default_value).toBe("Úhrn");
+  });
+
+  test("bez souhrnu zůstává první hodnota", () => {
+    const dim = buildCatalogDimension("CZ-COICOP", { values: ["Doprava", "Zdraví"] });
+    expect(dim.selected).toBe("Doprava");
+  });
+
+  test("výslovný výběr má přednost před souhrnem", () => {
+    const dim = buildCatalogDimension("CZ-COICOP", { values: coicop }, "Doprava");
+    expect(dim.selected).toBe("Doprava");
+  });
+
+  test("rozpozná i Celkem / Total", () => {
+    expect(buildCatalogDimension("d", { values: ["Praha", "Celkem"] }).selected).toBe("Celkem");
+    expect(buildCatalogDimension("d", { values: ["DE", "Total"] }).selected).toBe("Total");
+  });
+
+  test("prázdná dimenze nespadne", () => {
+    expect(buildCatalogDimension("d", { values: [] }).selected).toBeNull();
   });
 });

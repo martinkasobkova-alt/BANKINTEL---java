@@ -321,6 +321,52 @@ export function buildPersonalChartConfigFromPreview(def, source, previewData, ro
  * Osobní widget z globálního katalogu — uloží se jen pro uživatele, bez záznamu v /api/sources.
  * `def.id` musí být whitelisted katalog (stejné jako CATALOGS v `catalogDefinitions.js`).
  */
+/** Ne-prázdné texty ze seznamu, bez duplicit a bez mezer navíc. */
+function uniqueTexts(raw) {
+  const list = Array.isArray(raw) ? raw : [];
+  return [...new Set(list.map((v) => String(v ?? "").trim()).filter(Boolean))];
+}
+
+/**
+ * Přenese do konfigurace widgetu to, co uživatel nastavil v náhledu: podle které dimenze
+ * se graf dělí, které její hodnoty vybral a jestli kreslí časovou řadu, nebo srovnání hodnot.
+ *
+ * Proč to existuje: náhled tohle všechno uměl, ale při ukládání se z toho posílala jen
+ * dimenze a hodnoty — a `chart_series_dim_values` navíc nikdo nečetl. Widget se proto vrátil
+ * ke „všem hodnotám, prvních 12 abecedně" a přepnul se zpátky na čáru. Na dashboard tak
+ * přistálo něco jiného, než co člověk před uložením viděl.
+ */
+function applySeriesSelection(cfg, seriesConfig) {
+  if (!seriesConfig) return;
+  const crossSection = seriesConfig.displayMode === "bars_latest";
+
+  // U srovnání hodnot určuje dimenzi graf sám (case „Proměnná (osa X)"), u časové řady
+  // je to volba „Série:". Hodnoty se berou z téhož zdroje, aby si neodporovaly.
+  const dim = String(
+    (crossSection ? seriesConfig.crossSectionDim : "") || seriesConfig.seriesGroupDim || ""
+  ).trim();
+  const values = crossSection
+    ? uniqueTexts(seriesConfig.crossSectionValues)
+    : uniqueTexts(seriesConfig.seriesSelection);
+
+  if (dim) {
+    cfg.chart_series_dim = dim;
+    if (values.length > 0) cfg.chart_series_dim_values = values;
+  }
+
+  if (crossSection) {
+    cfg.chart_data_mode = "latest";
+    // Srovnání hodnot je sloupcový graf; čára přes jedno období nedává smysl.
+    cfg.chart_type = "bar";
+    // Srovnání hodnot je JEDNA řada o N bodech, ne N řad. Dokud si widget nesl příznaky
+    // více řad, kreslil legendu se všemi zeměmi, ta sebrala celou výšku a na sloupce
+    // zbylo 77 pixelů — graf byl prázdný, i když data dorazila správně.
+    // Pozor: "single" tu nejde použít, tím by se zahodila i dimenze rozdělení.
+    delete cfg.chart_series_mode;
+    delete cfg.chart_compare_with;
+  }
+}
+
 export function buildExternalCatalogChartConfig(def, previewData, row, wbCountry, seriesConfig = null) {
   if (!def?.id || !row) return null;
   const rawSetId = String(row?.set_id ?? row?.series_id ?? row?.code ?? "").trim();
@@ -328,7 +374,10 @@ export function buildExternalCatalogChartConfig(def, previewData, row, wbCountry
   if (!setId) return null;
   const title = (row?.name || previewData?.source?.name || "Graf z katalogu").toString().trim();
   const { x, y } = guessXYFields(previewData);
-  const geoSel = extractGeoFromPreview(previewData);
+  // Výběr zemí primárně z náhledu. Když ho odpověď nezopakuje, vezmi ho z toho, co má
+  // vybráno UI — jinak by se widget uložil bez zemí a vykreslil jednu řadu místo srovnání.
+  const geoFromPreview = extractGeoFromPreview(previewData);
+  const geoSel = geoFromPreview.length > 0 ? geoFromPreview : uniqueTexts(seriesConfig?.selectedGeo);
   const rowFetch = buildCatalogPreviewBody(def, row, wbCountry);
   const defaultAgg = def.id === "csu" ? "avg" : "last";
   const cfg = {
@@ -407,12 +456,7 @@ export function buildExternalCatalogChartConfig(def, previewData, row, wbCountry
   if (previewData?.total_count != null) meta.total_count = previewData.total_count;
   const splitDims = extractSplitDimensions(previewData);
   if (splitDims.length > 0) cfg.available_split_dimensions = splitDims;
-  if (seriesConfig?.seriesGroupDim) {
-    cfg.chart_series_dim = String(seriesConfig.seriesGroupDim);
-    if (Array.isArray(seriesConfig.seriesSelection) && seriesConfig.seriesSelection.length > 0) {
-      cfg.chart_series_dim_values = seriesConfig.seriesSelection.map(String);
-    }
-  }
+  applySeriesSelection(cfg, seriesConfig);
   const selectedDims = extractSelectedDimensionsForStorage(previewData);
   if (selectedDims && Object.keys(selectedDims).length > 0) {
     cfg.selected_dimensions = selectedDims;

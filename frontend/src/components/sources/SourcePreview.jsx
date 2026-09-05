@@ -1,4 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  addCleanIndicatorLabel,
+  cleanIndicatorLabel as cleanHumanLabel,
+  resolveIndicatorLabel,
+  withDistinctLabels,
+} from "@/lib/indicatorLabels";
 import MySeriesInlineActions from "@/components/myDashboard/MySeriesInlineActions";
 import PreviewGroupCompareDropdown from "@/components/sources/PreviewGroupCompareDropdown";
 import { buildCompareLeftRefFromWidget, buildMySeriesSavePayloadFromWidget } from "@/lib/mySeriesFromWidget";
@@ -97,6 +103,8 @@ import {
   isUserSelectableDimensionKey,
   resolveDimensionValueLabel,
 } from "@/lib/sourcePreviewUserChoiceDimensions";
+import { applyLiveAvailabilityToDimensionOptions } from "@/lib/sourcePreviewDimensionMeta";
+import { fetchEurostatDimensionOptions } from "@/lib/eurostatDimensionAvailability";
 import EurostatCascadingDimensionPicker from "@/components/sources/EurostatCascadingDimensionPicker";
 import { formatPreviewMessage } from "@/lib/previewNormalizer";
 
@@ -297,6 +305,12 @@ function catalogChartShellClass(catalogChartSize, { placeholder = false, split =
     : "relative min-h-[14rem] h-[min(45vh,20rem)] min-w-0 overflow-x-hidden";
 }
 const MAX_GEO_SELECTION = 8;
+/**
+ * Srovnání hodnot kreslí sloupec za zemi, ne křivku — osm křivek přes sebe je strop
+ * čitelnosti, osm sloupců ne. Uživatelka chtěla „sloupeček za každou zemi" a Eurostat jich
+ * u ROE bank nabízí 29; se stropem 8 to z principu nešlo vyklikat.
+ */
+const MAX_GEO_SELECTION_CROSS_SECTION = 40;
 const QUICK_COMPARE_GEOS = [
   "CZ", "DE", "AT", "FR", "ES", "PL", "IT", "NL", "BE", "SK", "HU", "RO",
   "BG", "SI", "HR", "LT", "LV", "EE", "FI", "IE", "LU", "PT", "GR", "SE", "DK",
@@ -425,22 +439,6 @@ function formatOptionLabel(opt) {
   return label;
 }
 
-function hasReplacementChar(value) {
-  return String(value ?? "").includes("\uFFFD");
-}
-
-function cleanHumanLabel(value) {
-  const text = String(value ?? "").trim();
-  return text && !hasReplacementChar(text) ? text : "";
-}
-
-function addCleanIndicatorLabel(out, id, label) {
-  const key = String(id ?? "").trim();
-  const clean = cleanHumanLabel(label);
-  if (!key || !clean || clean === key) return;
-  if (!out[key] || hasReplacementChar(out[key])) out[key] = clean;
-}
-
 function addIndicatorLabelsFromDimension(out, meta) {
   if (!meta || typeof meta !== "object") return;
   readDimensionOptions(meta).forEach((opt) => addCleanIndicatorLabel(out, opt.value, opt.label));
@@ -529,32 +527,6 @@ function buildIndicatorLabelLookup(availableDimensions, rows, remoteLabels, grou
       ),
     );
   });
-  return out;
-}
-
-function resolveIndicatorDisplayName(indicator, labelLookup) {
-  const id = String(indicator?.id ?? "").trim();
-  const fromLookup = cleanHumanLabel(labelLookup?.[id]);
-  if (fromLookup) return fromLookup;
-  const fromName = cleanHumanLabel(indicator?.name);
-  if (fromName && fromName !== id) return fromName;
-  return id;
-}
-
-/** Stejný název u více ID (ARAD dimenze) — v selectu jen jednou, první výskyt vyhrává. */
-function dedupeIndicatorsForSelect(indicators, labelLookup) {
-  const seenLabels = new Set();
-  const seenIds = new Set();
-  const out = [];
-  for (const ind of indicators || []) {
-    const id = String(ind?.id ?? "").trim();
-    if (!id || seenIds.has(id)) continue;
-    const label = resolveIndicatorDisplayName(ind, labelLookup).trim().toLowerCase();
-    if (label && seenLabels.has(label)) continue;
-    seenIds.add(id);
-    if (label) seenLabels.add(label);
-    out.push(ind);
-  }
   return out;
 }
 
@@ -987,6 +959,9 @@ export default function SourcePreview({
   const [dimFilters, setDimFilters] = useState({});
   // „Auto" oficiálně zrušeno — chovalo se identicky jako „time_series" (viz přepínač Zobrazení).
   const [displayMode, setDisplayMode] = useState("time_series");
+  /** Kolik zemí smí do grafu — závisí na tom, jestli se kreslí křivky, nebo sloupce. */
+  const maxGeoSelection =
+    displayMode === "bars_latest" ? MAX_GEO_SELECTION_CROSS_SECTION : MAX_GEO_SELECTION;
   const [catalogSettingsOpen, setCatalogSettingsOpen] = useState(false);
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [seriesGroupDim, setSeriesGroupDim] = useState("");
@@ -1213,17 +1188,16 @@ export default function SourcePreview({
     () => buildIndicatorLabelLookup(availableDimensions, rows, remoteAradIndicatorLabels, groupField),
     [availableDimensions, rows, remoteAradIndicatorLabels, groupField]
   );
-  const displayIndicators = useMemo(
-    () =>
-      dedupeIndicatorsForSelect(
-        indicators.map((ind) => {
-          const name = resolveIndicatorDisplayName(ind, indicatorLabelLookup);
-          return name === ind?.name ? ind : { ...ind, name };
-        }),
-        indicatorLabelLookup,
-      ),
-    [indicators, indicatorLabelLookup],
-  );
+  const displayIndicators = useMemo(() => {
+    const named = indicators.map((ind) => {
+      const name = resolveIndicatorLabel(ind, indicatorLabelLookup);
+      return name === ind?.name ? ind : { ...ind, name };
+    });
+    // Duplicitní názvy se dřív zahazovaly — z dvanácti ARAD řad zbyly dvě a zbytek
+    // nešel vybrat. Teď zůstanou všechny a rozliší se popiskem.
+    return withDistinctLabels(named, { getId: (i) => i?.id, getLabel: (i) => i?.name })
+      .map(({ item, label }) => (label === item?.name ? item : { ...item, name: label }));
+  }, [indicators, indicatorLabelLookup]);
   useEffect(() => {
     if (previewHasError || !onDimensionFiltersApply) return;
     const applied = requestedFilters || {};
@@ -1827,13 +1801,17 @@ export default function SourcePreview({
     setShowGeoPicker(true);
   };
   const applyGeoSelection = () => {
-    const next = normalizeFilterValues(draftGeoRef.current, { geo: true }).slice(0, MAX_GEO_SELECTION);
+    const next = normalizeFilterValues(draftGeoRef.current, { geo: true }).slice(0, maxGeoSelection);
     applyGeoCodes(next);
   };
   const applyGeoCodes = (geoCodes) => {
-    const next = normalizeGeoCodesForPreviewSource(geoCodes).slice(0, MAX_GEO_SELECTION);
+    const next = normalizeGeoCodesForPreviewSource(geoCodes).slice(0, maxGeoSelection);
     setSelectedGeo(next);
     setLocalAppliedGeo(next);
+    // Data pro srovnání hodnot se stahují jednou a nesou v sobě filtry z okamžiku stažení.
+    // Bez tohohle vynulování zůstaly po změně výběru zemí ležet ty staré: uživatel přidal
+    // devatenáct zemí, popisek ukázal 27, a graf dál kreslil původních osm sloupců.
+    setCrossSectionBaseRows(null);
     setShowGeoPicker(false);
     if (onDimensionFiltersApply) {
       let merged = replaceDimensionFilter(
@@ -1914,12 +1892,12 @@ export default function SourcePreview({
     if (!nextCode) return;
     setDraftGeo((prev) => {
       const current = Array.isArray(prev) ? prev : [];
-      if (current.includes(nextCode) || current.length >= MAX_GEO_SELECTION) return current;
-      const next = [...current, nextCode].slice(0, MAX_GEO_SELECTION);
+      if (current.includes(nextCode) || current.length >= maxGeoSelection) return current;
+      const next = [...current, nextCode].slice(0, maxGeoSelection);
       draftGeoRef.current = next;
       return next;
     });
-  }, []);
+  }, [maxGeoSelection]);
   const removeDraftGeoCode = useCallback((rawCode) => {
     const code = asGeoCode(rawCode);
     if (!code) return;
@@ -2009,6 +1987,90 @@ export default function SourcePreview({
     merged[field] = trimmed;
     onDimensionFiltersApply(finalizeDimensionFilters(merged));
   };
+
+  // Živě zjištěno: appka dřív dovolila v rychlém ODVĚTVÍ menu ručně vybrat kombinaci bez dat
+  // (naio_10_pyp1620, ind_use=T), aniž by o tom uživatel dopředu věděl — appka na to má už hotový
+  // živý probe (EurostatCascadingDimensionPicker/`fetchEurostatDimensionOptions`), jen ho tohle
+  // rychlé menu dosud nepoužívalo. Fetch je bounded na pár polí (userChoiceDimensions bývá 1-3) a
+  // nikdy nic neblokuje sám o sobě — chyba/timeout = žádné označení, appka se chová jako dnes.
+  const [eurostatUserChoiceAvailability, setEurostatUserChoiceAvailability] = useState({});
+  useEffect(() => {
+    if (!isEurostatPreview || !previewDatasetId || userChoiceDimensions.length === 0) {
+      setEurostatUserChoiceAvailability({});
+      return;
+    }
+    let cancelled = false;
+    // Živě zjištěno: buildDimensionFiltersWithCurrentGeo() odráží jen to, co uživatel SÁM ručně
+    // změnil (requestedFilters) - u čerstvě otevřeného náhledu appka tiše doplní ind_use/cpa2_1/
+    // freq/... na pozadí (viz krok 1-2 tohoto plánu) a tenhle výběr NIKDY nedorazí do
+    // requestedFilters, jen do preview.applied_filters (backendem zpětně poslaná skutečná
+    // kombinace). Bez téhle základny by probe testoval "unit=MIO_EUR bez ind_use" místo skutečně
+    // aktivní kombinace - moc široký/neurčený dotaz, co Eurostat sám o sobě může odmítnout, i když
+    // ta SKUTEČNÁ (plně zadaná) kombinace v pohodě má data. buildDimensionFiltersWithCurrentGeo()
+    // může navíc vracet vícehodnotové dimenze (geo) jako pole - poslané tak, jak je, backend
+    // (Java) na poli zavolá String.valueOf a pošle Eurostatu doslova "[CZ]" místo "CZ", což
+    // spolehlivě rozbije každý probe s geo (stejnou normalizaci pole→první hodnota už dělá
+    // EurostatCascadingDimensionPicker.jsx:24).
+    const normalizeFilterMap = (raw) => {
+      const out = {};
+      for (const [key, value] of Object.entries(raw || {})) {
+        const single = Array.isArray(value) ? value[0] : value;
+        const trimmed = String(single ?? "").trim();
+        if (trimmed) out[key] = trimmed;
+      }
+      return out;
+    };
+    const selected = {
+      ...normalizeFilterMap(preview?.applied_filters),
+      ...normalizeFilterMap(buildDimensionFiltersWithCurrentGeo()),
+    };
+    const userQuery = preview?.user_query || preview?.metadata?.user_query || "";
+    Promise.all(
+      userChoiceDimensions.map((dim) =>
+        fetchEurostatDimensionOptions({
+          datasetId: previewDatasetId,
+          selectedDimensions: selected,
+          targetDimension: dim.field,
+          userQuery,
+        })
+          .then((data) => [dim.field, data])
+          .catch(() => [dim.field, null]),
+      ),
+    ).then((entries) => {
+      if (cancelled) return;
+      const next = {};
+      for (const [field, data] of entries) {
+        const invalidCodes = new Set(
+          Array.isArray(data?.invalid_removed) ? data.invalid_removed.map((c) => String(c ?? "").trim()) : [],
+        );
+        next[field] = { invalidCodes, complete: data?.complete !== false };
+      }
+      setEurostatUserChoiceAvailability(next);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    isEurostatPreview,
+    previewDatasetId,
+    userChoiceDimensions,
+    buildDimensionFiltersWithCurrentGeo,
+    preview?.applied_filters,
+    preview?.user_query,
+    preview?.metadata?.user_query,
+  ]);
+  const annotatedUserChoiceDimensions = useMemo(
+    () =>
+      userChoiceDimensions.map((dim) => ({
+        ...dim,
+        options: applyLiveAvailabilityToDimensionOptions(
+          dim.options,
+          eurostatUserChoiceAvailability[dim.field],
+          dim.selected,
+        ),
+      })),
+    [userChoiceDimensions, eurostatUserChoiceAvailability],
+  );
 
   const applyDimensionFilters = () => {
     const selected = {};
@@ -2233,13 +2295,18 @@ export default function SourcePreview({
     }
     const byGeo = new Map();
     for (const r of rowsForBar) {
-      const x = String(r?.[dimField] ?? "").trim();
+      const code = String(r?.[dimField] ?? "").trim();
       const y = parseNumber(r?.[valueField]);
-      if (!x || y === null) continue;
-      if (!byGeo.has(x)) byGeo.set(x, y);
+      if (!code || y === null) continue;
+      if (byGeo.has(code)) continue;
+      // Konektory ukládají ke každé dimenzi průvodní sloupec `<dimenze>_label`, takže vedle
+      // "DW_EXST" leží "Purchases of existing dwellings". Bez něj byly popisky sloupců syrové
+      // kódy a z grafu nešlo poznat, co je co — stejná vada jako u legendy sérií.
+      const label = String(r?.[`${dimField}_label`] ?? "").trim() || code;
+      byGeo.set(code, { y, label });
     }
     const items = Array.from(byGeo.entries())
-      .map(([x, y]) => ({ x, y }))
+      .map(([code, v]) => ({ x: v.label, y: v.y, code }))
       .sort((a, b) => (a.x < b.x ? -1 : a.x > b.x ? 1 : 0))
       .slice(0, 50);
     if (items.length >= 2) {
@@ -2303,6 +2370,28 @@ export default function SourcePreview({
     if (!crossSectionBarAxis.useZeroBaselineShape) return crossSectionRows;
     return chartRowsWithZeroBaselineBars(crossSectionRows);
   }, [crossSectionRows, crossSectionBarAxis.useZeroBaselineShape]);
+  // Tabulka pod grafem musi ukazovat totez co graf. V pruezovem rezimu ("Srovnani hodnot")
+  // jsou na ose X kategorie (napr. CZ-COICOP), ne obdobi — tabulka ale zustavala na casove
+  // rade, takze cisla v ni neodpovidala sloupcum v grafu a chybely popisky kategorii.
+  const crossSectionTable = useMemo(() => {
+    if (crossSectionRows.length < 2) return null;
+    const dimLabel = String(crossSection?.dimField || "").trim() || "kategorie";
+    const valueLabel = String(valueField || "").trim() || "value";
+    return {
+      fields: [dimLabel, valueLabel],
+      rows: crossSectionRows.map((r) => ({
+        [dimLabel]: r?.x ?? "",
+        [valueLabel]: r?.y ?? null,
+      })),
+    };
+  }, [crossSectionRows, crossSection?.dimField, valueField]);
+  const detailTableFields = crossSectionTable
+    ? crossSectionTable.fields
+    : catalogDetailSplitLayout
+      ? catalogDetailTableFields
+      : shownFields;
+  const detailTableRows = crossSectionTable ? crossSectionTable.rows : tableRows;
+
   const selectedCatalogChartSlot = useMemo(
     () => filterCatalogChartSlotBySeries(chartSlot, seriesKeys),
     [chartSlot, seriesKeys],
@@ -2829,7 +2918,7 @@ export default function SourcePreview({
     }
     const selectedSet = new Set(selectedCodes);
     const remainingOptions = countryPickerOptions.filter((opt) => opt?.value && !selectedSet.has(opt.value));
-    const maxReached = selectedCodes.length >= MAX_GEO_SELECTION;
+    const maxReached = selectedCodes.length >= maxGeoSelection;
     const selectOptions =
       selectedCodes.length <= 1
         ? countryPickerOptions
@@ -2921,7 +3010,7 @@ export default function SourcePreview({
           </button>
         </div>
         <div className="text-[10px] text-slate-500">
-          Vybráno: {selectedCodes.length || 0} (max {MAX_GEO_SELECTION} pro graf)
+          Vybráno: {selectedCodes.length || 0} (max {maxGeoSelection} pro graf)
           {countryPickerOptions.length > 0 ? (
             <span>
               {" "}
@@ -2931,7 +3020,7 @@ export default function SourcePreview({
                 : ""}
             </span>
           ) : null}
-          {selectedCodes.length >= MAX_GEO_SELECTION ? " · Maximum vybraných zemí dosaženo." : ""}
+          {selectedCodes.length >= maxGeoSelection ? " · Maximum vybraných zemí dosaženo." : ""}
         </div>
       </div>
     );
@@ -3299,25 +3388,30 @@ export default function SourcePreview({
             Zobrazení:
           </span>
           {renderCatalogDisplayModeControls()}
-          {userChoiceDimensions.length > 0 && onDimensionFiltersApply ? (
+          {annotatedUserChoiceDimensions.length > 0 && onDimensionFiltersApply ? (
             <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-              {userChoiceDimensions.map((dim) => (
+              {annotatedUserChoiceDimensions.map((dim) => (
                 <label key={`toolbar-user-choice-${dim.field}`} className="inline-flex min-w-0 items-center gap-1.5">
-                  <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">
+                  <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500 shrink-0">
                     {dim.label}:
                   </span>
-                  <select
-                    value={dim.selected || dim.options[0]?.value || ""}
-                    onChange={(e) => applyUserChoiceDimensionChange(dim.field, e.target.value)}
-                    disabled={loading}
-                    className="h-7 max-w-[min(52vw,18rem)] rounded-md border border-border/70 bg-white px-2 text-[11px]"
-                  >
-                    {dim.options.map((opt) => (
-                      <option key={`${dim.field}-${opt.value}`} value={opt.value}>
-                        {formatUserChoiceOptionLabel(opt)}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="relative min-w-0 max-w-[min(52vw,18rem)]">
+                    <select
+                      value={dim.selected || dim.options[0]?.value || ""}
+                      onChange={(e) => applyUserChoiceDimensionChange(dim.field, e.target.value)}
+                      disabled={loading}
+                      title={dim.selectedLabel || dim.selected}
+                      className="appearance-none h-7 w-full rounded-md border border-border/70 bg-white pl-2 pr-6 text-[11px] truncate"
+                    >
+                      {dim.options.map((opt) => (
+                        <option key={`${dim.field}-${opt.value}`} value={opt.value} disabled={opt.hasData === false}>
+                          {formatUserChoiceOptionLabel(opt)}
+                          {opt.hasData === false ? " (bez dat)" : ""}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="absolute right-1.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
+                  </div>
                 </label>
               ))}
             </div>
@@ -3714,31 +3808,36 @@ export default function SourcePreview({
           1 země ({selectedGeo[0]})
         </div>
       ) : null}
-      {userChoiceDimensions.length > 0 && onDimensionFiltersApply && !useEurostatCascadePicker && !catalogUnifiedToolbar ? (
+      {annotatedUserChoiceDimensions.length > 0 && onDimensionFiltersApply && !useEurostatCascadePicker && !catalogUnifiedToolbar ? (
         <div className="px-5 py-3 border-b border-border/60 bg-emerald-50/40 space-y-2">
           <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-emerald-800">
-            {userChoiceDimensionsSectionTitle(userChoiceDimensions)}
+            {userChoiceDimensionsSectionTitle(annotatedUserChoiceDimensions)}
           </div>
-          {userChoiceDimensions.map((dim) => (
+          {annotatedUserChoiceDimensions.map((dim) => (
             <label key={`user-choice-${dim.field}`} className="block space-y-1">
-              {userChoiceDimensions.length > 1 ? (
+              {annotatedUserChoiceDimensions.length > 1 ? (
                 <span className="text-[11px] font-medium text-slate-700">{dim.label}</span>
               ) : null}
-              <select
-                value={dim.selected || dim.options[0]?.value || ""}
-                onChange={(e) => applyUserChoiceDimensionChange(dim.field, e.target.value)}
-                className="h-8 w-full max-w-md text-[12px] border border-border/70 rounded-md px-2 bg-white"
-              >
-                {dim.options.map((opt) => (
-                  <option key={`${dim.field}-${opt.value}`} value={opt.value}>
-                    {formatUserChoiceOptionLabel(opt)}
-                  </option>
-                ))}
-              </select>
+              <div className="relative w-full max-w-md">
+                <select
+                  value={dim.selected || dim.options[0]?.value || ""}
+                  onChange={(e) => applyUserChoiceDimensionChange(dim.field, e.target.value)}
+                  title={dim.selectedLabel || dim.selected}
+                  className="appearance-none h-8 w-full text-[12px] border border-border/70 rounded-md pl-2 pr-6 bg-white truncate"
+                >
+                  {dim.options.map((opt) => (
+                    <option key={`${dim.field}-${opt.value}`} value={opt.value} disabled={opt.hasData === false}>
+                      {formatUserChoiceOptionLabel(opt)}
+                      {opt.hasData === false ? " (bez dat)" : ""}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="absolute right-1.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
+              </div>
             </label>
           ))}
           <p className="text-[10px] text-slate-600 leading-snug">
-            {userChoiceDimensionsHelpText(userChoiceDimensions)}
+            {userChoiceDimensionsHelpText(annotatedUserChoiceDimensions)}
           </p>
         </div>
       ) : null}
@@ -4234,7 +4333,21 @@ export default function SourcePreview({
                   {catalogChartActions.canAddToDashboard ? (
                     <button
                       type="button"
-                      onClick={() => catalogChartActions.onAddToDashboard?.({ seriesGroupDim, seriesSelection })}
+                      onClick={() =>
+                        catalogChartActions.onAddToDashboard?.({
+                          seriesGroupDim,
+                          seriesSelection,
+                          // Bez těchhle čtyř se widget uložil jako časová řada, i když náhled
+                          // ukazoval sloupce za země — uživatel dostal na dashboard něco jiného,
+                          // než co si nastavil. Posílá se to, co graf právě kreslí.
+                          displayMode,
+                          selectedGeo,
+                          crossSectionDim: crossSection?.dimField || "",
+                          crossSectionValues: crossSectionRows
+                            .map((r) => String(r?.code ?? r?.x ?? "").trim())
+                            .filter(Boolean),
+                        })
+                      }
                       disabled={
                         catalogChartActions.addingToDash ||
                         catalogChartActions.dashboardLoading ||
@@ -4640,15 +4753,15 @@ export default function SourcePreview({
             <table className={`data-table ${catalogDetailSplitLayout ? "text-[10px]" : "text-xs"}`}>
               <thead className="sticky top-0 bg-white z-10">
                 <tr>
-                  {(catalogDetailSplitLayout ? catalogDetailTableFields : shownFields).map((f) => (
+                  {detailTableFields.map((f) => (
                     <th key={f} className="!px-2 !py-2">{f}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {tableRows.slice(0, catalogDetailSplitLayout ? 30 : 40).map((r, i) => (
+                {detailTableRows.slice(0, catalogDetailSplitLayout ? 30 : 40).map((r, i) => (
                   <tr key={i}>
-                    {(catalogDetailSplitLayout ? catalogDetailTableFields : shownFields).map((f) => {
+                    {detailTableFields.map((f) => {
                       const cell = r?.[f];
                       const display = formatSourceTableCell(f, cell);
                       return (

@@ -1,5 +1,6 @@
 package cz.bankintel.config;
 
+import cz.bankintel.connector.health.ConnectorHealthService;
 import cz.bankintel.explore.EuMembership;
 import cz.bankintel.explore.manager.fetch.ManagerMirrorCacheRefreshService;
 import cz.bankintel.explore.manager.refresh.ManagerEurostatCacheRefreshService;
@@ -36,6 +37,7 @@ public class BankIntelScheduler {
     private final RssFeedRepository rssFeedRepository;
     private final BankIntelMaintenanceService maintenanceService;
     private final ManagerEurostatCacheRefreshService managerEurostatCacheRefreshService;
+    private final ConnectorHealthService connectorHealthService;
 
     public BankIntelScheduler(
             CatalogWarmupService catalogWarmupService,
@@ -44,7 +46,8 @@ public class BankIntelScheduler {
             RssFeedSyncService rssFeedSyncService,
             RssFeedRepository rssFeedRepository,
             BankIntelMaintenanceService maintenanceService,
-            ManagerEurostatCacheRefreshService managerEurostatCacheRefreshService) {
+            ManagerEurostatCacheRefreshService managerEurostatCacheRefreshService,
+            ConnectorHealthService connectorHealthService) {
         this.catalogWarmupService = catalogWarmupService;
         this.managerMirrorCacheRefreshService = managerMirrorCacheRefreshService;
         this.macroTopicsSnapshotService = macroTopicsSnapshotService;
@@ -52,6 +55,7 @@ public class BankIntelScheduler {
         this.rssFeedRepository = rssFeedRepository;
         this.maintenanceService = maintenanceService;
         this.managerEurostatCacheRefreshService = managerEurostatCacheRefreshService;
+        this.connectorHealthService = connectorHealthService;
     }
 
     static boolean isSchedulerLeader() {
@@ -98,6 +102,22 @@ public class BankIntelScheduler {
             }
         } catch (Exception ex) {
             log.warn("scheduled RSS sync failed: {}", ex.getMessage());
+        }
+    }
+
+    /**
+     * Reachability probe of every external data source, hourly.
+     *
+     * <p>Intentionally not leader-gated: connectivity can differ per instance (egress, DNS, an
+     * expired key on one replica) and {@code /api/health/connectors} reports the state of whichever
+     * instance answers, so every replica keeps its own picture. Cost is ~11 HEAD-weight GETs/hour.
+     */
+    @Scheduled(fixedDelay = 60 * 60 * 1000L, initialDelay = 45_000L)
+    public void connectorHealthProbe() {
+        try {
+            connectorHealthService.probeAll();
+        } catch (Exception ex) {
+            log.warn("scheduled connector health probe failed: {}", ex.getMessage());
         }
     }
 

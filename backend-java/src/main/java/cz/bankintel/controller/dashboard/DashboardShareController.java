@@ -38,9 +38,15 @@ public class DashboardShareController {
         return dashboardShareService.viewByToken(token, currentUser.optionalUserEntity());
     }
 
+    /**
+     * Stránka v režimu „Veřejný" se slibuje slovy „Kdokoli může stránku otevřít" — takže se tu
+     * nesmí vyžadovat přihlášení. Rozhodnutí, kdo smí dovnitř, dělá až
+     * DashboardPageAccessService.resolvePageViewRole, které veřejný režim pouští i bez uživatele;
+     * requireUserEntity() ho ale předbíhalo a nepřihlášený dostal 401 ještě před ním.
+     */
     @GetMapping("/page/{pageId}")
     public Map<String, Object> viewByPageId(@PathVariable String pageId) {
-        return dashboardShareService.viewByPageId(pageId, currentUser.requireUserEntity());
+        return dashboardShareService.viewByPageId(pageId, currentUser.optionalUserEntity());
     }
 
     @GetMapping("/embed/{token}/{widgetId}")

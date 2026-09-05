@@ -19,6 +19,12 @@ public class FeatureAccessService {
 
     private static final Set<String> VALID_LEVELS = Set.of("public", "registered", "subscriber", "admin");
 
+    /** Funkce, u kterých jde o práci s daty — hláška je konkrétnější než obecné „po přihlášení". */
+    private static final Set<String> DATA_WORK_KEYS = Set.of(
+            "export_data", "chart_image_export", "save_widget", "personal_dashboard",
+            "multiple_dashboards", "saved_calculations", "upload_custom_data",
+            "company_data_analysis", "rss_monitoring");
+
     private final FeatureAccessRuleRepository repository;
 
     public List<Map<String, Object>> listRulesPublic() {
@@ -132,7 +138,10 @@ public class FeatureAccessService {
     private ResponseStatusException forbiddenForLevel(String level, String featureKey) {
         return switch (level) {
             case "registered" -> new ResponseStatusException(
-                    HttpStatus.FORBIDDEN, "Tato funkce je dostupná po přihlášení.");
+                    HttpStatus.FORBIDDEN,
+                    DATA_WORK_KEYS.contains(featureKey)
+                            ? "Pokud chcete data stahovat, exportovat, ukládat a dál s nimi pracovat, zaregistrujte se."
+                            : "Tato funkce je dostupná po přihlášení.");
             case "subscriber" -> new ResponseStatusException(
                     HttpStatus.FORBIDDEN,
                     "export_data".equals(featureKey)

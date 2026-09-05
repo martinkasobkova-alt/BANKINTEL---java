@@ -77,11 +77,22 @@ public class CatalogSuggestService {
         }
 
         List<Map<String, Object>> deduped = dedupe(results);
-        deduped.sort(Comparator.comparingInt((Map<String, Object> r) -> {
-                    int match = (int) r.getOrDefault("_match", 0);
-                    int bonus = CatalogSourceRegistry.sourceBonus(String.valueOf(r.get("source")));
-                    return -(match + bonus);
-                })
+        // Došeptávač dřív řadil jen podle _match + sourceBonus, takže na český dotaz
+        // ("inflace", "hdp") nabízel jako první americké řady z FRED, přestože hlavní
+        // vyhledávání nad stejným indexem dávalo české řady na první místa. Stejný geo
+        // multiplikátor jako CatalogScoringPipeline: zdroj i země se teď promítají i tady.
+        Map<String, Object> geoIntent = CatalogGeoIntent.detectGeoIntent(qs);
+        for (Map<String, Object> row : deduped) {
+            int match = (int) row.getOrDefault("_match", 0);
+            int bonus = CatalogSourceRegistry.sourceBonus(String.valueOf(row.get("source")));
+            CatalogGeoIntent.GeoRowAdjustment geoAdj = CatalogGeoIntent.rowCountryGeoAdjustment(row, geoIntent);
+            row.put("_geo_multiplier", geoAdj.multiplier());
+            if (geoAdj.reason() != null) {
+                row.put("_geo_adjustment", geoAdj.reason());
+            }
+            row.put("_rank_score", (int) Math.round((match + bonus) * geoAdj.multiplier()));
+        }
+        deduped.sort(Comparator.comparingInt((Map<String, Object> r) -> -(int) r.getOrDefault("_rank_score", 0))
                 .thenComparingDouble(r -> (double) r.getOrDefault("_fts_rank", 0.0)));
 
         int perSourceCap = Math.max(2, lim / 4);

@@ -17,6 +17,8 @@ import cz.bankintel.repository.SourceRepository;
 import cz.bankintel.repository.UserRepository;
 import cz.bankintel.service.sources.ConnectorRegistry;
 import cz.bankintel.storage.MagazineStorageService;
+import java.util.HashMap;
+import java.util.List;
 import cz.bankintel.util.IdGenerator;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -106,6 +108,15 @@ public class DevDataSeeder implements ApplicationRunner {
         log.info("Dev seed demo source created: {}", source.getName());
     }
 
+    /**
+     * Základní přehled pro bankovnictví — makroukazatele, ziskovost bank, sazby a nemovitosti.
+     *
+     * Proč seedem a ne klikáním v adminu: dev databáze je efemérní (embedded Postgres se zakládá
+     * při každém startu), takže ručně naklikané widgety by restart nepřežily. Takhle je přehled
+     * po každém startu stejný a je vidět v kódu, z jakých řad vzniká.
+     *
+     * Všechny řady jsou ověřené, že vrací data. Idempotentní: seedujeme jen do prázdné tabulky.
+     */
     /**
      * Dev-only ukázková data pro obsahové sekce (Archiv/Zprávy/Podcasty), aby šlo v dev prostředí
      * reálně otestovat procházení — v čisté (efemérní) dev DB jsou tabulky prázdné. Idempotentní:

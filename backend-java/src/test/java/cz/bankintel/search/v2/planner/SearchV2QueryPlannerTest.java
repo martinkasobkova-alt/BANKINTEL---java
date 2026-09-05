@@ -1,15 +1,20 @@
 package cz.bankintel.search.v2.planner;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import cz.bankintel.search.CatalogIndexStore;
 import cz.bankintel.search.openai.OpenAiClient;
 import cz.bankintel.search.openai.OpenAiModelTask;
 import cz.bankintel.search.v2.entity.ExactEntityResolver;
 import cz.bankintel.search.v2.entity.SearchV2SourceCapabilityRegistry;
 import cz.bankintel.search.v2.ontology.SearchV2ConceptRegistry;
+import cz.bankintel.search.v2.ontology.SearchV2IndustrySectorRegistry;
 import cz.bankintel.search.v2.ontology.SearchV2InstitutionalSectorRegistry;
 import cz.bankintel.search.v2.ontology.SearchV2MetricIntentRegistry;
 import cz.bankintel.search.v2.schema.SearchQueryPlan;
@@ -23,14 +28,40 @@ class SearchV2QueryPlannerTest {
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final OpenAiClient openAiClient = mock(OpenAiClient.class);
     private final SearchV2SourceCapabilityRegistry capabilityRegistry = new SearchV2SourceCapabilityRegistry(objectMapper);
-    private final ExactEntityResolver exactEntityResolver = new ExactEntityResolver(objectMapper, capabilityRegistry);
+    private final CatalogIndexStore catalogIndexStore = mock(CatalogIndexStore.class);
+    private final ExactEntityResolver exactEntityResolver =
+            new ExactEntityResolver(objectMapper, capabilityRegistry, catalogIndexStore);
     private final SearchV2ConceptRegistry conceptRegistry = new SearchV2ConceptRegistry(objectMapper);
     private final SearchV2InstitutionalSectorRegistry institutionalSectorRegistry =
             new SearchV2InstitutionalSectorRegistry(objectMapper);
     private final SearchV2MetricIntentRegistry metricIntentRegistry = new SearchV2MetricIntentRegistry(objectMapper);
+    private final SearchV2IndustrySectorRegistry industrySectorRegistry = new SearchV2IndustrySectorRegistry(objectMapper);
     private final SearchV2QueryPlanner planner = new SearchV2QueryPlanner(
             openAiClient, exactEntityResolver, conceptRegistry, capabilityRegistry, institutionalSectorRegistry,
-            metricIntentRegistry);
+            metricIntentRegistry, industrySectorRegistry);
+
+    /**
+     * Živě reprodukováno (2026-09-05): appka pro holý dataset kód "naio_10_pyp1620" vždycky
+     * zavolala LLM plánovač (protože inferCodeLikeEntity natvrdo vracel probable_entity, nikdy
+     * exact_entity) - LLM si jednou vymyslel špatný "10-year yield" výklad, což zahodilo všech
+     * 25 reálných kandidátů. Když se kód dá ověřit proti katalogu, appka teď plánovač vůbec
+     * nezavolá (přesně jako u kurátorovaných entit typu tickerů) - end-to-end důkaz, ne jen na
+     * úrovni ExactEntityResolver samotného.
+     */
+    @Test
+    void catalogVerifiedDatasetCodeBypassesLlmPlannerJustLikeCuratedEntities() {
+        when(openAiClient.isConfigured()).thenReturn(true);
+        when(catalogIndexStore.lookupRowIndexedOnly("eurostat", "naio_10_pyp1620"))
+                .thenReturn(java.util.Optional.of(Map.of("set_id", "naio_10_pyp1620")));
+
+        SearchQueryPlan plan = planner.plan(Map.of(
+                "query", "naio_10_pyp1620",
+                "use_ai", true));
+
+        assertThat(plan.plannerStatus()).isEqualTo("exact_entity_resolver");
+        assertThat(plan.sourceRouting().preferredSources()).containsExactly("eurostat");
+        verify(openAiClient, never()).plannerCompletionJson(any(), any(), any());
+    }
 
     @Test
     void localPlanKeepsExplicitSourceAsHardConstraint() {

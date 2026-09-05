@@ -2,6 +2,7 @@ package cz.bankintel.search.v2.sidecar;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import cz.bankintel.sources.ecb.EcbItemCodeHints;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -86,7 +87,12 @@ public record SearchCatalogSidecarDocument(
         out.put("set_id", seriesId);
         out.put("id", seriesId);
         out.put("dataset", dataset);
-        out.put("title", firstNonBlank(canonicalTitleCs, canonicalTitleEn, originalTitle, seriesId));
+        String title = firstNonBlank(canonicalTitleCs, canonicalTitleEn, originalTitle, seriesId);
+        if ("ecb2".equals(source) && raw != null) {
+            title = EcbItemCodeHints.withUnresolvedItemHint(
+                    title, String.valueOf(raw.get("ecb_flow")), String.valueOf(raw.get("ecb_series_key")));
+        }
+        out.put("title", title);
         out.put("name", out.get("title"));
         out.put("description", firstNonBlank(canonicalDescriptionCs, canonicalDescriptionEn, originalDescription));
         out.put("original_title", originalTitle);
@@ -136,6 +142,14 @@ public record SearchCatalogSidecarDocument(
         out.put("_matched_query", matchedQuery);
         out.put("_matched_fields", matchedFields);
         out.put("_catalog_index", "sidecar");
+        // Živě zjištěno: appka na detailu řady z AI/deep hledání neuměla ukázat klikací cestu v
+        // katalogu (breadcrumb) - `full_path` v datech reálně existuje, jenže jen zanořený uvnitř
+        // `raw` (řádek 139 níže), ne na vrchní úrovni téhle mapy. `SearchV2CandidateNormalizer`
+        // (a `SearchCandidate`'s RAW_PASSTHROUGH_KEYS) čtou `full_path`/`catalog_path` jen z vrchní
+        // úrovně - proto se dřív ke kandidátovi z V2 enginu nikdy nedostaly, přestože klasické
+        // hledání (`/api/catalog/suggest`) tutéž cestu bez problému vrací.
+        out.put("full_path", rawString("full_path", rawString("path", "")));
+        out.put("catalog_path", rawString("catalog_path", rawString("full_path", rawString("path", ""))));
         out.put("raw", raw);
         return out;
     }

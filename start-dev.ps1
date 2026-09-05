@@ -115,16 +115,79 @@ if (-not (Test-Path $selectedFtsDb)) {
 }
 
 Write-Host "Using local profile with embedded PostgreSQL." -ForegroundColor Green
-Write-Host "Starting backend on :8080 ..." -ForegroundColor Cyan
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$backendRoot'; .\gradlew.bat bootRun"
 
-Start-Sleep -Seconds 12
+# --- Port resolution -------------------------------------------------------
+# The Vite dev proxy targets REACT_APP_PROXY_TARGET (frontend\.env.local). If the
+# backend starts on a different port, the frontend comes up but never reaches the
+# API. Read the proxy target and start the backend on exactly that port.
+$frontendEnvLocal = Join-Path $frontendRoot ".env.local"
+$frontendCfg = Read-EnvFile $frontendEnvLocal
+$proxyTarget = $frontendCfg["REACT_APP_PROXY_TARGET"]
+if (-not $proxyTarget) { $proxyTarget = "http://127.0.0.1:8080" }
+
+$backendPort = 8080
+try {
+    $parsedTarget = [System.Uri]$proxyTarget
+    if ($parsedTarget.Port -gt 0) { $backendPort = $parsedTarget.Port }
+} catch {
+    Write-Host "Could not parse REACT_APP_PROXY_TARGET ('$proxyTarget'), falling back to :8080" -ForegroundColor Yellow
+    $proxyTarget = "http://127.0.0.1:8080"
+}
+
+$env:PORT = "$backendPort"
+# Keep Vite on the same target even if it is launched without reading .env.local.
+$env:REACT_APP_PROXY_TARGET = $proxyTarget
+
+$portSourceLabel = "default"
+if ($frontendCfg.ContainsKey("REACT_APP_PROXY_TARGET")) { $portSourceLabel = "frontend\.env.local" }
+Write-Host "Backend port: $backendPort (from $portSourceLabel)" -ForegroundColor Cyan
+
+$portBusy = $null
+try {
+    $portBusy = Get-NetTCPConnection -LocalPort $backendPort -State Listen -ErrorAction Stop | Select-Object -First 1
+} catch {
+    $portBusy = $null
+}
+if ($portBusy) {
+    $ownerPid = $portBusy.OwningProcess
+    $ownerName = "<unknown>"
+    try { $ownerName = (Get-Process -Id $ownerPid -ErrorAction Stop).ProcessName } catch { }
+    Write-Host ""
+    Write-Host "ERROR: port $backendPort is already in use by PID $ownerPid ($ownerName)." -ForegroundColor Red
+    Write-Host "       The backend cannot start there and the frontend proxy would hang." -ForegroundColor Red
+    Write-Host "       Stop that process, or point frontend\.env.local REACT_APP_PROXY_TARGET at a free port." -ForegroundColor Yellow
+    Write-Host ""
+    exit 1
+}
+
+Write-Host "Starting backend on :$backendPort ..." -ForegroundColor Cyan
+Start-Process powershell -ArgumentList "-NoExit", "-Command", "`$env:PORT='$backendPort'; cd '$backendRoot'; .\gradlew.bat bootRun"
+
+# Wait for the backend to answer before starting Vite. Starting the proxy against a
+# dead upstream leaves sockets hanging and the SPA never finishes loading.
+$healthUrl = "http://127.0.0.1:$backendPort/health"
+Write-Host "Waiting for backend at $healthUrl ..." -ForegroundColor Cyan
+$backendUp = $false
+for ($i = 0; $i -lt 90; $i++) {
+    Start-Sleep -Seconds 2
+    try {
+        $resp = Invoke-WebRequest -Uri $healthUrl -TimeoutSec 3 -UseBasicParsing -ErrorAction Stop
+        if ($resp.StatusCode -eq 200) { $backendUp = $true; break }
+    } catch { }
+}
+if ($backendUp) {
+    Write-Host "Backend is up." -ForegroundColor Green
+} else {
+    Write-Host "Backend did not answer within 180 s - starting the frontend anyway." -ForegroundColor Yellow
+    Write-Host "Check the backend window; API calls will fail until it is up." -ForegroundColor Yellow
+}
+
 Write-Host "Starting frontend on :5173 ..." -ForegroundColor Cyan
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$frontendRoot'; npm run dev"
+Start-Process powershell -ArgumentList "-NoExit", "-Command", "`$env:REACT_APP_PROXY_TARGET='$proxyTarget'; cd '$frontendRoot'; npm run dev"
 
 Write-Host ""
 Write-Host "Open:   http://localhost:5173" -ForegroundColor Green
-Write-Host "Health: http://localhost:8080/health" -ForegroundColor Green
+Write-Host "Health: $healthUrl" -ForegroundColor Green
 Write-Host "Login:  admin@bankintel.local / admin123" -ForegroundColor Green
 Write-Host ""
-Write-Host "Docs: docs\FUNCTIONALITY_MAP.md and docs\CODE_MAP.md" -ForegroundColor Cyan
+Write-Host "Docs: docs\CODE_MAP.md and docs\APP_MAP.md" -ForegroundColor Cyan

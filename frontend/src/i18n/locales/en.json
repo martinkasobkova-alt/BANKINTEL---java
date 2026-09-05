@@ -2,8 +2,7 @@
   "nav": {
     "overview": "Overview",
     "subscription": "Subscription",
-    "catalogSearch": "Catalogs (search)",
-    "stockSearch": "Stocks",
+    "catalogSearch": "Catalogs (Economy / Stocks)",
     "managerExplorer": "Manager Explorer",
     "reader": "Reader",
     "podcasts": "Podcasts",
@@ -117,6 +116,9 @@
     "resendSuccess": "If the account exists and is not verified, a verification email was sent.",
     "resendFailed": "Could not send. Please try again.",
     "passwordMismatch": "Passwords do not match.",
+    "emailRequired": "Enter your email.",
+    "emailInvalid": "Enter an email in the form name@domain.com.",
+    "passwordRequired": "Enter your password.",
     "registerFreeTitle": "Free registration",
     "registerFreeIntro": "Create a standard account on the data platform. No registration code required.",
     "createFreeAccount": "Create free account",
@@ -230,7 +232,7 @@
       "intro": "Enter segment, geography, question and optional files, select series and run the analysis.",
       "newQuery": "New query",
       "step1": "Input, question and series",
-      "step2": "Result and score",
+      "step2": "Analysis result",
       "step1Title": "Step 1 — Segment, question, files and series",
       "analysisType": "1. Analysis type",
       "sectorAnalysis": "Sector analysis"

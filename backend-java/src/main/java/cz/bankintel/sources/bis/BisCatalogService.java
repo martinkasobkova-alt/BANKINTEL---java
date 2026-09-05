@@ -282,8 +282,19 @@ public class BisCatalogService {
         return "BIS|" + validateFlowOrThrow(flow) + "|" + validateKeyOrThrow(key);
     }
 
+    /** Sufix, kterým katalog značí řádek celého dataflow (ne konkrétní časové řady). */
+    private static final String DATAFLOW_SET_ID_SUFFIX = "||DATAFLOW";
+
     public static ParsedSetId parseSetId(String rawSetId) {
         String setId = stringOrBlank(rawSetId);
+        // Katalog BIS vrací i řádky úrovně dataflow (kind=dataflow, set_id "<FLOW>||DATAFLOW").
+        // Náhled u nich nedává smysl - není to časová řada. Dosud spadly na "Neplatný BIS set_id",
+        // což vypadá jako chyba aplikace; uživatel potřebuje vědět, že si má vybrat konkrétní řadu.
+        if (setId.endsWith(DATAFLOW_SET_ID_SUFFIX)) {
+            throw new IllegalArgumentException(
+                    "Tohle je celá skupina dat BIS, ne konkrétní časová řada. Otevřete ji v katalogu "
+                            + "a vyberte konkrétní řadu.");
+        }
         if (setId.startsWith("BIS|")) {
             String rest = setId.substring(4);
             int pivot = rest.lastIndexOf('|');
@@ -381,6 +392,17 @@ public class BisCatalogService {
         String[] header = rows.get(0);
         List<String[]> dataRows = rows.subList(1, rows.size());
         int refAreaIdx = findRefAreaIndex(header);
+        // Živě zjištěno: appka měla dekodér zemí (getRefAreas(), stahuje vlastní BIS ceník
+        // CL_BIS_IF_REF_AREA) v týhle třídě už dřív hotový, jen se nikdy nezavolal - složka i
+        // řada pod ní tak dostaly jako "název" holý kód ("DE" místo "Německo"). Horší vada byla
+        // na úrovni jednotlivé řady: sdílený nástroj na dekódování VŠECH dimenzí dataflow
+        // (getDataflowDimensions - dřív jen pro výběr dimenzí ručně) se taky nikdy nepoužil na
+        // samotný seznam řad, takže se u hustých dataflow (12dimenzní klíč u WS_LBS_D_PUB) tisíce
+        // různých řad ve stejné zemi jmenovaly úplně stejně (jen kódem té země) - viz
+        // decodeSeriesKeyToName.
+        Map<String, Map<String, String>> dimensionLabels = fetchDimensionValueLabels(flow);
+        Map<String, String> refAreaLabels =
+                refAreaIdx >= 0 ? dimensionLabels.getOrDefault(stringOrBlank(header[refAreaIdx]), Map.of()) : Map.of();
 
         Map<String, Integer> areaCounts = new HashMap<>();
         int totalRows = 0;
@@ -400,7 +422,7 @@ public class BisCatalogService {
 
         if (totalRows > SERIES_LAZY_COUNTRY_THRESHOLD) {
             return new DataflowSeriesPayload(
-                    buildLazyCountrySeriesTree(flow, flowTitle, areaCounts, totalRows),
+                    buildLazyCountrySeriesTree(flow, flowTitle, areaCounts, totalRows, refAreaLabels),
                     null);
         }
 
@@ -418,11 +440,12 @@ public class BisCatalogService {
                 continue;
             }
             String setId = composeCatalogSetId(flow, key);
+            String decodedName = decodeSeriesKeyToName(header, row, refAreaIdx, dimensionLabels);
             Map<String, Object> leaf = new LinkedHashMap<>();
             leaf.put("id", setId);
             leaf.put("set_id", setId);
-            leaf.put("name", area);
-            leaf.put("full_path", "BIS > " + flowTitle + " > " + key);
+            leaf.put("name", decodedName);
+            leaf.put("full_path", "BIS > " + flowTitle + " > " + decodedName);
             leaf.put("kind", "selection");
             leaf.put("dataset_code", flow);
             leaf.put("dataset_name", flowTitle);
@@ -450,7 +473,7 @@ public class BisCatalogService {
             List<Map<String, Object>> areaSets = byArea.get(area);
             areaSets.sort(Comparator.comparing(v -> stringOrBlank(v.get("bis_series_key")).toLowerCase(Locale.ROOT)));
             Map<String, Object> child = new LinkedHashMap<>();
-            child.put("name", area);
+            child.put("name", areaDisplayName(area, refAreaLabels));
             child.put("path", "BIS::" + flow + " > " + area);
             child.put("children", List.of());
             child.put("sets", areaSets);
@@ -500,11 +523,12 @@ public class BisCatalogService {
             String flow,
             String flowTitle,
             Map<String, Integer> areaCounts,
-            int totalRows) {
+            int totalRows,
+            Map<String, String> refAreaLabels) {
         List<Map<String, Object>> children = new ArrayList<>();
         for (String area : sortAreas(areaCounts.keySet())) {
             Map<String, Object> child = new LinkedHashMap<>();
-            child.put("name", area);
+            child.put("name", areaDisplayName(area, refAreaLabels));
             child.put("path", "BIS::" + flow + " > " + area);
             child.put("children", List.of());
             child.put("sets", List.of());
@@ -939,6 +963,84 @@ public class BisCatalogService {
             return value.isBlank() ? "_OTHER_" : value;
         }
         return "_OTHER_";
+    }
+
+    /**
+     * Kód → lidský název, per dimenze skutečně použitá v CSV hlavičce (klíč mapy = dimenze ID,
+     * stejný řetězec jako sloupec v `format=csvdata`). Staví na `getDataflowDimensions`, který
+     * appka už dřív měla jen pro ruční výběr dimenzí ve wizardu - tady se stejná, otestovaná
+     * SDMX struktura+ceníky použije i pro POJMENOVÁNÍ řad v seznamu, ne jen pro jejich sestavení.
+     * Selhání sítě/parsování nesmí shodit seznam řad samotný - jen se v tom případě zobrazí syrové
+     * kódy jako dřív (funkce vrátí prázdnou mapu, volající na to má fallback všude).
+     */
+    private Map<String, Map<String, String>> fetchDimensionValueLabels(String flow) {
+        try {
+            Map<String, Object> dims = getDataflowDimensions(flow, false);
+            if (!(dims.get("dimensions") instanceof List<?> dimensionList)) {
+                return Map.of();
+            }
+            Map<String, Map<String, String>> out = new HashMap<>();
+            for (Object o : dimensionList) {
+                if (!(o instanceof Map<?, ?> dim)) {
+                    continue;
+                }
+                String dimId = stringOrBlank(dim.get("id"));
+                if (dimId.isBlank() || !(dim.get("values") instanceof List<?> values)) {
+                    continue;
+                }
+                Map<String, String> codeToLabel = new HashMap<>();
+                for (Object vo : values) {
+                    if (!(vo instanceof Map<?, ?> v)) {
+                        continue;
+                    }
+                    String id = stringOrBlank(v.get("id")).toUpperCase(Locale.ROOT);
+                    String name = stringOrBlank(v.get("name"));
+                    if (!id.isBlank() && !name.isBlank() && !name.equalsIgnoreCase(id)) {
+                        codeToLabel.put(id, name);
+                    }
+                }
+                if (!codeToLabel.isEmpty()) {
+                    out.put(dimId, codeToLabel);
+                }
+            }
+            return out;
+        } catch (Exception ex) {
+            log.debug("BIS dimension labels fetch failed for {}: {}", flow, ex.getMessage());
+            return Map.of();
+        }
+    }
+
+    static String areaDisplayName(String code, Map<String, String> refAreaLabels) {
+        if ("_OTHER_".equals(code)) {
+            return "Ostatní";
+        }
+        String label = refAreaLabels.get(code);
+        return (label == null || label.isBlank()) ? code : label + " (" + code + ")";
+    }
+
+    /**
+     * Živě zjištěno: appka dřív pojmenovala KAŽDOU řadu v zemi jen kódem té země - u hustých
+     * dataflow (12dimenzní klíč u WS_LBS_D_PUB) tak měly tisíce různých řad stejné jméno
+     * ("DE" pro Německo, doslova všechny). Klíč sám o sobě je unikátní (jde do `set_id`), jen
+     * appka ho uživateli nikdy neukázala rozluštěný. Zemi (`refAreaIdx`) vynechává záměrně - tu
+     * uživatel už vidí jako název složky ve stromu, netřeba ji opakovat v každé jedné kartě pod ní.
+     */
+    static String decodeSeriesKeyToName(
+            String[] header, String[] row, int refAreaIdx, Map<String, Map<String, String>> dimensionLabels) {
+        List<String> parts = new ArrayList<>();
+        for (int i = 0; i < header.length && i < row.length; i++) {
+            if (i == refAreaIdx) {
+                continue;
+            }
+            String code = stringOrBlank(row[i]);
+            if (code.isBlank()) {
+                continue;
+            }
+            Map<String, String> labels = dimensionLabels.get(stringOrBlank(header[i]));
+            String label = labels != null ? labels.get(code.toUpperCase(Locale.ROOT)) : null;
+            parts.add(label != null && !label.isBlank() ? label : code);
+        }
+        return parts.isEmpty() ? "Series" : String.join(" · ", parts);
     }
 
     private static Map<String, Integer> filterAreaCounts(Map<String, Integer> counts, Set<String> allowed) {

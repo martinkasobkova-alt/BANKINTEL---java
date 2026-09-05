@@ -1,0 +1,133 @@
+# Produkční stack BankIntel v2 — jeden server, tři služby za Caddy.
+#
+# Spouští se z adresáře deploy/ na serveru:
+#   docker compose -f docker-compose.prod.yml --env-file .env up -d --build
+#
+# Data (index, mirrory, snapshoty) NEJSOU v obraze ani v gitu — leží na hostiteli v
+# ${DATA_DIR} a montují se read-only tam, kde to jde. Co všechno tam musí být:
+# backend-java/docs/DEPLOY_DATA.md §0.
+
+name: bankintel
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-bankintel}
+      POSTGRES_USER: ${POSTGRES_USER:-bankintel}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD musi byt nastavene v .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-bankintel} -d ${POSTGRES_DB:-bankintel}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    # Ven se nevystavuje; backend na něj chodí přes interní síť compose.
+
+  backend:
+    build:
+      context: ../backend-java
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PORT: 8080
+      SPRING_PROFILES_ACTIVE: prod
+      DATABASE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-bankintel}
+      DATABASE_USER: ${POSTGRES_USER:-bankintel}
+      DATABASE_PASSWORD: ${POSTGRES_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET musi byt nastavene v .env}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:?ENCRYPTION_KEY musi byt nastavene v .env}
+      # Cesty k datům uvnitř kontejneru (host: ${DATA_DIR})
+      BANKINTEL_DATA_DIR: /data
+      CATALOG_SEARCH_INDEX_DIR: /data/catalog_search_indexes
+      CATALOG_SEARCH_METADATA_DIR: /data/catalog_search_metadata
+      CLASSIC_CATALOG_FTS_DB: /data/catalog_search_indexes/classic_catalog_search.sqlite
+      SEARCH_CATALOG_SIDECAR_DIR: /data/search_v2_sidecar
+      SEARCH_CATALOG_SIDECAR_FTS_DB: /data/search_v2_sidecar/search_v2_sidecar.sqlite
+      SEARCH_ENGINE_VERSION: ${SEARCH_ENGINE_VERSION:-v2}
+      SEARCH_CATALOG_INDEX: ${SEARCH_CATALOG_INDEX:-sidecar}
+      # Vector retrieval je vypnutý — jeho soubory (4,8 GB) se na server nepřenášely.
+      # Zapnout jde jen zároveň s jejich nahráním, viz docs/FTS_AND_SIDECAR.md §7.
+      SEARCH_SEMANTIC_RETRIEVAL_ENABLED: "false"
+      SEARCH_VECTOR_RETRIEVAL_ENABLED: "false"
+      # Noční přestavba indexu ZŮSTÁVÁ VYPNUTÁ: rebuild z JSONL vrátí ~716 tis. řad, které
+      # z indexu vyřezaly prune skripty. Viz docs/FTS_AND_SIDECAR.md §8.
+      BANKINTEL_MAINTENANCE_ENABLED: ${BANKINTEL_MAINTENANCE_ENABLED:-0}
+      BANKINTEL_SCHEDULER_LEADER: "1"
+      # StartupSecurityValidator (profil prod) shodi aplikaci, kdyz tohle neni vypnute.
+      # V application.yml je DEV_LOG_VERIFICATION_TOKENS defaultne true, takze se MUSI
+      # nastavit explicitne - jinak backend nastartuje a hned se ukonci.
+      DEV_LOG_VERIFICATION_TOKENS: "false"
+      DEV_SEED: "false"
+      COOKIE_SECURE: ${COOKIE_SECURE:-true}
+      COOKIE_SAME_SITE: ${COOKIE_SAME_SITE:-Lax}
+      FRONTEND_URL: ${FRONTEND_URL:-}
+      CORS_ORIGINS: ${CORS_ORIGINS:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ARAD_API_KEY: ${ARAD_API_KEY:-}
+      FRED_API_KEY: ${FRED_API_KEY:-}
+      IMF_API_KEY: ${IMF_API_KEY:-}
+      IMF_API_KEY_SECONDARY: ${IMF_API_KEY_SECONDARY:-}
+      GIE_API_KEY: ${GIE_API_KEY:-}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      SENDER_EMAIL: ${SENDER_EMAIL:-}
+      JAVA_TOOL_OPTIONS: ${JAVA_TOOL_OPTIONS:--Xmx6g}
+      # Uživatelský obsah patří jinam než index. Bez těchhle cest si služby zakládají adresáře
+      # relativně k pracovnímu adresáři, tedy pod /data — které je read-only, takže aplikace
+      # spadla hned při startu (MagazineStorageService#init -> Files.createDirectories).
+      MAGAZINE_STORAGE_DIR: /srv/storage/magazines
+      CHAT_ATTACHMENT_DIR: /srv/storage/chat
+      USER_PRIVATE_DIR: /srv/storage/user-private
+      UPLOADS_DIR: /srv/storage/uploads
+      PODCAST_MEDIA_DIR: /srv/storage/podcasts
+      BUG_REPORT_UPLOADS_DIR: /srv/storage/bug-reports
+    volumes:
+      # Index read-only: aplikace do něj nepíše a chyba v kódu by neměla mít šanci
+      # přepsat 22 GB dat, která se sem přenášela hodinu.
+      - ${DATA_DIR:?DATA_DIR musi byt nastavene v .env}:/data:ro
+      # Zapisovatelné jen tohle — uživatelský obsah (PDF magazínů, přílohy, nahrávky).
+      - storage:/srv/storage
+    # Ven se nevystavuje; jedinou cestou dovnitř je Caddy.
+
+  frontend-assets:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+      args:
+        REACT_APP_PROD_SAME_ORIGIN_API: "true"
+    volumes:
+      - frontend_dist:/out
+    # Jednorázový kontejner: zkopíruje hotový build do volume a skončí.
+    restart: "no"
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - backend
+      - frontend-assets
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:-:80}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - frontend_dist:/srv:ro
+      - caddy_data:/data
+      - caddy_config:/config
+      - caddy_logs:/var/log/caddy
+
+volumes:
+  pgdata:
+  storage:
+  frontend_dist:
+  caddy_data:
+  caddy_config:
+  caddy_logs:

@@ -1,8 +1,14 @@
 package cz.bankintel.search.v2.reranking;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import cz.bankintel.search.v2.ontology.SearchV2IndustrySectorRegistry;
 import cz.bankintel.search.v2.ontology.SearchV2MetricIntentRegistry;
 import cz.bankintel.search.v2.schema.ExactEntityResolution;
 import cz.bankintel.search.v2.schema.SearchCandidate;
@@ -11,6 +17,8 @@ import cz.bankintel.search.v2.schema.SearchQueryVariant;
 import cz.bankintel.search.v2.schema.SearchResult;
 import cz.bankintel.search.v2.schema.SemanticDecision;
 import cz.bankintel.search.v2.schema.SourceRoutingDecision;
+import cz.bankintel.sources.eurostat.EurostatDimensionService;
+import cz.bankintel.sources.eurostat.EurostatRateLimiter;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -19,7 +27,12 @@ class SearchV2FinalRerankerTest {
 
     private final SearchV2MetricIntentRegistry metricIntentRegistry =
             new SearchV2MetricIntentRegistry(new ObjectMapper());
-    private final SearchV2FinalReranker reranker = new SearchV2FinalReranker(metricIntentRegistry);
+    private final SearchV2IndustrySectorRegistry industrySectorRegistry =
+            new SearchV2IndustrySectorRegistry(new ObjectMapper());
+    private final SearchV2FinalReranker reranker = new SearchV2FinalReranker(
+            metricIntentRegistry,
+            industrySectorRegistry,
+            new EurostatDimensionService(new ObjectMapper(), new EurostatRateLimiter()));
 
     @Test
     void keepsPrimaryBeforeSupportingAndDropsRejects() {
@@ -228,6 +241,107 @@ class SearchV2FinalRerankerTest {
     }
 
     @Test
+    void industrySectionMatchBeatsSameIndexRowDifferentSectionCandidateEvenAtTiedScores() {
+        // Root problem this covers: the catalog index has one row per dataset, not one per NACE
+        // value, so a construction-industry series and an agriculture-industry series can land at
+        // identical relevance when nothing else distinguishes them - the industry registry must break
+        // that tie. Candidate titles deliberately share NO literal word with the Czech query (English
+        // "construction"/"farming" vs Czech "stavebnictvi") so the pre-existing, higher-priority
+        // metric-compatibility tier's raw query-token overlap ties at zero for both, isolating this
+        // test to the industry tier specifically - only the cross-language registry match can decide it.
+        SearchQueryPlan plan = planWithIndustrySector("zamestnanost ve stavebnictvi", List.of("F"));
+        SearchCandidate construction = candidate("eurostat", "construction-emp", "Construction industry output", List.of());
+        SearchCandidate agriculture = candidate("eurostat", "agriculture-emp", "Farming sector output", List.of());
+
+        List<SearchResult> out = reranker.finalRank(
+                List.of(agriculture, construction),
+                List.of(
+                        decision("agriculture-emp", "keep", "context", 0.50),
+                        decision("construction-emp", "keep", "context", 0.50)),
+                10,
+                plan);
+
+        assertThat(out).extracting(r -> r.candidate().seriesId())
+                .as("matched NACE section (construction) must outrank a same-index-row different section (agriculture)")
+                .containsExactly("construction-emp", "agriculture-emp");
+    }
+
+    @Test
+    void differentRegisteredIndustrySectionIsPenalizedBelowUnknownIndustryCandidate() {
+        // Same care as above: candidate titles share no literal token with the query, so only the
+        // industry tier (not the metric tier's raw token-overlap add-on) decides this ordering.
+        SearchQueryPlan plan = planWithIndustrySector("zamestnanost ve stavebnictvi", List.of("F"));
+        SearchCandidate wrongSection = candidate("eurostat", "agriculture-emp", "Farming sector output", List.of());
+        SearchCandidate neutralUnrelated = candidate("eurostat", "cpi-series", "Consumer price index", List.of());
+
+        List<SearchResult> out = reranker.finalRank(
+                List.of(wrongSection, neutralUnrelated),
+                List.of(
+                        decision("agriculture-emp", "keep", "context", 0.50),
+                        decision("cpi-series", "keep", "context", 0.50)),
+                10,
+                plan);
+
+        assertThat(out).extracting(r -> r.candidate().seriesId())
+                .as("a candidate about a different registered section must rank below a neutral, industry-unknown candidate")
+                .containsExactly("cpi-series", "agriculture-emp");
+    }
+
+    @Test
+    void liveVerifiedNonZeroDataBeatsAnUnverifiedTextualMatchAtTiedScores() {
+        // Root problem: a textual industry match alone doesn't guarantee the candidate dataset
+        // actually HAS that industry's data (see the naio_10_pyp1620 empty-default bug this same plan
+        // fixed at the dimension-resolution layer) - a candidate whose match is live-verified against
+        // its own dimension metadata must outrank an equally-worded match that isn't verifiable.
+        EurostatDimensionService mockEurostat = mock(EurostatDimensionService.class);
+        when(mockEurostat.previewAvailableDimensions("verified_ds"))
+                .thenReturn(Map.of("nace_r2", Map.of("values", List.of("F", "A"))));
+        when(mockEurostat.resolvePreviewQueryParams(eq("verified_ds"), anyString()))
+                .thenReturn(Map.of("geo", "CZ", "nace_r2", "A"));
+        when(mockEurostat.combinationHasData(eq("verified_ds"), any())).thenReturn(true);
+        when(mockEurostat.previewAvailableDimensions("unverifiable_ds"))
+                .thenReturn(Map.of("nace_r2", Map.of("values", List.of("A", "B"))));
+        SearchV2FinalReranker verifyingReranker =
+                new SearchV2FinalReranker(metricIntentRegistry, industrySectorRegistry, mockEurostat);
+
+        SearchQueryPlan plan = planWithIndustrySector("zamestnanost ve stavebnictvi", List.of("F"));
+        SearchCandidate verified = eurostatCandidate("verified-construction", "Zamestnanost ve stavebnictvi", "verified_ds");
+        SearchCandidate unverified = eurostatCandidate("unverified-construction", "Zamestnanost ve stavebnictvi", "unverifiable_ds");
+
+        List<SearchResult> out = verifyingReranker.finalRank(
+                List.of(unverified, verified),
+                List.of(
+                        decision("unverified-construction", "keep", "context", 0.50),
+                        decision("verified-construction", "keep", "context", 0.50)),
+                10,
+                plan);
+
+        assertThat(out).extracting(r -> r.candidate().seriesId())
+                .as("live-verified real-data match must outrank an equally-worded but unverifiable match")
+                .containsExactly("verified-construction", "unverified-construction");
+    }
+
+    @Test
+    void industryVerificationNeverRunsWhenTheQueryResolvedNoIndustrySection() {
+        // Guards the precompute's early-exit: a mock that would fail any interaction proves the
+        // (potentially live-network) verification path is never even touched for an ordinary query.
+        EurostatDimensionService strictMockEurostat = mock(EurostatDimensionService.class);
+        SearchV2FinalReranker plainReranker =
+                new SearchV2FinalReranker(metricIntentRegistry, industrySectorRegistry, strictMockEurostat);
+        SearchCandidate a = candidate("eurostat", "series-a");
+        SearchCandidate b = candidate("eurostat", "series-b");
+
+        List<SearchResult> out = plainReranker.finalRank(
+                List.of(a, b),
+                List.of(decision("series-a", "keep", "context", 0.5), decision("series-b", "keep", "context", 0.4)),
+                10,
+                planWithIndustrySector("urokova mira", List.of()));
+
+        assertThat(out).extracting(r -> r.candidate().seriesId()).containsExactly("series-a", "series-b");
+        org.mockito.Mockito.verifyNoInteractions(strictMockEurostat);
+    }
+
+    @Test
     void finalRankingPreservesLlmSemanticDecisionsWithoutASecondConceptGate() {
         SearchQueryPlan plan = conceptPlan("interest_rate");
         SearchCandidate interest = candidate("ecb2", "interest", "Úroková sazba Německo", List.of("interest_rate"));
@@ -277,6 +391,28 @@ class SearchV2FinalRerankerTest {
                 "",
                 concepts,
                 concepts,
+                List.of(),
+                "",
+                1.0,
+                "query",
+                List.of(),
+                Map.of());
+    }
+
+    private static SearchCandidate eurostatCandidate(String id, String title, String dataset) {
+        return new SearchCandidate(
+                "eurostat:" + id,
+                id,
+                title,
+                "",
+                "eurostat",
+                dataset,
+                "CZ",
+                "",
+                "",
+                "",
+                List.of(),
+                List.of(),
                 List.of(),
                 "",
                 1.0,
@@ -405,6 +541,38 @@ class SearchV2FinalRerankerTest {
                 Map.of(),
                 Map.of(),
                 institutionalSectors,
-                metricIntents);
+                metricIntents,
+                List.of());
+    }
+
+    private static SearchQueryPlan planWithIndustrySector(String query, List<String> industrySectors) {
+        return new SearchQueryPlan(
+                query,
+                "cs",
+                "find_series",
+                List.of(query),
+                List.of(),
+                List.of(),
+                List.of(),
+                List.of(),
+                List.of(),
+                null,
+                List.of(query),
+                List.of(query),
+                List.of(),
+                List.of(),
+                List.of(),
+                List.of("primary"),
+                new SearchQueryPlan.Clarification(false, null, null),
+                "openai",
+                "test",
+                ExactEntityResolution.openTopic("test"),
+                SourceRoutingDecision.empty(),
+                List.of(),
+                Map.of(),
+                Map.of(),
+                List.of(),
+                List.of(),
+                industrySectors);
     }
 }

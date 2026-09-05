@@ -24,6 +24,18 @@ export const WIDGET_TYPES = [
   { value: "ad", label: "Inzerce · reklamní prostor (bez titulku)" },
 ];
 
+/**
+ * Textový widget se v katalogu/adminu zakládá jako "markdown", ale osobní dashboard a API
+ * ho ukládají jako "text" (příp. "note") — porovnání jen s "markdown" proto v editoru nikdy
+ * nesedělo a panel „Upravit“ textovému widgetu nenabídl pole Nadpis/Podnadpis/Text.
+ * Jediný zdroj pravdy pro všechny tyhle větve.
+ */
+export const TEXT_WIDGET_TYPES = ["markdown", "text", "note"];
+
+export function isTextWidgetType(type) {
+  return TEXT_WIDGET_TYPES.includes(String(type || ""));
+}
+
 export function createEmptyWidget(type = "arad_view") {
   let config = {};
   if (type === "arad_view") {

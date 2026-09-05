@@ -1519,8 +1519,14 @@ class SearchV2ServiceRuntimeTest {
     }
 
     private static SearchV2FinalReranker finalReranker() {
-        return new SearchV2FinalReranker(new cz.bankintel.search.v2.ontology.SearchV2MetricIntentRegistry(
-                new com.fasterxml.jackson.databind.ObjectMapper()));
+        return new SearchV2FinalReranker(
+                new cz.bankintel.search.v2.ontology.SearchV2MetricIntentRegistry(
+                        new com.fasterxml.jackson.databind.ObjectMapper()),
+                new cz.bankintel.search.v2.ontology.SearchV2IndustrySectorRegistry(
+                        new com.fasterxml.jackson.databind.ObjectMapper()),
+                new cz.bankintel.sources.eurostat.EurostatDimensionService(
+                        new com.fasterxml.jackson.databind.ObjectMapper(),
+                        new cz.bankintel.sources.eurostat.EurostatRateLimiter()));
     }
 
     private static SearchResultCanonicalMetadataService canonicalMetadataService() {

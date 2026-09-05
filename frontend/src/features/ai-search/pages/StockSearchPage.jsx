@@ -1,6 +1,6 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { Search, TrendingUp, ExternalLink } from "lucide-react";
+import { TrendingUp, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import api, { formatApiErrorFromAxios } from "@/lib/api";
 import AppShell from "@/components/layout/AppShell";
@@ -27,7 +27,8 @@ export default function StockSearchPage() {
   const nav = useNavigate();
   const [params, setParams] = useSearchParams();
   const initialQ = (params.get("q") || "").trim();
-  const [query, setQuery] = useState(initialQ);
+  /** Co už se hledalo — brání smyčce, protože runSearch samo zapisuje `q` do URL. */
+  const lastRunQueryRef = useRef(initialQ);
   const [loading, setLoading] = useState(false);
   const [payload, setPayload] = useState(null);
   const [selectedTicker, setSelectedTicker] = useState(null);
@@ -54,6 +55,7 @@ export default function StockSearchPage() {
         toast.error("Zadejte alespoň 2 znaky.");
         return;
       }
+      lastRunQueryRef.current = q;
       setLoading(true);
       setSelectedTicker(null);
       setPreviewData(null);
@@ -79,11 +81,17 @@ export default function StockSearchPage() {
     [params, setParams],
   );
 
+  /**
+   * Dotaz drží URL (`?q=`), protože hledání akcií teď obstarává horní pole aplikace —
+   * stránka už vlastní hledací pole nemá. Dřív se hledalo jen při prvním otevření, takže
+   * druhé hledání ze stejné stránky by se neprojevilo.
+   */
   useEffect(() => {
-    if (initialQ.length >= 2 && !payload) {
-      runSearch(initialQ);
-    }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    const q = (params.get("q") || "").trim();
+    if (q.length < 2) return;
+    if (q === lastRunQueryRef.current) return;
+    runSearch(q);
+  }, [params, runSearch]);
 
   const selectedRow = results.find((r) => r.ticker === selectedTicker) || results[0];
   const previewDef = selectedRow ? previewDefForRow(selectedRow) : null;
@@ -197,40 +205,14 @@ export default function StockSearchPage() {
           </div>
           <h1 className="text-2xl font-semibold tracking-tight">Hledání akcií</h1>
           <p className="text-sm text-muted-foreground max-w-2xl">
-            Statistické katalogy (Eurostat, ARAD, ČSÚ…) hledejte v{" "}
+            Hledejte v poli nahoře — na této stránce vyhledává tržní instrumenty (Yahoo Finance,
+            Alpha Vantage). Statistické katalogy (Eurostat, ARAD, ČSÚ…) najdete v{" "}
             <Link to="/search/catalog" className="text-primary underline-offset-2 hover:underline">
               katalogovém vyhledávání
             </Link>
-            . Zde jsou pouze tržní instrumenty přes Yahoo Finance a Alpha Vantage.
+            .
           </p>
         </div>
-
-        <form
-          className="flex min-w-0 gap-2"
-          onSubmit={(e) => {
-            e.preventDefault();
-            runSearch(query);
-          }}
-        >
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <input
-              type="search"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Apple, AAPL, ČEZ, SPY, S&P 500…"
-              className="w-full rounded-lg border border-border bg-background py-2.5 pl-10 pr-3 text-sm"
-              autoComplete="off"
-            />
-          </div>
-          <button
-            type="submit"
-            disabled={loading}
-            className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-60"
-          >
-            Hledat
-          </button>
-        </form>
 
         {loading ? <LoadingBlock label="Yahoo symbol search a tržní data…" /> : null}
 

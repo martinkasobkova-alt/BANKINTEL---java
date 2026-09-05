@@ -24,8 +24,8 @@ src/features/
 |--------|--------|
 | `features/<modul>/README.md` | Popis modulu, API, parity |
 | [docs/FEATURE_MODULES.md](docs/FEATURE_MODULES.md) | Tabulka modulů + aliasy |
-| [../../docs/CODE_MAP.md](../../docs/CODE_MAP.md) | Celá app (FE + BE) |
-| [../../docs/FUNCTIONALITY_MAP.md](../../docs/FUNCTIONALITY_MAP.md) | Parita s originálem |
+| [../../docs/CODE_MAP.md](../../docs/CODE_MAP.md) | Celá app (FE + BE), stav portu |
+| [../../docs/APP_MAP.md](../../docs/APP_MAP.md) | Architektura a moduly |
 
 ## Sdílená knihovna (`src/lib/`)
 

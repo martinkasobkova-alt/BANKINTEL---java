@@ -5,6 +5,7 @@
  * Extrahováno z GlobalCatalogSearchPage.jsx beze změny logiky.
  */
 import { CATALOGS, catalogDefMatchesSourceId, normalizeCatalogSourceId } from "@/lib/catalogDefinitions";
+import { withDistinctLabels } from "@/lib/indicatorLabels";
 
 // ---------------------------------------------------------------------------
 // Normalizace a utility
@@ -316,6 +317,33 @@ export function deepStatusHasVisibleCandidates(statusId, visibleSourceIds) {
     if (catalogSourcesEquivalent(sid, vid)) return true;
   }
   return false;
+}
+
+/**
+ * Rozliší výsledky, které by se v seznamu jmenovaly stejně.
+ *
+ * Zdroje běžně vracejí několik variant jedné řady se shodným názvem — FRED u nezaměstnanosti
+ * posílá `LRUNTTTTCZA156S`, `LRUNTTTTCZQ156S` a `LRUNTTTTCZQ156N` (ročně/čtvrtletně, sezónně
+ * očištěno/neočištěno) a v seznamu se název usekne dřív, než se ten rozdíl objeví. Uživatel
+ * pak vidí třikrát totéž a nemá jak vybrat. Doplní se proto rozlišovač odvozený z identifikátoru
+ * — tatáž mechanika, jakou používá výběr ukazatelů.
+ */
+export function withDistinctResultTitles(rows) {
+  const list = Array.isArray(rows) ? rows : [];
+  if (list.length < 2) return list;
+  const labelled = withDistinctLabels(list, {
+    getId: (row) => String(row?.set_id || row?.series_id || row?.key || ""),
+    getLabel: (row) => String(row?.name || row?.title || "").trim(),
+  });
+  return labelled.map(({ item, label }) => {
+    const original = String(item?.name || item?.title || "").trim();
+    if (!label || label === original) return item;
+    return {
+      ...item,
+      ...(item?.name != null ? { name: label } : {}),
+      ...(item?.title != null ? { title: label } : {}),
+    };
+  });
 }
 
 export function deepCandidateForDisplay(row) {

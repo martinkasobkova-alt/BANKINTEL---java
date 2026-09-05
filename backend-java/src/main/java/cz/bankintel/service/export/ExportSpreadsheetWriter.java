@@ -3,6 +3,7 @@ package cz.bankintel.service.export;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import org.apache.poi.ss.usermodel.Cell;
@@ -22,6 +23,7 @@ public final class ExportSpreadsheetWriter {
 
     public static byte[] rowsToXlsx(String title, List<String> columns, List<Map<String, Object>> rows, String subtitle) {
         try (Workbook workbook = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            CellStyle numberStyle = createNumberStyle(workbook);
             Sheet sheet = workbook.createSheet(sanitizeSheetTitle(title));
             Font titleFont = workbook.createFont();
             titleFont.setBold(true);
@@ -37,7 +39,7 @@ public final class ExportSpreadsheetWriter {
             if (subtitle != null && !subtitle.isBlank()) {
                 sheet.createRow(metaRow++).createCell(0).setCellValue(subtitle);
             }
-            sheet.createRow(metaRow).createCell(0).setCellValue("Generated: " + Instant.now() + "Z");
+            sheet.createRow(metaRow).createCell(0).setCellValue("Generated: " + Instant.now());
 
             int start = metaRow + 2;
             Font headerFont = workbook.createFont();
@@ -59,7 +61,7 @@ public final class ExportSpreadsheetWriter {
                 Row row = sheet.createRow(start + 1 + r);
                 Map<String, Object> data = rows.get(r);
                 for (int c = 0; c < columns.size(); c++) {
-                    writeCell(row.createCell(c), data.get(columns.get(c)));
+                    writeCell(row.createCell(c), data.get(columns.get(c)), numberStyle);
                 }
             }
 
@@ -76,7 +78,22 @@ public final class ExportSpreadsheetWriter {
 
     public static byte[] chartWorkbookToXlsx(String title, Map<String, Object> sheets) {
         try (Workbook workbook = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-            List<String> order = List.of("Data_Wide", "Data_Long", "Metadata", "Transformations", "Sources");
+            CellStyle numberStyle = createNumberStyle(workbook);
+            // Kanonické listy grafového exportu jdou první, ale zapsat se musí i listy s jinými
+            // názvy — export stránky dashboardu pojmenovává listy podle widgetů, takže se dřív
+            // netrefil do whitelistu a stáhl se prázdný sešit s jediným listem „Export".
+            List<String> canonical = List.of("Data_Wide", "Data_Long", "Metadata", "Transformations", "Sources");
+            List<String> order = new ArrayList<>();
+            for (String name : canonical) {
+                if (sheets.containsKey(name)) {
+                    order.add(name);
+                }
+            }
+            for (String name : sheets.keySet()) {
+                if (!order.contains(name)) {
+                    order.add(name);
+                }
+            }
             boolean any = false;
             for (String sheetName : order) {
                 Object specObj = sheets.get(sheetName);
@@ -96,7 +113,7 @@ public final class ExportSpreadsheetWriter {
                         : List.of();
                 Sheet sheet = workbook.createSheet(sanitizeSheetTitle(sheetName));
                 sheet.createRow(0).createCell(0).setCellValue(title != null ? title : "Chart export");
-                sheet.createRow(1).createCell(0).setCellValue("Generated: " + Instant.now() + "Z");
+                sheet.createRow(1).createCell(0).setCellValue("Generated: " + Instant.now());
                 int start = 3;
                 Row header = sheet.createRow(start);
                 for (int c = 0; c < columns.size(); c++) {
@@ -106,7 +123,7 @@ public final class ExportSpreadsheetWriter {
                     Row row = sheet.createRow(start + 1 + r);
                     Map<String, Object> data = rows.get(r);
                     for (int c = 0; c < columns.size(); c++) {
-                        writeCell(row.createCell(c), data.get(columns.get(c)));
+                        writeCell(row.createCell(c), data.get(columns.get(c)), numberStyle);
                     }
                 }
             }
@@ -120,16 +137,27 @@ public final class ExportSpreadsheetWriter {
         }
     }
 
-    private static void writeCell(Cell cell, Object value) {
+    /**
+     * Styl pro čísla se vyrábí jednou na sešit, ne na buňku.
+     *
+     * Dřív tu bylo `workbook.createCellStyle()` uvnitř zápisu každé číselné buňky. XSSF má strop
+     * kolem 64 tisíc stylů, takže dost velký export spadl — u grafu s desítkami tisíc bodů je to
+     * dosažitelné. Styly jsou navíc identické, takže sešit jen zbytečně bobtnal.
+     */
+    private static CellStyle createNumberStyle(Workbook workbook) {
+        CellStyle style = workbook.createCellStyle();
+        style.setAlignment(HorizontalAlignment.RIGHT);
+        return style;
+    }
+
+    private static void writeCell(Cell cell, Object value, CellStyle numberStyle) {
         if (value == null) {
             cell.setBlank();
             return;
         }
         if (value instanceof Number number && !(value instanceof Boolean)) {
             cell.setCellValue(number.doubleValue());
-            CellStyle style = cell.getSheet().getWorkbook().createCellStyle();
-            style.setAlignment(HorizontalAlignment.RIGHT);
-            cell.setCellStyle(style);
+            cell.setCellStyle(numberStyle);
             return;
         }
         cell.setCellValue(guardFormulaInjection(String.valueOf(value)));

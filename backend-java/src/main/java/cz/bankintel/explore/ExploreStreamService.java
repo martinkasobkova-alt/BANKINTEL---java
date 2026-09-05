@@ -32,7 +32,7 @@ public class ExploreStreamService {
     private static final Logger log = LoggerFactory.getLogger(ExploreStreamService.class);
 
     // Sized well above the worst single (non-duplicated) discovery pass observed live (~185s,
-    // dominated by a single slow source lane) - NOT a blind bump, see MANAGER_EXPLORER_AUDIT_V2.md
+    // dominated by a single slow source lane) - NOT a blind bump, see docs/archive/MANAGER_EXPLORER_AUDIT_V2.md
     // section 1.1. Previously this had to cover TWO full discovery passes back to back (the
     // now-removed discoverWithLanes + analyzeSector double-run), which is why 120s used to be
     // too short even though a single pass usually fits comfortably inside it.
@@ -134,6 +134,7 @@ public class ExploreStreamService {
                     sector == null ? "" : sector,
                     question,
                     country,
+                    List.of(),
                     geoMode,
                     continent,
                     relatedSegments,

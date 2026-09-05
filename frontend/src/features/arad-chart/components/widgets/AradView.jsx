@@ -129,7 +129,9 @@ import AradViewChartInsightsPanel from "@/components/widgets/arad/AradViewChartI
 import AradViewCaptionNotesPanel from "@/components/widgets/arad/AradViewCaptionNotesPanel";
 import AradViewDataTablePanel from "@/components/widgets/arad/AradViewDataTablePanel";
 import {
+  canPersistChartCompare,
   isExternalCatalogWidgetEngine,
+  isUploadPrimaryWidgetEngine,
   resolveDatasetChartCompareBaseline,
   resolveExternalCatalogCompareBaseline,
 } from "@/components/widgets/datasetChartCompareBaseline";
@@ -447,7 +449,9 @@ function computeChartPlotMargins({
   shortLabels = false,
 } = {}) {
   // Krátké popisky (MM, QN, YYYY) se vejdou vodorovně i u ~12 bodů → nenaklánět (jinak „spadnou“ pod graf).
-  const useTilt = latestBarMode ? n > 4 : !veryNarrow && !miniNarrow && n > 8 && !(shortLabels && n <= 16);
+  const useTilt = latestBarMode
+    ? n > 4 && n <= LATEST_BAR_TILT_MAX_ITEMS
+    : !veryNarrow && !miniNarrow && n > 8 && !(shortLabels && n <= 16);
   if (mobileDense && !latestBarMode) {
     return {
       top: showBarLabels ? 14 : 8,
@@ -711,7 +715,9 @@ function renderChart(
     0,
   );
   const shortXLabels = _maxXLabelLen > 0 && _maxXLabelLen <= 4;
-  const useTilt = latestBarMode ? n > 4 : !veryNarrow && !miniNarrow && n > 8 && !(shortXLabels && n <= 16);
+  const useTilt = latestBarMode
+    ? n > 4 && n <= LATEST_BAR_TILT_MAX_ITEMS
+    : !veryNarrow && !miniNarrow && n > 8 && !(shortXLabels && n <= 16);
   const tilt = useTilt
     ? latestBarMode
       ? n > 10
@@ -1712,6 +1718,17 @@ function loadChartAnalystPanelHeight() {
 }
 
 const VIEWER_COMPARE_STORAGE_PREFIX = "bankintel:chart-compare:v1";
+/** Kolik sloupců ještě dává smysl vypsat do legendy pod grafem srovnání hodnot. */
+const LATEST_BAR_LEGEND_MAX_ITEMS = 12;
+/**
+ * Do kolika sloupců se popisky kategorií naklánějí.
+ *
+ * Naklonění stojí 48 px výšky. Ve widgetu na dashboardu je to celá plocha grafu —
+ * u 27 zemí vyšla vykreslovací oblast záporná a nevykreslil se ani jeden sloupec.
+ * Nad tímhle počtem se graf navíc posouvá vodorovně a každý sloupec má ~68 px šířky,
+ * takže se popisek vejde i naplocho a naklánět ho není proč.
+ */
+const LATEST_BAR_TILT_MAX_ITEMS = 12;
 
 function buildViewerCompareStorageKey(widget) {
   const config = widget?.config && typeof widget.config === "object" ? widget.config : {};
@@ -2859,9 +2876,14 @@ export default function AradView({
     !horizontalBarMode &&
     latestDataMode &&
     chartRowsZoomed.length > 1 &&
+    // Legenda u srovnání hodnot jen opisuje popisky na ose X. U hrstky sloupců pomůže,
+    // u dvaceti sedmi zemí to je stěna jmen, která si vezme celou výšku karty a na graf
+    // nezbude nic — widget pak ukazoval jen seznam států bez jediného sloupce.
+    // Sloupce mají díky vodorovnému posuvníku dost šířky, aby se popsaly samy.
+    chartRowsZoomed.length <= LATEST_BAR_LEGEND_MAX_ITEMS &&
     !miniChartMode &&
     !chartCompact;
-  const latestBarLegendItems = showLatestBarLegend ? chartRowsZoomed.slice(0, 40) : [];
+  const latestBarLegendItems = showLatestBarLegend ? chartRowsZoomed.slice(0, LATEST_BAR_LEGEND_MAX_ITEMS) : [];
   const effectiveKpiSummaryMode = resolveKpiSummaryMode({
     mode: kpiSummaryMode,
     catalogLivePreview,
@@ -3205,6 +3227,16 @@ export default function AradView({
     const { catalog, setId } = externalCatalogCompareBaseline;
     return catalog === "arad" && Boolean(setId);
   }, [onWidgetConfigPatch, widget?.id, widgetEngine, externalCatalogCompareBaseline]);
+
+  // Živě zjištěno: „Srovnat s řadou" na grafu z vlastních dat se dřív vždycky ukládal jen jako
+  // dočasný náhled (viz `canPersistChartCompare` docstring) — tenhle boolean dá
+  // `handleUnifiedCompareSave` vědět, že widget z vlastních dat je taky platný primární graf pro
+  // trvalé uložení, ne jen katalogové widgety.
+  const canEditUploadPrimaryCompare = useMemo(() => {
+    return (
+      typeof onWidgetConfigPatch === "function" && Boolean(widget?.id) && isUploadPrimaryWidgetEngine(widgetEngine)
+    );
+  }, [onWidgetConfigPatch, widget?.id, widgetEngine]);
 
   const viewerCompareEnabled = typeof onViewerComparePreview === "function";
 
@@ -3593,9 +3625,12 @@ export default function AradView({
         return;
       }
       if (
-        !(canEditExternalCatalogCompare || canEditExternalAradCatalogCompare) ||
-        !onWidgetConfigPatch ||
-        !widget?.id
+        !canPersistChartCompare({
+          isExternalCatalogPrimary: canEditExternalCatalogCompare || canEditExternalAradCatalogCompare,
+          isUploadPrimary: canEditUploadPrimaryCompare,
+          hasWidgetConfigPatch: Boolean(onWidgetConfigPatch),
+          hasWidgetId: Boolean(widget?.id),
+        })
       ) {
         // Bez uloženého/editovatelného widgetu → univerzální ephemerní overlay (žádné uložení do configu).
         await localComparePreview(entries);
@@ -3618,6 +3653,7 @@ export default function AradView({
       canViewerExternalAradCatalogCompare,
       canEditExternalCatalogCompare,
       canEditExternalAradCatalogCompare,
+      canEditUploadPrimaryCompare,
       onWidgetConfigPatch,
       widget?.id,
       widget?.config,

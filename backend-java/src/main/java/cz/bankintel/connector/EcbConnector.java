@@ -35,6 +35,21 @@ public class EcbConnector implements BaseConnector, AsyncCancellableFetch {
             "ecb_indicator_id",
             "ecb_derive_yoy");
 
+    /**
+     * Kolik pozorování si vyžádat, když dotaz žádné časové rozpětí neurčuje.
+     *
+     * <p>Dřív tu bylo 120, což u denní řady znamená poslední čtyři měsíce. Náhled si o rozsah
+     * říká sám ({@code InMemorySourceBuilder#buildEcb} posílá 20 000), takže v něm byla celá
+     * historie — ale uložený zdroj na dashboardu žádné rozpětí neukládá
+     * ({@code EcbCatalogService#addSource} ukládá jen country/indicator/flow/key), takže se
+     * uplatnil tenhle default a graf tiše ukazoval jen poslední kousek řady.
+     *
+     * <p>Naměřeno na denním EUR/USD (EXR/D.USD.EUR.SP00.A) od 1999:
+     * {@code lastNObservations=120} vrátí 120 řádků za 0,40 s, {@code 20000} vrátí 7 144 řádků
+     * za 0,92 s. Plná historie tedy stojí půl sekundy navíc a stejné číslo už používá náhled.
+     */
+    private static final String FULL_HISTORY_OBSERVATIONS = "20000";
+
     private final ConnectorHttpSupport http;
     private final EcbCuratedCatalog catalog;
     private final EcbAvailabilityService availability;
@@ -65,7 +80,7 @@ public class EcbConnector implements BaseConnector, AsyncCancellableFetch {
                 && !query.containsKey("endPeriod")
                 && !query.containsKey("lastNObservations")
                 && !query.containsKey("firstNObservations")) {
-            query.put("lastNObservations", "120");
+            query.put("lastNObservations", FULL_HISTORY_OBSERVATIONS);
         }
 
         String url = EcbApiClient.buildUrl(resolved.flow(), resolved.key(), query);
@@ -120,7 +135,7 @@ public class EcbConnector implements BaseConnector, AsyncCancellableFetch {
                 && !query.containsKey("endPeriod")
                 && !query.containsKey("lastNObservations")
                 && !query.containsKey("firstNObservations")) {
-            query.put("lastNObservations", "120");
+            query.put("lastNObservations", FULL_HISTORY_OBSERVATIONS);
         }
 
         String url = EcbApiClient.buildUrl(resolved.flow(), resolved.key(), query);

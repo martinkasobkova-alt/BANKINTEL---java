@@ -163,8 +163,12 @@ public class FredCatalogController {
         }
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("error", "FRED upstream error");
-        payload.put("detail", ex.getClass().getSimpleName() + ": " + ex.getMessage());
+        // `detail` frontend zobrazuje uživateli — dřív tu končila syrová Java výjimka
+        // ("ConnectException: null"). Technický popis zůstává, jen vedle v `technical_detail`.
+        payload.put("detail", "Katalog FRED se teď nepodařilo načíst. Zkuste to prosím znovu později.");
+        payload.put("technical_detail", ex.getClass().getSimpleName() + ": " + ex.getMessage());
         payload.put("source", "FRED");
+        payload.put("upstream_unavailable", true);
         payload.put("configured", fredCatalogService.hasApiKey());
         payload.put("fred_api_key_configured", fredCatalogService.hasApiKey());
         payload.put("fred_api_configured", fredCatalogService.hasApiKey());

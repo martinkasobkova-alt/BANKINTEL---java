@@ -9,6 +9,7 @@ import {
 } from "./chartDataContract";
 import { CHART_DATA_MODES, CHART_TYPES } from "./chartTypes";
 import { resolveNativeFrequencyCode } from "@/lib/chartFrequencyInfer";
+import { unitAfterTransform } from "./chartTransforms";
 import {
   normalizeExportPeriod,
   resolveExportFrequency,
@@ -108,7 +109,7 @@ export function contractFromAradViewState({
         id: String(s.key || s.indicator_id || `series_${idx}`),
         key: String(s.key || s.indicator_id || `series_${idx}`),
         label: String(s.name || s.indicator_id || s.key || `Řada ${idx + 1}`),
-        unit: String(s.unit || unit || "").trim(),
+        unit: unitAfterTransform(String(s.unit || unit || "").trim(), transformId),
         axis: String(s.y_axis || "").toLowerCase() === "right" ? "right" : "left",
         source_type: String(s.source_type || "").trim(),
         privacy: isPrivateSeriesLike(s) ? "private" : String(s.privacy || "").trim(),
@@ -119,7 +120,7 @@ export function contractFromAradViewState({
           id: "main",
           key: "main",
           label: title || "Hodnota",
-          unit: String(unit || "").trim(),
+          unit: unitAfterTransform(String(unit || "").trim(), transformId),
           source_type: widgetPrivacy.sourceType || "",
           privacy: widgetPrivacy.isPrivate ? "private" : "",
           user_upload_id: widgetPrivacy.uploadId,
@@ -148,7 +149,7 @@ export function contractFromAradViewState({
             series_id: s.id,
             series_label: s.label,
             value_raw: val,
-            unit: s.unit || unit,
+            unit: unitAfterTransform(s.unit || unit, transformId),
             frequency: nativeFreq,
             source,
             dataset,
@@ -176,7 +177,7 @@ export function contractFromAradViewState({
           series_id: "main",
           series_label: title || "Hodnota",
           value_raw: val,
-          unit,
+          unit: unitAfterTransform(unit, transformId),
           frequency: nativeFreq,
           source,
           dataset,

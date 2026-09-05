@@ -93,7 +93,14 @@ public class MagazineIngestService {
                 chunkRepository.saveAll(docs);
             }
             issue.setIngestStatus("ready");
-            issue.setIngestError("");
+            // Naskenované číslo bez textové vrstvy projde zpracováním bez chyby, ale nevznikne
+            // z něj jediný úsek — hledání v čísle i AI pak tiše nic nenajdou a nikde není znát
+            // proč. Stav zůstává „ready" (PDF se dá číst), ale důvod se zaznamená, aby ho správce
+            // v administraci viděl a mohl číslo protáhnout OCR.
+            issue.setIngestError(docs.isEmpty()
+                    ? "PDF neobsahuje textovou vrstvu — hledání v čísle a AI odpovědi nebudou fungovat. "
+                            + "Pomůže projet soubor OCR a nahrát znovu."
+                    : "");
             issue.setPageCount(pages.size());
             issue.setChunkCount(docs.size());
             issue.setIngestedAt(Instant.now());

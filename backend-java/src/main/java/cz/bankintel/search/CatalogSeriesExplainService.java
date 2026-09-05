@@ -115,10 +115,15 @@ public class CatalogSeriesExplainService {
             answer = buildFollowupAnswer(question, prior, meta);
         }
         Map<String, Object> out = new LinkedHashMap<>();
+        // Klient (catalogSeriesConceptExplain.js) vyžaduje `ok` i `answer_cz`, jinak odpověď zahodí
+        // a nahradí ji konzervovaným textem — a k tomu ohlásí „Nelze kontaktovat API", přestože
+        // backend vrátil 200 s hotovou odpovědí. Sourozenec explainSeries() ten tvar plní správně.
+        out.put("ok", true);
         out.put("enabled", true);
         out.put("ai_used", aiUsed);
         out.put("question", question);
         out.put("answer", answer);
+        out.put("answer_cz", answer);
         if (searchQuery != null) {
             out.put("suggested_catalog_search_query", searchQuery);
         }

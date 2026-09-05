@@ -1,5 +1,7 @@
 import {
+  canPersistChartCompare,
   isExternalCatalogWidgetEngine,
+  isUploadPrimaryWidgetEngine,
   resolveDatasetChartCompareBaseline,
   resolveExternalCatalogCompareBaseline,
 } from "./datasetChartCompareBaseline";
@@ -64,5 +66,62 @@ describe("isExternalCatalogWidgetEngine", () => {
   test("matches external catalog engines", () => {
     expect(isExternalCatalogWidgetEngine("external_catalog_chart")).toBe(true);
     expect(isExternalCatalogWidgetEngine("eurostat_view")).toBe(false);
+  });
+});
+
+describe("isUploadPrimaryWidgetEngine", () => {
+  test("matches user upload chart engines", () => {
+    expect(isUploadPrimaryWidgetEngine("user_upload_chart")).toBe(true);
+    expect(isUploadPrimaryWidgetEngine("uploaded_data_chart")).toBe(true);
+    expect(isUploadPrimaryWidgetEngine("external_catalog_chart")).toBe(false);
+  });
+});
+
+// Živě zjištěno: "Srovnat s řadou" na grafu z vlastních dat se dřív vždy uložil jen jako
+// dočasný náhled, protože handleUnifiedCompareSave umělo trvale uložit srovnání jen pro
+// katalogové widgety — widget z vlastních dat nikdy nesplnil žádnou z tehdejších podmínek.
+describe("canPersistChartCompare", () => {
+  test("persists for an external-catalog-primary widget with a patch handler and id", () => {
+    expect(
+      canPersistChartCompare({
+        isExternalCatalogPrimary: true,
+        isUploadPrimary: false,
+        hasWidgetConfigPatch: true,
+        hasWidgetId: true,
+      })
+    ).toBe(true);
+  });
+
+  test("persists for an upload-primary widget with a patch handler and id", () => {
+    expect(
+      canPersistChartCompare({
+        isExternalCatalogPrimary: false,
+        isUploadPrimary: true,
+        hasWidgetConfigPatch: true,
+        hasWidgetId: true,
+      })
+    ).toBe(true);
+  });
+
+  test("does not persist without a patch handler even for an eligible primary", () => {
+    expect(
+      canPersistChartCompare({
+        isExternalCatalogPrimary: true,
+        isUploadPrimary: true,
+        hasWidgetConfigPatch: false,
+        hasWidgetId: true,
+      })
+    ).toBe(false);
+  });
+
+  test("does not persist when neither primary kind is eligible", () => {
+    expect(
+      canPersistChartCompare({
+        isExternalCatalogPrimary: false,
+        isUploadPrimary: false,
+        hasWidgetConfigPatch: true,
+        hasWidgetId: true,
+      })
+    ).toBe(false);
   });
 });

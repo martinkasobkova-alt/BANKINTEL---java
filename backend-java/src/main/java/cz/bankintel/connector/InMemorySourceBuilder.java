@@ -12,7 +12,10 @@ import cz.bankintel.search.AradSeriesIdentity;
 import cz.bankintel.search.CatalogCountryIso3Registry;
 import cz.bankintel.search.CatalogGeoIntent;
 import java.util.List;
+import cz.bankintel.search.CatalogSearchMetadataSidecar;
 import java.util.Locale;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
@@ -32,17 +35,22 @@ import org.springframework.web.server.ResponseStatusException;
 @Component
 public class InMemorySourceBuilder {
 
+    private static final Logger log = LoggerFactory.getLogger(InMemorySourceBuilder.class);
+
     private final EcbCuratedCatalog ecbCuratedCatalog;
     private final EurostatDimensionService eurostatDimensionService;
     private final Oecd4BrowseService oecd4BrowseService;
+    private final CatalogSearchMetadataSidecar metadataSidecar;
 
     public InMemorySourceBuilder(
             EcbCuratedCatalog ecbCuratedCatalog,
             EurostatDimensionService eurostatDimensionService,
-            Oecd4BrowseService oecd4BrowseService) {
+            Oecd4BrowseService oecd4BrowseService,
+            CatalogSearchMetadataSidecar metadataSidecar) {
         this.ecbCuratedCatalog = ecbCuratedCatalog;
         this.eurostatDimensionService = eurostatDimensionService;
         this.oecd4BrowseService = oecd4BrowseService;
+        this.metadataSidecar = metadataSidecar;
     }
 
     private static final String ARAD_BASE_URL = "https://www.cnb.cz/aradb/api/v1";
@@ -62,7 +70,8 @@ public class InMemorySourceBuilder {
         if ("financial_markets".equals(st)) {
             st = "financial_markets_mirror";
         }
-        String setId = stringField(params, "set_id");
+        String requestedSetId = stringField(params, "set_id");
+        String setId = resolveFetchSetId(st, requestedSetId);
         if (st.isBlank()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "missing source_type");
         }
@@ -76,6 +85,9 @@ public class InMemorySourceBuilder {
         common.put("query_params", new LinkedHashMap<>());
         common.put("auth_type", "none");
         common.put("active", true);
+        if (!requestedSetId.equals(setId)) {
+            common.put("requested_set_id", requestedSetId);
+        }
 
         return switch (st) {
             case "arad" -> buildArad(common, setId);
@@ -95,6 +107,54 @@ public class InMemorySourceBuilder {
                 yield common;
             }
         };
+    }
+
+    /**
+     * Identita ŘADY versus kód DATASETU, který umí obsloužit upstream API.
+     *
+     * <p>Metadatový sidecar u některých zdrojů rozlišuje {@code series_id} a {@code dataset_id} —
+     * například Eurostat {@code prc_hicp_midx_hicp_all_items} je řada uvnitř datasetu
+     * {@code prc_hicp_midx}. Do upstreamu patří dataset; poslat celou složeninu znamená HTTP 404
+     * ({@code .../data/prc_hicp_midx_hicp_all_items} u Eurostatu neexistuje).
+     *
+     * <p>Řeší se to tady, před rozskokem na jednotlivé zdroje, protože tenhle rozdíl není
+     * vlastnost Eurostatu — je to vlastnost sidecaru a platí pro každý zdroj, který ho používá.
+     * Frontend má stejné pravidlo v {@code catalogPreviewBody.js:resolveCatalogRowSetId}, ale
+     * spolehnout se na něj nelze: složené {@code series_id} přichází i z cest, které tou funkcí
+     * neprojdou (V2 sidecar retrieval, uložené widgety, Manager Explorer).
+     *
+     * <p>Zúžení je schválně opatrné — dataset se použije, jen když je {@code set_id} jeho
+     * prefixem s oddělovačem. Nepodobné dvojice se nechávají být, ať se z nedorozumění
+     * v datech nestane tichá záměna řady.
+     */
+    private String resolveFetchSetId(String sourceType, String requestedSetId) {
+        String setId = requestedSetId == null ? "" : requestedSetId.trim();
+        if (setId.isBlank() || metadataSidecar == null) {
+            return setId;
+        }
+        // ECB flow/klíč (EXR/D.USD.EUR.SP00.A) je legitimně složený - nechat být.
+        if (setId.contains("/") && setId.contains(".")) {
+            return setId;
+        }
+        try {
+            Map<String, Object> record = metadataSidecar.getSearchMetadata(sourceType, setId, "");
+            if (record == null) {
+                return setId;
+            }
+            String datasetId = stringField(record, "dataset_id");
+            if (datasetId.isBlank() || datasetId.equalsIgnoreCase(setId)) {
+                return setId;
+            }
+            String dl = datasetId.toLowerCase(Locale.ROOT);
+            String sl = setId.toLowerCase(Locale.ROOT);
+            if (sl.startsWith(dl + "_") || sl.startsWith(dl + ":")) {
+                log.debug("preview set_id {} -> dataset {} (source={})", setId, datasetId, sourceType);
+                return datasetId;
+            }
+        } catch (Exception ex) {
+            log.debug("dataset_id resolution failed for {}/{}: {}", sourceType, setId, ex.getMessage());
+        }
+        return setId;
     }
 
     private Map<String, Object> buildArad(Map<String, Object> common, String setId) {
@@ -171,10 +231,15 @@ public class InMemorySourceBuilder {
                 }
             }
         }
+        boolean geoIsOurDefault = false;
         if (!hasGeo(queryParams) && !country.isBlank()) {
             queryParams.put("geo", country.toUpperCase());
         } else if (!hasGeo(queryParams)) {
+            // Poslední záchrana, když dotaz žádnou zemi neurčuje. U datasetů s neregionálním geo
+            // (urban audit, metropolitní regiony) je "CZ" neplatná hodnota a Eurostat celý dotaz
+            // odmítne - konektor to pozná podle příznaku níž a zopakuje dotaz bez geo.
             queryParams.put("geo", "CZ");
+            geoIsOurDefault = true;
         }
         boolean hasExplicitTimeFilter = hasTimeFilter(queryParams);
         String explicitGeoKey = firstPresentGeoKey(queryParams);
@@ -205,6 +270,9 @@ public class InMemorySourceBuilder {
         out.put("headers", Map.of("Accept", "application/json"));
         out.put("query_params", queryParams);
         out.put("set_id", setId);
+        // Konektor podle toho pozná, že geo je náš default, a při 400/413 dotaz zopakuje bez něj -
+        // viz EurostatConnector#rejectedBecauseOfDefaultGeo.
+        out.put("eurostat_geo_is_default", String.valueOf(geoIsOurDefault && hasGeo(queryParams)));
         out.put("_preview_filters_applied", eurostatPreviewFiltersApplied(queryParams));
         out.put("_preview_user_query", stringField(params, "user_query"));
         Map<String, Object> previewDimensions = eurostatDimensionService.previewAvailableDimensions(setId);
@@ -237,6 +305,18 @@ public class InMemorySourceBuilder {
         return out;
     }
 
+    /**
+     * Strop pro full-dataset POST v náhledu; delší čekání panel jen zasekne
+     * (CsuConnector#fullDatasetTimeout).
+     *
+     * <p>Když POST projde, projde rychle - naměřené úspěšné full-dataset náhledy končí v jednotkách
+     * sekund (CEN0101B 15 577 řádků za 2,7 s). Když neprojde, čeká se celý strop nadarmo a teprve
+     * pak se přepne na výběrový endpoint: s 30 s trval náhled CEN0204AT01 59 s a OBY01B01T01 68 s,
+     * přestože samotný výběr vrátí data za 0,5 s resp. 11 s. Nižší strop tedy nic použitelného
+     * neuřízne a u problémových datasetů ušetří skoro půl minuty.
+     */
+    private static final int CSU_PREVIEW_FULL_DATASET_TIMEOUT_SEC = 12;
+
     private Map<String, Object> buildCsu(Map<String, Object> common, String setId, Map<String, Object> params) {
         if (setId.isBlank()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "missing set_id");
@@ -255,6 +335,9 @@ public class InMemorySourceBuilder {
             out.put("csu_dataset_code", datasetCode);
             out.put("endpoint", "/api/dotaz/v1/data/sady/" + datasetCode + "/vlastni");
             out.put("method", "POST");
+            // Náhled nemá čekat minuty na celý dataset, když výběrový endpoint dá použitelná data
+            // v řádu stovek ms - viz CsuConnector#fullDatasetTimeout.
+            out.put("csu_full_dataset_timeout_sec", String.valueOf(CSU_PREVIEW_FULL_DATASET_TIMEOUT_SEC));
             out.put("query_params", fullQuery);
         } else {
             out.put("endpoint", "/api/dotaz/v1/data/vybery/" + setId);
@@ -482,7 +565,7 @@ public class InMemorySourceBuilder {
 
         Map<String, Object> qp = new LinkedHashMap<>();
         qp.put("format", "csvfilewithlabels");
-        qp.put("startTime", "2010");
+        // Náhled OECD si dřív bral jen roky od 2010 - stejné oříznutí jako u uložených zdrojů.
         qp.put("dimensionAtObservation", "AllDimensions");
         // Stejna oprava jako u SDMX2 vetve vyse - 120 tise oriznulo "cele obdobi" na poslednich 120
         // pozorovani.
@@ -677,6 +760,18 @@ public class InMemorySourceBuilder {
         return out;
     }
 
+    /**
+     * Strop stránek pro náhled Data360; plná synchronizace si bere celý indikátor.
+     *
+     * <p>Jedna stránka je 1 000 řádků — na graf i tabulku náhledu bohatě stačí. Data360 API
+     * odpovídá pomalu (naměřeno 19-25 s na tři stránky, u IMF_BOP 113 s), takže každá stránka
+     * navíc je přímo vidět jako čekání v UI.
+     */
+    private static final int DATA360_PREVIEW_MAX_PAGES = 1;
+
+    /** Strop čekání na jednu stránku Data360 v náhledu - viz Data360Connector#pageTimeout. */
+    private static final int DATA360_PREVIEW_TIMEOUT_SEC = 25;
+
     private Map<String, Object> buildData360(Map<String, Object> common, String setId, Map<String, Object> params) {
         Map<String, Object> qp = mergeData360QueryParams(setId, params);
         if (stringField(qp, "DATABASE_ID").isBlank()) {
@@ -694,6 +789,10 @@ public class InMemorySourceBuilder {
         out.put("set_id", setId);
         out.put("data360_database_id", qp.get("DATABASE_ID"));
         out.put("data360_indicator", qp.get("INDICATOR"));
+        // Náhled nemá stahovat celý globální indikátor přes všechny země a roky - viz
+        // Data360Connector#maxPages. Bez stropu trval náhled desítky sekund až přes dvě minuty.
+        out.put("data360_max_pages", String.valueOf(DATA360_PREVIEW_MAX_PAGES));
+        out.put("data360_timeout_sec", String.valueOf(DATA360_PREVIEW_TIMEOUT_SEC));
         return out;
     }
 

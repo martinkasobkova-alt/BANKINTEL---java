@@ -5,24 +5,29 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import cz.bankintel.domain.entity.UserEntity;
 import cz.bankintel.search.CatalogPreviewService;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 class ExternalCatalogChartWidgetResolverTest {
 
     private CatalogPreviewService catalogPreviewService;
     private DatasetViewResolver datasetViewResolver;
+    private UserUploadChartWidgetResolver userUploadChartWidgetResolver;
     private ExternalCatalogChartWidgetResolver resolver;
 
     @BeforeEach
     void setUp() {
         catalogPreviewService = mock(CatalogPreviewService.class);
         datasetViewResolver = mock(DatasetViewResolver.class);
-        resolver = new ExternalCatalogChartWidgetResolver(catalogPreviewService, datasetViewResolver);
+        userUploadChartWidgetResolver = mock(UserUploadChartWidgetResolver.class);
+        resolver = new ExternalCatalogChartWidgetResolver(
+                catalogPreviewService, datasetViewResolver, userUploadChartWidgetResolver);
     }
 
     @Test
@@ -106,5 +111,71 @@ class ExternalCatalogChartWidgetResolverTest {
         assertThat(result.get("compare_added_count")).isEqualTo(0);
         assertThat((List<?>) result.get("compare_errors")).hasSize(1);
         assertThat(result.get("multi_series")).isNull();
+    }
+
+    /**
+     * Živě zjištěno: „Srovnat s řadou" na katalogovém grafu (FRED) → přidat vlastní nahrané CSV.
+     * Modál to uložil bez chyby, ale po reloadu graf měl pořád jen původní řadu. Příčina:
+     * {@code mergeCatalogComparisons} uměla přiřadit jen záznamy s {@code catalog}/{@code set_id}
+     * - záznam s {@code user_upload_id} (žádný catalog/set_id) spadl do „catalog.isBlank()"
+     * větve a tiše se přeskočil, bez chyby v {@code compare_errors}. Test ověřuje, že se teď
+     * nahraný soubor přidá jako další řádka grafu stejným resolverem jako samostatný „Graf z
+     * mých dat" widget.
+     */
+    @Test
+    void mergesUploadedFileAsComparisonSeriesOnCatalogPrimaryChart() {
+        when(catalogPreviewService.preview(any()))
+                .thenReturn(Map.of("rows", List.of(Map.of("date", "2024", "value", 1))));
+        Map<String, Object> primary = new LinkedHashMap<>();
+        primary.put("title", "10-Year Expected Inflation");
+        primary.put("rows", List.of(Map.of("x", "2024", "y", 2.49)));
+        when(datasetViewResolver.resolveFromRows(any(), any(), any(), any())).thenReturn(primary);
+        Map<String, Object> uploadRendered = new LinkedHashMap<>();
+        uploadRendered.put("title", "test_vlastni_data.csv");
+        uploadRendered.put("view", "chart");
+        uploadRendered.put("rows", List.of(
+                Map.of("x", "2024-01-01", "y", 12.4), Map.of("x", "2025-06-01", "y", 21.8)));
+        when(userUploadChartWidgetResolver.resolve(any())).thenReturn(uploadRendered);
+        UserEntity user = new UserEntity();
+        user.setId("user-1");
+
+        Map<String, Object> result = resolver.resolve(new LinkedHashMap<>(Map.of(
+                "catalog", "fred",
+                "set_id", "EXPINF10YR",
+                "chart_compare_with", List.of(Map.of(
+                        "user_upload_id", "d3294981-5224-4c94-a003-ff2ef53f5387",
+                        "x_field", "Datum",
+                        "y_field", "Tržby (mil. Kč)")))), user);
+
+        assertThat(result.get("compare_added_count")).isEqualTo(1);
+        assertThat(result.get("compare_errors")).isNull();
+        assertThat(result.get("multi_series")).isEqualTo(true);
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> rows = (List<Map<String, Object>>) result.get("rows");
+        assertThat(rows).contains(Map.of("period", "2024-01-01", "s1", 12.4));
+        ArgumentCaptor<Map<String, Object>> uploadCfgCaptor = ArgumentCaptor.forClass(Map.class);
+        org.mockito.Mockito.verify(userUploadChartWidgetResolver).resolve(uploadCfgCaptor.capture());
+        assertThat(uploadCfgCaptor.getValue()).containsEntry("owner_user_id", "user-1");
+    }
+
+    @Test
+    void reportsUploadCompareErrorInsteadOfSilentlyDroppingIt() {
+        when(catalogPreviewService.preview(any()))
+                .thenReturn(Map.of("rows", List.of(Map.of("date", "2024", "value", 1))));
+        Map<String, Object> primary = new LinkedHashMap<>();
+        primary.put("title", "10-Year Expected Inflation");
+        primary.put("rows", List.of(Map.of("x", "2024", "y", 2.49)));
+        when(datasetViewResolver.resolveFromRows(any(), any(), any(), any())).thenReturn(primary);
+        when(userUploadChartWidgetResolver.resolve(any())).thenReturn(Map.of("error", "Soubor není k dispozici."));
+        UserEntity user = new UserEntity();
+        user.setId("user-1");
+
+        Map<String, Object> result = resolver.resolve(new LinkedHashMap<>(Map.of(
+                "catalog", "fred",
+                "set_id", "EXPINF10YR",
+                "chart_compare_with", List.of(Map.of("user_upload_id", "missing-upload")))), user);
+
+        assertThat(result.get("compare_added_count")).isEqualTo(0);
+        assertThat((List<?>) result.get("compare_errors")).hasSize(1);
     }
 }

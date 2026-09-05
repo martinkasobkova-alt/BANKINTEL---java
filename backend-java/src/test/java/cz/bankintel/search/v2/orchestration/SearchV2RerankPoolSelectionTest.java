@@ -186,6 +186,78 @@ class SearchV2RerankPoolSelectionTest {
                 List.of());
     }
 
+    /**
+     * QA kolo 3: rerank pool byl u dotazu na konkrétní zemi z 96 % zaplněný kandidáty s
+     * prokazatelně jinou geografií — do rerankeru šlo 240 řad a 231 jich zahodil s
+     * odůvodněním „Geography mismatch: Belgium vs requested Czech Republic". Relevantní
+     * české řady se do poolu vůbec nevešly. Kandidáti se sedící (nebo neznámou) geografií
+     * proto jdou první a nesedící mají strop na podíl v poolu.
+     */
+    @Test
+    void geoConflictingCandidatesDoNotCrowdOutTheRerankPool() {
+        List<SearchCandidate> candidates = new ArrayList<>();
+        for (int index = 0; index < 200; index++) {
+            candidates.add(candidate("be-" + index, "Belgické bankovní řady " + index, "banky", "BE"));
+        }
+        SearchCandidate czech = candidate("cz-roe", "Rentabilita bank (ROE)", "ziskovost bank", "CZ");
+        candidates.add(czech);
+
+        List<SearchCandidate> pool = SearchV2Service.selectRerankPool(
+                candidates, 60, planForCountry("CZ"), new SearchV2ConceptRegistry(new ObjectMapper()));
+
+        assertThat(pool).contains(czech);
+        assertThat(pool.size()).isLessThan(candidates.size());
+    }
+
+    /** Poradní, ne rozhodující: u malého poolu se k rerankeru dostanou i nesedící kandidáti. */
+    @Test
+    void smallPoolStillSendsGeoConflictingCandidatesToTheReranker() {
+        SearchCandidate czech = candidate("cz-roe", "Rentabilita bank (ROE)", "ziskovost bank", "CZ");
+        SearchCandidate belgian = candidate("be-roe", "Belgická rentabilita bank", "ziskovost bank", "BE");
+
+        List<SearchCandidate> pool = SearchV2Service.selectRerankPool(
+                List.of(czech, belgian), 60, planForCountry("CZ"), new SearchV2ConceptRegistry(new ObjectMapper()));
+
+        assertThat(pool).containsExactlyInAnyOrder(czech, belgian);
+    }
+
+    @Test
+    void poolIsUntouchedWhenTheQueryNamesNoCountry() {
+        SearchCandidate czech = candidate("cz-roe", "Rentabilita bank (ROE)", "ziskovost bank", "CZ");
+        SearchCandidate belgian = candidate("be-roe", "Belgická rentabilita bank", "ziskovost bank", "BE");
+
+        List<SearchCandidate> pool = SearchV2Service.selectRerankPool(
+                List.of(czech, belgian), 60, planForCountry(null), new SearchV2ConceptRegistry(new ObjectMapper()));
+
+        assertThat(pool).containsExactlyInAnyOrder(czech, belgian);
+    }
+
+    private static SearchQueryPlan planForCountry(String country) {
+        return new SearchQueryPlan(
+                "ziskovost bank",
+                "cs",
+                "find_series",
+                List.of(),
+                List.of(),
+                country == null ? List.of() : List.of(country),
+                List.of(),
+                List.of(),
+                List.of(),
+                null,
+                List.of("ziskovost bank"),
+                List.of(),
+                List.of(),
+                List.of(),
+                List.of(),
+                List.of("primary"),
+                new SearchQueryPlan.Clarification(false, null, null),
+                "openai",
+                "test",
+                ExactEntityResolution.openTopic("test"),
+                new SourceRoutingDecision(List.of("banking"), List.of(), List.of(), Map.of()),
+                List.of());
+    }
+
     private static SearchCandidate candidate(String id, String title, String matchedQuery, String geo) {
         return candidate(id, title, matchedQuery, geo, "ecb2");
     }

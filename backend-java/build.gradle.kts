@@ -1,5 +1,6 @@
 plugins {
     java
+    jacoco
     id("org.springframework.boot") version "3.4.4"
     id("io.spring.dependency-management") version "1.1.7"
 }
@@ -63,6 +64,35 @@ dependencies {
 
 tasks.withType<Test> {
     useJUnitPlatform()
+}
+
+// Coverage is a diagnostic here, not a gate: it answers "which packages are untested" so test
+// effort lands where it matters. Report only — no build-failing threshold.
+jacoco {
+    toolVersion = "0.8.12"
+}
+
+tasks.jacocoTestReport {
+    dependsOn(tasks.test)
+    reports {
+        xml.required = true
+        html.required = true
+        csv.required = true
+    }
+    classDirectories.setFrom(
+        files(classDirectories.files.map {
+            fileTree(it) {
+                // Generated/plumbing classes would dilute the numbers without being worth testing.
+                exclude(
+                    "cz/bankintel/BankIntelApplication.class",
+                    "**/domain/dto/**",
+                    "**/domain/entity/**",
+                    "**/*Properties.class",
+                    "**/*Config.class",
+                )
+            }
+        })
+    )
 }
 
 tasks.withType<JavaCompile> {

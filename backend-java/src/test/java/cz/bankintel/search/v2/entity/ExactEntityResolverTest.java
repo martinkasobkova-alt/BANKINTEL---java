@@ -1,11 +1,19 @@
 package cz.bankintel.search.v2.entity;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import cz.bankintel.search.CatalogIndexStore;
 import cz.bankintel.search.v2.entity.ExactEntityResolver.ResolutionResult;
 import cz.bankintel.search.v2.schema.SearchQueryVariant;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -14,7 +22,9 @@ class ExactEntityResolverTest {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final SearchV2SourceCapabilityRegistry capabilityRegistry = new SearchV2SourceCapabilityRegistry(objectMapper);
-    private final ExactEntityResolver resolver = new ExactEntityResolver(objectMapper, capabilityRegistry);
+    private final CatalogIndexStore catalogIndexStore = mock(CatalogIndexStore.class);
+    private final ExactEntityResolver resolver =
+            new ExactEntityResolver(objectMapper, capabilityRegistry, catalogIndexStore);
 
     @Test
     void resolvesNasdaq100AsMarketIndexWithoutBroadExpansion() {
@@ -122,5 +132,57 @@ class ExactEntityResolverTest {
     @Test
     void unresolvedTopicFallsBackToOpenTopic() {
         assertThat(resolver.resolve("inflace spanelsko").entityResolution().resolutionType()).isEqualTo("open_topic");
+    }
+
+    /**
+     * Živě zjištěno (2026-09-05): appka pro "naio_10_pyp1620" natvrdo vracela probable_entity/0.78
+     * - LLM plánovač se pak vždycky zavolal a jednou si vymyslel "10-year yield", což zahodilo
+     * všech 25 reálných kandidátů. Když se kód dá živě ověřit proti katalogu (tady zamockovanému),
+     * appka to teď pozná jako exact_entity a LLM plánovač se vůbec nezavolá (viz
+     * SearchV2QueryPlannerTest).
+     */
+    @Test
+    void catalogVerifiedCodeBecomesExactEntityWithVerifiedSource() {
+        when(catalogIndexStore.lookupRowIndexedOnly("eurostat", "naio_10_pyp1620"))
+                .thenReturn(Optional.of(Map.of("set_id", "naio_10_pyp1620")));
+
+        ResolutionResult result = resolver.resolve("naio_10_pyp1620");
+
+        assertThat(result.entityResolution().resolutionType()).isEqualTo("exact_entity");
+        assertThat(result.entityResolution().confidence()).isEqualTo(0.95);
+        assertThat(result.entityResolution().allowBroadExpansion()).isFalse();
+        assertThat(result.entityResolution().highConfidenceExact()).isTrue();
+        assertThat(result.sourceRouting().preferredSources()).containsExactly("eurostat");
+    }
+
+    /** Same code shape, but nothing in the (mocked) catalog matches it - must fall through to
+     * today's unchanged, conservative behavior, not fail or guess. */
+    @Test
+    void codeShapedButUnknownStringStaysProbableEntityUnchanged() {
+        ResolutionResult result = resolver.resolve("naio_10_pyp1620");
+
+        assertThat(result.entityResolution().resolutionType()).isEqualTo("probable_entity");
+        assertThat(result.entityResolution().confidence()).isEqualTo(0.78);
+        assertThat(result.entityResolution().allowBroadExpansion()).isTrue();
+        assertThat(result.entityResolution().highConfidenceExact()).isFalse();
+    }
+
+    /**
+     * The SERIES_CODE regex is tested against the query with ALL whitespace stripped, so an
+     * ordinary sentence like "unemployment rate 2024" compacts to "unemploymentrate2024" and
+     * matches the same shape a real dataset code would. Catalog verification must never even be
+     * attempted for a query typed as more than one token - narrowing/skip-the-LLM behavior for a
+     * real sentence would be a regression, not a fix, even if some source coincidentally has a
+     * matching id.
+     */
+    @Test
+    void multiWordQueryNeverTriggersCatalogVerificationEvenIfCodeShapedAfterStrippingWhitespace() {
+        when(catalogIndexStore.lookupRowIndexedOnly(anyString(), anyString()))
+                .thenReturn(Optional.of(Map.of("set_id", "unemploymentrate2024")));
+
+        ResolutionResult result = resolver.resolve("unemployment rate 2024");
+
+        assertThat(result.entityResolution().resolutionType()).isEqualTo("probable_entity");
+        verify(catalogIndexStore, never()).lookupRowIndexedOnly(anyString(), anyString());
     }
 }

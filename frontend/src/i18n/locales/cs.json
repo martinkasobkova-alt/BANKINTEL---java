@@ -2,8 +2,7 @@
   "nav": {
     "overview": "Přehled",
     "subscription": "Předplatné",
-    "catalogSearch": "Katalogy (vyhledávání)",
-    "stockSearch": "Akcie",
+    "catalogSearch": "Katalogy (Ekonomika / Akcie)",
     "managerExplorer": "Manager Explorer",
     "reader": "Čtečka",
     "podcasts": "Podcasty",
@@ -117,6 +116,9 @@
     "resendSuccess": "Pokud účet existuje a není ověřen, byl odeslán e-mail s odkazem.",
     "resendFailed": "Odeslání se nepodařilo. Zkuste to znovu.",
     "passwordMismatch": "Hesla se neshodují.",
+    "emailRequired": "Zadejte e-mail.",
+    "emailInvalid": "Zadejte e-mail ve tvaru jmeno@domena.cz.",
+    "passwordRequired": "Zadejte heslo.",
     "registerFreeTitle": "Registrace zdarma",
     "registerFreeIntro": "Založíte si běžný účet v datové platformě. Registrační kód není potřeba.",
     "createFreeAccount": "Vytvořit účet zdarma",
@@ -230,7 +232,7 @@
       "intro": "Zadejte segment, geo, otázku a volitelně vlastní soubory, vyberte řady a spusťte analýzu.",
       "newQuery": "Nový dotaz",
       "step1": "Vstup, otázka a řady",
-      "step2": "Výsledek a skóre",
+      "step2": "Výsledek analýzy",
       "step1Title": "Krok 1 — Segment, otázka, soubory a řady",
       "analysisType": "1. Typ analýzy",
       "sectorAnalysis": "Sektorová analýza"

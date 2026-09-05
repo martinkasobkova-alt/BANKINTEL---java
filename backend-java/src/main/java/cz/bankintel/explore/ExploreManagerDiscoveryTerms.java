@@ -618,6 +618,87 @@ public final class ExploreManagerDiscoveryTerms {
                 || title.contains("gdp_share");
     }
 
+    /**
+     * Existující intenty (viz {@code manager_intent_probes.json}) mapované na jednu z 8 report
+     * sekcí, podle OBSAHU řádku - ne podle záměru dotazu jako {@link #detectedIntentIds}. Účel je
+     * jiný: {@code detectedIntentIds} rozhoduje, CO hledat; tohle rozhoduje, do KTERÉ sekce
+     * reportu už NALEZENÝ řádek patří.
+     *
+     * <p>{@code banking_capital} (CET1/kapitálová přiměřenost) jde do „Finanční podmínky", ne
+     * „Rizika" - je to spíš míra síly bilance než popis toho, co by se mohlo pokazit; hraniční
+     * rozhodnutí, jde přehodnotit. {@code production}/{@code investment}/{@code retail} tu
+     * záměrně chybí - zůstávají v obecném „Sektor" jako dnes, jsou to jádrová sektorová témata,
+     * ne finější podkategorie.
+     */
+    private static final Map<String, String> INTENT_REPORT_SECTIONS = Map.of(
+            "trade", "external_indicators",
+            "profitability", "financial_indicators",
+            "banking_capital", "financial_indicators",
+            "debt", "risk_indicators");
+
+    /**
+     * Leading indikátory (PMI, důvěra spotřebitelů/podniků, nové objednávky, předstihový index) -
+     * na rozdíl od ostatních sekcí tu není existující intent v {@code manager_intent_probes.json}
+     * k namapování, takže needly žijí přímo tady. Anglicky i česky, ve stejném ASCII-folded tvaru
+     * jako zbytek souboru ({@link #rowHaystack}).
+     */
+    private static final List<String> LEADING_INDICATOR_NEEDLES = List.of(
+            "purchasing managers",
+            "pmi",
+            "business confidence",
+            "consumer confidence",
+            "economic sentiment",
+            "leading indicator",
+            "new orders",
+            "building permits",
+            "duvera spotrebitelu",
+            "duvera podniku",
+            "predstihovy indikator");
+
+    /** Náklady a ceny (PPI, mzdové náklady, jednotkové náklady práce) - viz {@link #LEADING_INDICATOR_NEEDLES}. */
+    private static final List<String> COST_INDICATOR_NEEDLES = List.of(
+            "producer price",
+            "ppi",
+            "labour cost",
+            "labor cost",
+            "unit labour cost",
+            "unit labor cost",
+            "wage",
+            "input price",
+            "ceny vyrobcu",
+            "mzdove naklady",
+            "naklady prace",
+            "jednotkove naklady prace");
+
+    /**
+     * Jemnější zařazení NEmakro řádku do jedné z 8 kontraktových sekcí. Volá se jen pro řádky, co
+     * už prošly makro-scaffold kontrolou jako „ne makro" - nikdy nepřeřazuje makro řádek do jemné
+     * sekce, zůstává vlastní, samostatnou kategorií jako dnes. Nezapadne-li řádek nikam, zůstává
+     * dosavadní výchozí „sector_indicators".
+     */
+    public static String reportSectionFor(Map<String, Object> row) {
+        if (row == null || row.isEmpty()) {
+            return "sector_indicators";
+        }
+        String haystack = rowHaystack(row);
+        if (haystack.isBlank()) {
+            return "sector_indicators";
+        }
+        for (Map.Entry<String, String> entry : INTENT_REPORT_SECTIONS.entrySet()) {
+            IntentProbeDef def = INTENT_PROBES.get(entry.getKey());
+            if (def != null && rowMatchesKeepNeedles(haystack, def.keepNeedles())) {
+                return entry.getValue();
+            }
+        }
+        if (rowMatchesKeepNeedles(haystack, LEADING_INDICATOR_NEEDLES)) {
+            return "leading_indicators";
+        }
+        if (rowMatchesKeepNeedles(haystack, COST_INDICATOR_NEEDLES)) {
+            return "cost_indicators";
+        }
+        return "sector_indicators";
+    }
+
     /** True for any force-seeded Manager core macro dataset (GDP / HICP / unemployment / policy rate). */
     public static boolean isCoreMacroSeedRow(Map<String, Object> row) {
         if (row == null || row.isEmpty()) {

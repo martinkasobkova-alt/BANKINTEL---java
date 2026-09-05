@@ -11,6 +11,7 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -28,6 +29,38 @@ import org.springframework.web.server.ResponseStatusException;
 public class Oecd4BrowseService {
 
     private static final String OECD4_BROWSE_ROOT = "OECD · offline mirror";
+
+    /**
+     * Živě ověřeno na reálných snímcích: různé OECD4 datasety mají úplně jiné SDMX dimenze
+     * (industry_services.json: MEASURE+FREQ+ACTIVITY+ADJUSTMENT+UNIT_MEASURE; employment_lfs.json:
+     * MEASURE+SEX+AGE+LABOUR_FORCE_STATUS+UNIT_MEASURE, žádné FREQ/ACTIVITY/ADJUSTMENT vůbec).
+     * Dřívější kód počítal dedup podpis i název jen z pevné pětice polí - u datasetů s jinými
+     * dimenzemi (např. SEX/AGE/LABOUR_FORCE_STATUS) se tak skutečně různé řady tiše slily do
+     * jedné (243 kandidátů pro Česko → 3 přeživší), a graf té přeživší řady pak míchal
+     * muže+ženy+celkem dohromady - chyba ve správnosti dat, ne jen v názvu. Tahle sada polí se
+     * naopak NIKDY nepovažuje za dimenzi (metadata řady/pozorování, ne rozlišující rozměr).
+     */
+    private static final Set<String> NON_DIMENSION_ROW_FIELDS = Set.of(
+            "REF_AREA", "REF_AREA_LABEL", "TIME_PERIOD", "OBS_VALUE", "amount", "date", "value", "period");
+
+    private static final Set<String> TOTAL_LIKE_DIMENSION_VALUES = Set.of("_T", "_Z", "TOTAL", "ALL");
+
+    /**
+     * Klíče v `queryParams`, které NEjsou dimenzí k filtrování - buď je `previewRows` už řeší
+     * zvlášť (measure/freq/unit_measure/ref_area/key ve všech svých aliasech), nebo je jde o
+     * protokolová pole, která do stejné mapy přidává `OecdConnector.buildQuery` pro živou SDMX v2
+     * cestu (zde irelevantní, offline mirror je čte jinak) - bez týhle výjimky by appka zkusila
+     * řádky filtrovat třeba podle `attributes=dsd`, což žádný řádek nemá, a náhled by vždy vrátil
+     * nic.
+     */
+    private static final Set<String> NON_DIMENSION_QUERY_PARAM_KEYS = Set.of(
+            "oecd4_key", "key", "dataset_key",
+            "oecd4_ref_area", "ref_area", "REF_AREA", "country",
+            "oecd4_measure", "MEASURE", "measure",
+            "freq", "FREQ",
+            "unit_measure", "UNIT_MEASURE",
+            "provider", "attributes", "measures", "dimensionAtObservation", "format", "lastNObservations",
+            "oecd_api_mode", "base_url", "endpoint", "headers");
 
     private final ObjectMapper objectMapper;
     private final JsonFactory jsonFactory;
@@ -168,6 +201,22 @@ public class Oecd4BrowseService {
         String measure = firstNonBlank(qp, "oecd4_measure", "MEASURE", "measure").toUpperCase(Locale.ROOT);
         String freq = firstNonBlank(qp, "freq", "FREQ").toUpperCase(Locale.ROOT);
         String unit = firstNonBlank(qp, "unit_measure", "UNIT_MEASURE").toUpperCase(Locale.ROOT);
+        // Živě zjištěno: bez tohohle appka řadu identifikovala jen podle MEASURE/FREQ/UNIT_MEASURE
+        // a náhled/graf pak tiše smíchal dohromady třeba muže+ženy+celkem nebo sezónně očištěná i
+        // neočištěná data - karta ve stromu (viz `seriesQueryParams`) přitom už tyhle další
+        // rozlišující dimenze do query_params dávala, jen se tady nikdy nečetly zpátky. Nejde o
+        // pevný seznam jmen - liší se dataset od datasetu - takže se prostě přefiltruje všechno,
+        // co v příchozích parametrech není jedno z výše řešených/protokolových polí.
+        Map<String, String> extraFilters = new LinkedHashMap<>();
+        for (Map.Entry<String, Object> e : qp.entrySet()) {
+            if (NON_DIMENSION_QUERY_PARAM_KEYS.contains(e.getKey())) {
+                continue;
+            }
+            String v = stringOrBlank(e.getValue());
+            if (!v.isBlank()) {
+                extraFilters.put(e.getKey().toUpperCase(Locale.ROOT), v.toUpperCase(Locale.ROOT));
+            }
+        }
 
         Path snapshot = snapshotPath(key);
         if (!Files.isRegularFile(snapshot)) {
@@ -202,6 +251,9 @@ public class Oecd4BrowseService {
                         continue;
                     }
                     if (!matchesDimension(row, "UNIT_MEASURE", unit)) {
+                        continue;
+                    }
+                    if (!matchesAllExtraDimensions(row, extraFilters)) {
                         continue;
                     }
                     Map<String, Object> copy = new LinkedHashMap<>(row);
@@ -250,25 +302,31 @@ public class Oecd4BrowseService {
                     if (meas.isBlank()) {
                         continue;
                     }
-                    List<String> sig = List.of(
-                            meas,
-                            stringOrBlank(row.get("FREQ")).toUpperCase(Locale.ROOT),
-                            stringOrBlank(row.get("ACTIVITY")),
-                            stringOrBlank(row.get("ADJUSTMENT")),
-                            stringOrBlank(row.get("UNIT_MEASURE")));
+                    List<String> dimKeys = dimensionKeys(row);
+                    List<String> sig = new ArrayList<>(dimKeys.size());
+                    for (String k : dimKeys) {
+                        sig.add(k + "=" + stringOrBlank(row.get(k)).toUpperCase(Locale.ROOT));
+                    }
                     if (!seen.add(sig)) {
                         continue;
                     }
-                    String name = seriesDisplayName(row);
+                    // MEASURE a FREQ mají už dnes vlastní, pevnou pozici v set_id/query_params
+                    // (zpětná kompatibilita s `InMemorySourceBuilder.buildOecd4Offline`, které
+                    // set_id parsuje po pozicích parts[1..4] - viz komentář u seriesSetId) -
+                    // "extra" jsou jen ZBYLÉ dimenze, cokoli navíc, podle skutečného datasetu.
+                    List<String> extraDimKeys = new ArrayList<>(dimKeys);
+                    extraDimKeys.remove("MEASURE");
+                    extraDimKeys.remove("FREQ");
+                    String name = seriesDisplayName(row, extraDimKeys);
                     Map<String, Object> set = new LinkedHashMap<>();
-                    set.put("set_id", seriesSetId(ds.key(), refArea, row));
+                    set.put("set_id", seriesSetId(ds.key(), refArea, row, extraDimKeys));
                     set.put("name", name);
                     set.put("kind", "selection");
                     set.put("item_kind", "selection");
                     set.put("territory", refAreaLabel(refArea, refArea));
                     set.put("oecd4_key", ds.key());
                     set.put("oecd4_ref_area", refArea);
-                    set.put("query_params", seriesQueryParams(ds, refArea, row));
+                    set.put("query_params", seriesQueryParams(ds, refArea, row, extraDimKeys));
                     set.put("oecd_browse_source", "oecd4_offline");
                     out.add(set);
                 }
@@ -448,41 +506,93 @@ public class Oecd4BrowseService {
         return BankIntelDataPaths.oecd4Dir().resolve(key + ".json");
     }
 
-    private static Map<String, Object> seriesQueryParams(Oecd4DatasetMeta ds, String refArea, Map<String, Object> row) {
+    private static Map<String, Object> seriesQueryParams(
+            Oecd4DatasetMeta ds, String refArea, Map<String, Object> row, List<String> extraDimKeys) {
         Map<String, Object> qp = new LinkedHashMap<>();
         qp.put("provider", "oecd4");
         qp.put("oecd4_key", ds.key());
         qp.put("oecd4_ref_area", refArea);
         qp.put("measure", row.get("MEASURE"));
         qp.put("freq", row.get("FREQ"));
-        if (row.get("ACTIVITY") != null) {
-            qp.put("activity", row.get("ACTIVITY"));
-        }
-        if (row.get("ADJUSTMENT") != null) {
-            qp.put("adjustment", row.get("ADJUSTMENT"));
-        }
         if (row.get("UNIT_MEASURE") != null) {
             qp.put("unit_measure", row.get("UNIT_MEASURE"));
+        }
+        // Zbylé dimenze podle skutečného datasetu (ACTIVITY/ADJUSTMENT u industry_services,
+        // SEX/AGE/LABOUR_FORCE_STATUS u employment_lfs, ...) - beze změny se ztratí přesně ty,
+        // co dřív appka tiše promíchávala. `previewRows` je čte zpátky stejnou dolní-case
+        // konvencí a filtruje podle nich stejně jako podle measure/freq/unit_measure.
+        for (String k : extraDimKeys) {
+            if ("UNIT_MEASURE".equals(k)) {
+                continue;
+            }
+            Object v = row.get(k);
+            if (v != null && !stringOrBlank(v).isBlank()) {
+                qp.put(k.toLowerCase(Locale.ROOT), v);
+            }
         }
         return qp;
     }
 
-    private static String seriesSetId(String key, String refArea, Map<String, Object> row) {
-        return "OECD4|" + key + "|" + refArea + "|" + stringOrBlank(row.get("MEASURE")) + "|"
-                + stringOrBlank(row.get("FREQ"));
+    /**
+     * MEASURE/FREQ zůstávají na svých dosavadních pozicích 3/4 - {@code InMemorySourceBuilder.
+     * buildOecd4Offline} set_id na tyhle pozice spoléhá, když rekonstruuje zdroj jen ze
+     * set_id bez uložených query_params (vzácná, ale reálná cesta). Zbylé rozlišující dimenze se
+     * jen PŘIDÁVAJÍ za ně jako "KLIC=hodnota" - dřívější minimální délka (`parts.length >= 5`,
+     * `CatalogPreviewSetIdSupport.oecdPreviewable`) zůstává splněná, jen se řetězec prodlouží.
+     */
+    private static String seriesSetId(String key, String refArea, Map<String, Object> row, List<String> extraDimKeys) {
+        StringBuilder sb = new StringBuilder("OECD4|")
+                .append(key).append('|')
+                .append(refArea).append('|')
+                .append(stringOrBlank(row.get("MEASURE"))).append('|')
+                .append(stringOrBlank(row.get("FREQ")));
+        for (String k : extraDimKeys) {
+            String v = stringOrBlank(row.get(k));
+            if (!v.isBlank()) {
+                sb.append('|').append(k).append('=').append(v);
+            }
+        }
+        return sb.toString();
     }
 
-    private static String seriesDisplayName(Map<String, Object> row) {
-        String measureLabel = stringOrBlank(row.get("MEASURE_LABEL"));
-        if (!measureLabel.isBlank()) {
-            return measureLabel;
+    private static String seriesDisplayName(Map<String, Object> row, List<String> extraDimKeys) {
+        String base = stringOrBlank(row.get("MEASURE_LABEL"));
+        if (base.isBlank()) {
+            String measure = stringOrBlank(row.get("MEASURE"));
+            String freq = stringOrBlank(row.get("FREQ_LABEL"));
+            base = freq.isBlank() ? (measure.isBlank() ? "Series" : measure) : measure + " · " + freq;
         }
-        String measure = stringOrBlank(row.get("MEASURE"));
-        String freq = stringOrBlank(row.get("FREQ_LABEL"));
-        if (!freq.isBlank()) {
-            return measure + " · " + freq;
+        List<String> extras = new ArrayList<>();
+        for (String k : extraDimKeys) {
+            String code = stringOrBlank(row.get(k));
+            if (code.isBlank() || TOTAL_LIKE_DIMENSION_VALUES.contains(code.toUpperCase(Locale.ROOT))) {
+                continue;
+            }
+            String label = stringOrBlank(row.get(k + "_LABEL"));
+            extras.add(label.isBlank() ? code : label);
         }
-        return measure.isBlank() ? "Series" : measure;
+        return extras.isEmpty() ? base : base + " · " + String.join(" · ", extras);
+    }
+
+    /**
+     * Všechny SDMX dimenze reálně přítomné na řádku - schéma se dataset od datasetu liší (viz
+     * komentář u {@link #NON_DIMENSION_ROW_FIELDS}), takže se nevyjmenovává napevno, ale odvozuje
+     * z dat samotných. `_LABEL` varianty se vynechávají - to je jen zobrazovací název KE
+     * kódu, ne samostatná dimenze (obě by jinak zdvojily podpis i set_id).
+     */
+    private static List<String> dimensionKeys(Map<String, Object> row) {
+        List<String> keys = new ArrayList<>();
+        for (String k : row.keySet()) {
+            if (NON_DIMENSION_ROW_FIELDS.contains(k) || k.endsWith("_LABEL")) {
+                continue;
+            }
+            if (stringOrBlank(row.get(k)).isBlank()) {
+                continue;
+            }
+            keys.add(k);
+        }
+        Collections.sort(keys);
+        return keys;
     }
 
     private static String refAreaLabel(String code, String fallback) {
@@ -513,6 +623,15 @@ public class Oecd4BrowseService {
             }
         }
         return false;
+    }
+
+    private static boolean matchesAllExtraDimensions(Map<String, Object> row, Map<String, String> extraFilters) {
+        for (Map.Entry<String, String> e : extraFilters.entrySet()) {
+            if (!matchesDimension(row, e.getKey(), e.getValue())) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private static String firstNonBlank(Map<String, Object> map, String... keys) {

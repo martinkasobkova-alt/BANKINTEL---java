@@ -41,6 +41,16 @@ public class SearchV2SemanticValidator {
     private static final int BATCH_SIZE = 5;
     private static final int MAX_CANDIDATES_FOR_FALLBACK = 80;
     private static final long BATCH_TIMEOUT_MS = 20_000;
+    /**
+     * Jak dlouho platí rozhodnutí validátoru o jednom kandidátovi.
+     *
+     * Model použitý pro rerank je reasoning varianta a nerespektuje ani nulovou teplotu, ani seed —
+     * naměřeno: dva shodné dotazy nad stejnou zásobou kandidátů zahodily jednou 61 a podruhé 42
+     * položek, takže uživateli vycházela pokaždé jiná sada řad. Prompt je přitom plně určený
+     * plánem dotazu a kandidátem, takže se jeho verdikt dá zapamatovat. Tím se stejný dotaz začne
+     * chovat opakovatelně a ušetří se i většina latence (rerank byl 5-8 s z ~20 s).
+     */
+    private static final java.time.Duration DECISION_TTL = java.time.Duration.ofHours(6);
     private static final String PROMPT = loadPrompt();
 
     /** See {@code SearchV2QueryPlanner.PLANNER_PROMPT_VERSION} for the versioning rationale. */
@@ -48,6 +58,7 @@ public class SearchV2SemanticValidator {
 
     private final OpenAiClient openAiClient;
     private final ObjectMapper objectMapper;
+    private final cz.bankintel.search.v2.orchestration.SearchV2CacheService cacheService;
     private final SearchV2ConceptOntology conceptOntology;
     private final SearchV2ExactEntityScorer exactEntityScorer;
     private final SearchV2InstitutionalSectorRegistry institutionalSectorRegistry;
@@ -89,10 +100,25 @@ public class SearchV2SemanticValidator {
         List<String> errors = new ArrayList<>();
         String model = openAiClient.modelFor(OpenAiModelTask.RERANKER);
         int tokenEstimate = 0;
+
+        // Zapamatovaná rozhodnutí se do LLM neposílají znovu — viz DECISION_TTL.
+        String planSignature = planSignature(plan);
+        List<SearchCandidate> toAsk = new ArrayList<>();
+        int reusedCount = 0;
+        for (SearchCandidate candidate : candidates) {
+            SemanticDecision cached = cachedDecision(planSignature, candidate);
+            if (cached != null) {
+                out.add(cached);
+                reusedCount++;
+            } else {
+                toAsk.add(candidate);
+            }
+        }
+
         List<CompletableFuture<BatchOutcome>> pending = new ArrayList<>();
-        for (int i = 0; i < candidates.size(); i += BATCH_SIZE) {
+        for (int i = 0; i < toAsk.size(); i += BATCH_SIZE) {
             int batchIndex = i / BATCH_SIZE;
-            List<SearchCandidate> batch = List.copyOf(candidates.subList(i, Math.min(candidates.size(), i + BATCH_SIZE)));
+            List<SearchCandidate> batch = List.copyOf(toAsk.subList(i, Math.min(toAsk.size(), i + BATCH_SIZE)));
             try {
                 String prompt = buildUserPrompt(plan, batch);
                 tokenEstimate += prompt.length() / 4;
@@ -117,7 +143,11 @@ public class SearchV2SemanticValidator {
         for (CompletableFuture<BatchOutcome> future : pending) {
             BatchOutcome outcome = future.join();
             if (outcome.error() == null) {
-                out.addAll(enforceProvenStructuredConflicts(plan, outcome.candidates(), outcome.decisions()));
+                List<SemanticDecision> settled =
+                        enforceProvenStructuredConflicts(plan, outcome.candidates(), outcome.decisions());
+                settled = enforceLiteralIdentifierSurvival(plan, outcome.candidates(), settled);
+                rememberDecisions(planSignature, outcome.candidates(), settled);
+                out.addAll(settled);
                 batches.add(batchStat(
                         outcome.index(),
                         outcome.candidates().size(),
@@ -139,6 +169,12 @@ public class SearchV2SemanticValidator {
         }
         if (out.isEmpty()) {
             return fallback(plan, candidates, start, "unavailable", String.join("; ", errors));
+        }
+        // Pořadí rozhodnutí musí odpovídat pořadí kandidátů, ne tomu, co přišlo z cache dřív —
+        // jinak by se výsledky přeskládaly podle toho, co se náhodou zapamatovalo.
+        out = orderByCandidates(candidates, out);
+        if (reusedCount > 0) {
+            batches.add(Map.of("batch", "cache", "candidates", reusedCount, "reused", true));
         }
         return new ValidationResult(out, errors.isEmpty() ? "validated" : "partial", model, System.currentTimeMillis() - start, tokenEstimate, batches, errors);
     }
@@ -189,6 +225,53 @@ public class SearchV2SemanticValidator {
                     semanticConflicts.stream().distinct().toList(),
                     "Candidate rejected because structured catalog metadata contradicts an explicit query constraint.",
                     "reject"));
+        }
+        return reconciled;
+    }
+
+    /**
+     * Symmetric counterpart to {@link #enforceProvenStructuredConflicts} (which only escalates
+     * keep -&gt; drop): here, a candidate whose OWN series/dataset id verbatim-matches the
+     * resolved entity survives regardless of what the LLM decided - the reranker prompt itself
+     * says "no later deterministic semantic gate will override you", but a wrong LLM-invented
+     * query interpretation (live case: a bare dataset code like "naio_10_pyp1620" misread as
+     * "10-year yield") can otherwise drop the one candidate that is PROVABLY what the user asked
+     * for. Runs after {@link #enforceProvenStructuredConflicts} so a literal identity match is the
+     * final word, including the rare case where both would otherwise fire on the same candidate.
+     */
+    private List<SemanticDecision> enforceLiteralIdentifierSurvival(
+            SearchQueryPlan plan,
+            List<SearchCandidate> candidates,
+            List<SemanticDecision> decisions) {
+        if (plan == null || plan.entityResolution() == null) {
+            return decisions;
+        }
+        Map<String, SearchCandidate> bySeriesId = candidates.stream()
+                .collect(Collectors.toMap(SearchCandidate::seriesId, candidate -> candidate, (left, right) -> left));
+        List<SemanticDecision> reconciled = new ArrayList<>(decisions.size());
+        for (SemanticDecision decision : decisions) {
+            SearchCandidate candidate = bySeriesId.get(decision.seriesId());
+            if (candidate == null
+                    || decision.keepLike()
+                    || !exactEntityScorer.literalIdentifierMatches(plan.entityResolution(), candidate)) {
+                reconciled.add(decision);
+                continue;
+            }
+            List<String> matchedUserNeed = new ArrayList<>(
+                    decision.matchedUserNeed() == null ? List.of() : decision.matchedUserNeed());
+            if (!matchedUserNeed.contains("literal_identifier_match")) {
+                matchedUserNeed.add("literal_identifier_match");
+            }
+            reconciled.add(new SemanticDecision(
+                    decision.seriesId(),
+                    "keep",
+                    Math.max(decision.relevanceScore(), 0.9),
+                    Math.max(decision.confidence(), 0.9),
+                    matchedUserNeed.stream().distinct().toList(),
+                    decision.semanticConflicts(),
+                    "Candidate's own series/dataset id literally matches the resolved entity - kept regardless"
+                            + " of the semantic verdict.",
+                    "primary"));
         }
         return reconciled;
     }
@@ -1007,6 +1090,62 @@ public class SearchV2SemanticValidator {
 
     private static String safe(String value) {
         return value == null ? "" : value;
+    }
+
+    /** Podpis plánu dotazu — prompt je jím plně určený, takže stačí na klíč cache. */
+    private String planSignature(SearchQueryPlan plan) {
+        try {
+            return sha256Hex(objectMapper.writeValueAsString(plan.toMap()));
+        } catch (Exception ex) {
+            return sha256Hex(String.valueOf(plan.originalQuery()));
+        }
+    }
+
+    private static String decisionKey(String planSignature, SearchCandidate candidate) {
+        return "semval:" + RERANKER_PROMPT_VERSION + ":" + planSignature + ":"
+                + candidate.source() + ":" + candidate.seriesId();
+    }
+
+    private SemanticDecision cachedDecision(String planSignature, SearchCandidate candidate) {
+        Object cached = cacheService.get(decisionKey(planSignature, candidate)).orElse(null);
+        return cached instanceof SemanticDecision decision ? decision : null;
+    }
+
+    private void rememberDecisions(
+            String planSignature, List<SearchCandidate> candidates, List<SemanticDecision> decisions) {
+        Map<String, SearchCandidate> byId = new LinkedHashMap<>();
+        for (SearchCandidate candidate : candidates) {
+            byId.put(candidate.seriesId(), candidate);
+        }
+        for (SemanticDecision decision : decisions) {
+            SearchCandidate candidate = byId.get(decision.seriesId());
+            if (candidate != null) {
+                cacheService.put(decisionKey(planSignature, candidate), DECISION_TTL, decision);
+            }
+        }
+    }
+
+    /** Seřadí rozhodnutí podle pořadí kandidátů; co k žádnému nepatří, jde na konec. */
+    private static List<SemanticDecision> orderByCandidates(
+            List<SearchCandidate> candidates, List<SemanticDecision> decisions) {
+        Map<String, SemanticDecision> byId = new LinkedHashMap<>();
+        for (SemanticDecision decision : decisions) {
+            byId.putIfAbsent(decision.seriesId(), decision);
+        }
+        List<SemanticDecision> ordered = new ArrayList<>();
+        Set<String> used = new HashSet<>();
+        for (SearchCandidate candidate : candidates) {
+            SemanticDecision decision = byId.get(candidate.seriesId());
+            if (decision != null && used.add(candidate.seriesId())) {
+                ordered.add(decision);
+            }
+        }
+        for (SemanticDecision decision : decisions) {
+            if (used.add(decision.seriesId())) {
+                ordered.add(decision);
+            }
+        }
+        return ordered;
     }
 
     private String buildUserPrompt(SearchQueryPlan plan, List<SearchCandidate> candidates) throws Exception {

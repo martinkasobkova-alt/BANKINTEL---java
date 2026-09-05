@@ -7,7 +7,10 @@ export default function ExploreIndicatorCard({ item, checked, onToggle }) {
   const geo = geoScopeLabel(item);
   const badge = categoryBadge(item);
   const source = sourceLabel(item);
-  const score = Number(item.confidence_score ?? item.score ?? 0);
+  // `confidence_score` není míra důvěry — je to buď syrové relevanční skóre fulltextu (v testech
+  // se objevují hodnoty 40 nebo 42, tedy mimo rozsah 0–1), nebo literál 0.7, když skóre chybí.
+  // V aplikaci žijí čtyři nesouměřitelné škály pod jedním názvem, takže číslo uživateli nic
+  // neříká a „skóre 0.70" vypadalo jako naměřená hodnota. Badge se proto nezobrazuje.
 
   return (
     <button
@@ -60,7 +63,6 @@ export default function ExploreIndicatorCard({ item, checked, onToggle }) {
           </span>
           <span className="block text-[11px] text-muted-foreground mt-0.5">
             <span className="font-medium text-slate-600">Zdroj:</span> {source}
-            {Number.isFinite(score) ? ` · skóre ${score.toFixed(2)}` : ""}
           </span>
           {item.selection_reason ? (
             <span className="block text-[10px] text-slate-500 mt-1 line-clamp-2">{item.selection_reason}</span>

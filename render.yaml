@@ -56,7 +56,37 @@ services:
     disk:
       name: bankintel-fts-index
       mountPath: /data
-      sizeGB: 20
+      # Naměřeno nad `data/` 2026-09-01, po přesunu mirror dat z referenčního Python repa:
+      #   catalog_search_indexes         11,8 GB   (z toho classic sqlite 8,9)
+      #   search_v2_sidecar              12,7 GB   (bez vector částí, viz níž)
+      #   oecd4 offline mirror            4,1 GB
+      #   ostatní JSON (macro snapshot,   1,2 GB
+      #     segment_series_assignments …)
+      #   mirror CSV (eba, eiopa, entsoe, 0,1 GB
+      #     gie, acea, financial_markets)
+      #   ---------------------------------------
+      #   nutné minimum                  29,9 GB
+      #
+      # K tomu vector-embedding-cache.sqlite + vector-lucene = 4,8 GB. Ty gatuje
+      # SEARCH_VECTOR_RETRIEVAL_ENABLED (SearchVectorProperties#enabled, default "false"),
+      # NE SEARCH_SEMANTIC_RETRIEVAL_ENABLED níž — to je jiný flag. Tady se nenastavuje,
+      # takže platí default false a těch 4,8 GB se nepoužije. Pozor: v dev .env je
+      # SEARCH_VECTOR_RETRIEVAL_ENABLED=true, takže prod hledá jinak než dev; kdo to tu
+      # zapne, připočte 4,8 GB (klid 34,7 GB, špička 43,6 GB).
+      #
+      # Noční přestavba indexu (02:30 UTC, ClassicCatalogFtsIndexBuilder) staví do
+      # `classic_catalog_search.tmp.sqlite` VEDLE stávajícího a teprve pak ho přejmenuje.
+      # Po dobu přestavby leží na disku obě kopie:
+      #   29,9 GB + 8,9 GB = 38,8 GB špička   (43,6 GB s vector částmi)
+      #
+      # Dřív tu bylo 20 GB, což nestačilo ani na klidový stav — instance padala právě v noci
+      # při té přestavbě. 60 GB drží špičku i s rezervou na růst indexu.
+      # Pozor: Render umí disk jen zvětšit, ne zmenšit.
+      #
+      # DŮLEŽITÉ: na `/data` musí být i mirror CSV a oecd4 — nejsou v gitu ani v Docker image.
+      # Kompletní seznam v backend-java/docs/DEPLOY_DATA.md; bez nich hlásí /api/health/platform
+      # mirrors_available < mirrors_total a Manager Explorer u těch zdrojů nic nenačte.
+      sizeGB: 60
 
 databases:
   - name: bankintel-db

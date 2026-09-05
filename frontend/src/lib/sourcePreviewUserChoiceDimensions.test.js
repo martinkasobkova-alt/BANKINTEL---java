@@ -19,6 +19,17 @@ describe("sourcePreviewUserChoiceDimensions", () => {
     ).toBe(true);
   });
 
+  it("exposes unit_measure/unit_mult/comp_breakdown for Data360 and OECD4, not just hides them as 'technical'", () => {
+    // Zivy nalez: tyhle ctyri pole mely realne, ruzne hodnoty u Data360 (World Bank) a
+    // unit_measure i u OECD4, ale byly na pevnem seznamu "vzdy skryte technicke" dimenze bez
+    // ohledu na to, kolik skutecnych hodnot mely - stejny druh chyby jako nace_r2 u Eurostatu.
+    expect(isUserSelectableDimensionKey("unit_measure", { optionCount: 4 })).toBe(true);
+    expect(isUserSelectableDimensionKey("unit_mult", { optionCount: 3 })).toBe(true);
+    expect(isUserSelectableDimensionKey("comp_breakdown_1", { optionCount: 5 })).toBe(true);
+    expect(isUserSelectableDimensionKey("comp_breakdown_2", { optionCount: 5 })).toBe(true);
+    expect(isUserSelectableDimensionKey("comp_breakdown_3", { optionCount: 5 })).toBe(true);
+  });
+
   it("hides cpa2_1 and ceparema from user choice", () => {
     expect(isUserSelectableDimensionKey("cpa2_1", { optionCount: 10 })).toBe(false);
     expect(isUserSelectableDimensionKey("ceparema", { optionCount: 5 })).toBe(false);
@@ -77,6 +88,34 @@ describe("sourcePreviewUserChoiceDimensions", () => {
     );
     expect(items).toHaveLength(1);
     expect(items[0].field).toBe("ind_use");
+    expect(items[0].label).toBe("Odvětví");
+  });
+
+  it("exposes nace_r2 for plain by-industry datasets, not just env/sbs ones", () => {
+    // Živě zjištěno: "nama_10_a64_e" (Employment by detailed industry, NACE Rev.2) mělo
+    // ve výběru zemi/ukazatel/jednotku, ale žádné odvětví - přestože nace_r2 v datasetu
+    // reálně existuje se 96 hodnotami. isIndustryDimensionSelectable dřív nace_r2 povolovala
+    // jen pro datasety odpovídající environmentálnímu vzoru (sbs_env/env_/cepa), takže tenhle
+    // úplně běžný "podle odvětví" dataset spadl skrz.
+    const items = buildUserChoiceDimensions(
+      {
+        nace_r2: {
+          sample_options: [
+            { code: "TOTAL", label: "Total" },
+            { code: "C", label: "Manufacturing" },
+          ],
+        },
+      },
+      {
+        datasetId: "nama_10_a64_e",
+        appliedFilters: { nace_r2: "TOTAL" },
+        selectableDimensions: [
+          { field: "nace_r2", options: [{ code: "TOTAL", label: "Total" }, { code: "C", label: "Manufacturing" }] },
+        ],
+      },
+    );
+    expect(items).toHaveLength(1);
+    expect(items[0].field).toBe("nace_r2");
     expect(items[0].label).toBe("Odvětví");
   });
 

@@ -60,10 +60,27 @@ export default function LoginModal() {
 
   const submitLogin = async (e) => {
     e.preventDefault();
+    // Nativní HTML5 validace (`type="email"` + `required`) odesílání jen tiše zablokuje —
+    // submitLogin se vůbec nespustil, loginErr zůstal prázdný a uživatel klikl na
+    // „Přihlásit se" bez jakékoli reakce. Formulář má proto noValidate a validujeme sami,
+    // aby chyba vždy skončila v `loginErr` a byla vidět.
+    setLoginErrorCode(null);
+    const emailValue = String(email || "").trim();
+    if (!emailValue) {
+      setLoginErr(t("auth.emailRequired"));
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailValue)) {
+      setLoginErr(t("auth.emailInvalid"));
+      return;
+    }
+    if (!password) {
+      setLoginErr(t("auth.passwordRequired"));
+      return;
+    }
     setLoginLoading(true);
     setLoginErr("");
-    setLoginErrorCode(null);
-    const r = await login(email, password);
+    const r = await login(emailValue, password);
     if (!r.ok) {
       setLoginErr(r.error);
       setLoginErrorCode(r.code || null);
@@ -271,7 +288,7 @@ export default function LoginModal() {
 
         <div className="overflow-y-auto flex-1 min-h-0">
           {tab === "login" ? (
-            <form onSubmit={submitLogin} className="p-5 sm:p-6 space-y-4">
+            <form onSubmit={submitLogin} noValidate className="p-5 sm:p-6 space-y-4">
               <p className="text-sm text-slate-600 leading-relaxed">{t("auth.loginIntro")}</p>
               <div>
                 <label className="text-[10px] uppercase tracking-[0.14em] font-medium text-slate-500">

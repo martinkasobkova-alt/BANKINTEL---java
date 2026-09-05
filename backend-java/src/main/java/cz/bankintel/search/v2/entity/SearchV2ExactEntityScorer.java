@@ -67,6 +67,35 @@ public class SearchV2ExactEntityScorer {
         return Math.min(1.0, best);
     }
 
+    /**
+     * Does this candidate's OWN literal series/dataset id exactly equal one of the resolved
+     * entity's symbols/exact terms - independent of {@code resolutionType}/confidence tier,
+     * unlike {@link #exactScore}. A candidate whose own id verbatim-matches what the query
+     * resolved to is proof of identity regardless of how confident the upstream resolver felt;
+     * used as a deterministic keep-override safety net (see {@code SearchV2SemanticValidator}),
+     * not for ranking, so it deliberately skips every fuzzy/partial-match branch {@link
+     * #exactScore} has (measure compatibility, return-type nuance, etc.) - those are ranking
+     * refinements, not identity proof.
+     */
+    public boolean literalIdentifierMatches(ExactEntityResolution resolution, SearchCandidate candidate) {
+        if (resolution == null || candidate == null) {
+            return false;
+        }
+        String seriesId = safe(candidate.seriesId());
+        String dataset = safe(candidate.dataset());
+        for (String symbol : resolution.symbols() == null ? List.<String>of() : resolution.symbols()) {
+            if (sameIdentifier(seriesId, symbol) || sameIdentifier(dataset, symbol)) {
+                return true;
+            }
+        }
+        for (String exact : resolution.exactTerms() == null ? List.<String>of() : resolution.exactTerms()) {
+            if (sameIdentifier(seriesId, exact) || sameIdentifier(dataset, exact)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private static double applyMeasureCompatibility(
             ExactEntityResolution resolution, SearchCandidate candidate, double score, String candidateText) {
         if (!"commodity".equalsIgnoreCase(resolution.entityType())

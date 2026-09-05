@@ -10,6 +10,7 @@ import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import cz.bankintel.explore.ExploreDtos.ExploreSectorRequest;
+import cz.bankintel.search.CatalogIndexStore;
 import cz.bankintel.search.openai.OpenAiClient;
 import cz.bankintel.service.research.WebResearchService;
 import java.util.List;
@@ -29,7 +30,7 @@ class ExploreSectorServiceWebResearchFallbackTest {
 
     private static ExploreSectorRequest request() {
         return new ExploreSectorRequest(
-                "banking", "question", "", "", "", null, null, "sector", false, false, false, false,
+                "banking", "question", "", List.of(), "", "", null, null, "sector", false, false, false, false,
                 List.of(), "strict_private", "auto", null, true);
     }
 
@@ -55,7 +56,8 @@ class ExploreSectorServiceWebResearchFallbackTest {
                 mock(ExplorePresetPreviewService.class),
                 mock(ExploreDiscoveryCache.class),
                 mock(Environment.class),
-                webResearchService);
+                webResearchService,
+                mock(CatalogIndexStore.class));
     }
 
     @Test

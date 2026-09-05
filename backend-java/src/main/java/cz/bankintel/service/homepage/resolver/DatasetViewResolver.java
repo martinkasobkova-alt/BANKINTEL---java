@@ -33,6 +33,12 @@ public class DatasetViewResolver {
     private static final int MAX_ROWS = 5000;
     private static final int PIVOT_MAX_ROWS = 50000;
     private static final int MAX_SERIES = 12;
+    /**
+     * Srovnání hodnot kreslí jeden sloupec za hodnotu, ne křivku — dvanáct je tam málo.
+     * ROE bank má 29 zemí, takže by strop pro časové řady dvě třetiny grafu uřízl.
+     * Náhled v katalogu povoluje v tomhle režimu 50 (SourcePreview crossSection), držíme se ho.
+     */
+    private static final int MAX_SERIES_CROSS_SECTION = 50;
 
     private static final Set<String> CHART_DEFAULT_TYPES = Set.of(
             "dataset_view",
@@ -142,7 +148,9 @@ public class DatasetViewResolver {
         String matchedDim = chartSeriesDim.isBlank() ? null : matchField(keyUnion, chartSeriesDim);
 
         if (matchedDim != null && keyUnion.contains(matchedDim)) {
-            return buildPivotChart(rows, cfg, title, datasetName, matchedDim, xField, yField, agg);
+            return "latest".equalsIgnoreCase(str(cfg.get("chart_data_mode")))
+                    ? buildCrossSectionChart(rows, cfg, title, datasetName, matchedDim, xField, yField, agg)
+                    : buildPivotChart(rows, cfg, title, datasetName, matchedDim, xField, yField, agg);
         }
 
         List<Map<String, Object>> chartRows = aggregateChartRows(rows, xField, yField, agg);
@@ -170,6 +178,10 @@ public class DatasetViewResolver {
                 dimValues.add(String.valueOf(val).trim());
             }
         }
+        dimValues = restrictToSelectedValues(dimValues, cfg.get("chart_series_dim_values"));
+
+        Set<String> keys = rowKeyUnion(rows);
+        String labelField = firstExisting(keys, dimField + "_label");
         List<Map<String, Object>> series = new ArrayList<>();
         int idx = 0;
         for (String dimValue : dimValues) {
@@ -183,10 +195,12 @@ public class DatasetViewResolver {
             if (chartRows.isEmpty()) {
                 continue;
             }
+            String seriesLabel = pivotSeriesLabel(dimRows, labelField, dimValue);
             Map<String, Object> seriesEntry = new LinkedHashMap<>();
             seriesEntry.put("key", "s" + idx);
-            seriesEntry.put("name", dimValue);
-            seriesEntry.put("label", dimValue);
+            seriesEntry.put("name", seriesLabel);
+            seriesEntry.put("label", seriesLabel);
+            seriesEntry.put("code", dimValue);
             seriesEntry.put("chart_type", str(cfg.get("chart_type")).isBlank() ? "line" : str(cfg.get("chart_type")));
             seriesEntry.put("y_axis", "left");
             seriesEntry.put("rows", chartRows);
@@ -202,6 +216,85 @@ public class DatasetViewResolver {
         out.put("series", series);
         out.put("rows", series.isEmpty() ? List.of() : series.getFirst().get("rows"));
         return out;
+    }
+
+    /**
+     * Srovnání hodnot — jeden sloupec za hodnotu dimenze, poslední dostupné období.
+     *
+     * Tvar je záměrně jednořadý a do {@code x} jde POPISEK hodnoty („Rakousko"), ne období.
+     * Přesně to čeká frontend v režimu {@code latest} — sloupec tabulky se tam jmenuje
+     * „Položka", ne „Období" (viz chartExportSanitize.periodColumnHeader).
+     *
+     * Bez téhle větve se na srovnání hodnot pouštěl pivot přes čas a vrátil 29 křivek přes
+     * 19 let. Uživatel si v náhledu naklikal sloupce za země, uložil to a na dashboardu
+     * nebylo nic — přesně tenhle případ.
+     */
+    private Map<String, Object> buildCrossSectionChart(
+            List<Map<String, Object>> rows,
+            Map<String, Object> cfg,
+            String title,
+            String datasetName,
+            String dimField,
+            String xField,
+            String yField,
+            String agg) {
+        Set<String> dimValues = new TreeSet<>();
+        for (Map<String, Object> row : rows) {
+            Object val = row.get(dimField);
+            if (val != null && !String.valueOf(val).isBlank()) {
+                dimValues.add(String.valueOf(val).trim());
+            }
+        }
+        dimValues = restrictToSelectedValues(dimValues, cfg.get("chart_series_dim_values"));
+
+        Set<String> keys = rowKeyUnion(rows);
+        String labelField = firstExisting(keys, dimField + "_label");
+
+        List<Map<String, Object>> bars = new ArrayList<>();
+        for (String dimValue : dimValues) {
+            if (bars.size() >= MAX_SERIES_CROSS_SECTION) {
+                break;
+            }
+            List<Map<String, Object>> dimRows = rows.stream()
+                    .filter(r -> dimValue.equals(String.valueOf(r.get(dimField)).trim()))
+                    .toList();
+            // aggregateChartRows řadí podle období vzestupně, takže poslední prvek je
+            // nejnovější údaj té země. Země, které pro poslední období data nemají,
+            // tím ukážou svůj poslední známý údaj místo aby ze srovnání vypadly.
+            List<Map<String, Object>> chartRows = aggregateChartRows(dimRows, xField, yField, agg);
+            if (chartRows.isEmpty()) {
+                continue;
+            }
+            Map<String, Object> latest = chartRows.getLast();
+            Map<String, Object> bar = new LinkedHashMap<>();
+            bar.put("x", pivotSeriesLabel(dimRows, labelField, dimValue));
+            bar.put("y", latest.get("y"));
+            bar.put("code", dimValue);
+            bar.put("period", latest.get("x"));
+            bars.add(bar);
+        }
+        sortCrossSectionBars(bars, str(cfg.get("chart_sort_order")));
+
+        Map<String, Object> out = basePayload(title, datasetName, "chart", cfg);
+        out.put("chart_series_dim", dimField);
+        out.put("chart_data_mode", "latest");
+        out.put("x_field", "x");
+        out.put("y_field", "y");
+        out.put("agg", agg);
+        out.put("rows", bars);
+        return out;
+    }
+
+    /** Řazení sloupců podle volby ve formuláři; {@code source} nechává pořadí dat/výběru. */
+    private static void sortCrossSectionBars(List<Map<String, Object>> bars, String sortOrder) {
+        Comparator<Map<String, Object>> byValue =
+                Comparator.comparingDouble(b -> b.get("y") instanceof Number n ? n.doubleValue() : 0d);
+        switch (sortOrder == null ? "" : sortOrder.toLowerCase(Locale.ROOT)) {
+            case "asc" -> bars.sort(byValue);
+            case "desc" -> bars.sort(byValue.reversed());
+            case "alpha" -> bars.sort(Comparator.comparing(b -> String.valueOf(b.get("x"))));
+            default -> { /* "source" i cokoliv neznámého: pořadí, v jakém to viděl uživatel */ }
+        }
     }
 
     @SuppressWarnings("unchecked")
@@ -348,8 +441,14 @@ public class DatasetViewResolver {
         List<Map<String, Object>> out = new ArrayList<>(rows);
         for (Map.Entry<?, ?> entry : filters.entrySet()) {
             String fldRaw = String.valueOf(entry.getKey());
-            String val = String.valueOf(entry.getValue()).trim();
-            if (val.isBlank()) {
+            // Filtr může nést i víc hodnot (výběr několika zemí). Dřív se seznam zřetězil na
+            // "[CZ, SK]", což se nerovnalo ničemu a vyfiltrovalo to všechny řádky — graf zmizel.
+            List<String> wanted = entry.getValue() instanceof Iterable<?>
+                    ? strList(entry.getValue())
+                    : (String.valueOf(entry.getValue()).trim().isBlank()
+                            ? List.of()
+                            : List.of(String.valueOf(entry.getValue()).trim()));
+            if (wanted.isEmpty()) {
                 continue;
             }
             String fld = matchField(keys, fldRaw);
@@ -362,7 +461,9 @@ public class DatasetViewResolver {
                     continue;
                 }
             }
-            out = out.stream().filter(r -> val.equals(String.valueOf(r.get(fld)).trim())).toList();
+            out = out.stream()
+                    .filter(r -> wanted.contains(String.valueOf(r.get(fld)).trim()))
+                    .toList();
             keys = rowKeyUnion(out);
         }
         return out;
@@ -481,6 +582,66 @@ public class DatasetViewResolver {
         }
         if (!str(cfg.get("frequency")).isBlank()) {
             out.put("frequency", str(cfg.get("frequency")));
+        }
+        return out;
+    }
+
+    /**
+     * Omezí hodnoty dimenze na to, co si uživatel vybral v náhledu ({@code chart_series_dim_values}).
+     *
+     * Bez tohohle kroku byl ten klíč mrtvý — zapisoval se při ukládání widgetu a nikdo ho nečetl,
+     * takže se graf vrátil ke "všem hodnotám" a strop MAX_SERIES z nich vzal prvních N abecedně.
+     * U 29 zemí to spolehlivě vybralo jiné země, než jaké si člověk zaškrtl.
+     *
+     * Zachovává pořadí výběru, ne abecedu — pořadí sloupců je součástí toho, co uživatel viděl.
+     * Když se nic netrefí (uložený výběr už v datech není), vrací původní množinu: prázdný graf
+     * je horší než graf se všemi hodnotami.
+     */
+    private static Set<String> restrictToSelectedValues(Set<String> available, Object rawSelection) {
+        List<String> requested = strList(rawSelection);
+        if (requested.isEmpty()) {
+            return available;
+        }
+        Set<String> allowed = new LinkedHashSet<>();
+        for (String wanted : requested) {
+            for (String candidate : available) {
+                if (candidate.equalsIgnoreCase(wanted)) {
+                    allowed.add(candidate);
+                }
+            }
+        }
+        return allowed.isEmpty() ? available : allowed;
+    }
+
+    /**
+     * Popisek série pivotu. Konektory ukládají ke každé dimenzi průvodní sloupec
+     * {@code <dimenze>_label} (viz EurostatJsonStatParser), takže vedle "AT" leží "Austria".
+     * Dokud se bral syrový kód, byla legenda seznam kódů a v grafu nešlo poznat, co je co.
+     */
+    private static String pivotSeriesLabel(List<Map<String, Object>> dimRows, String labelField, String fallback) {
+        if (labelField == null) {
+            return fallback;
+        }
+        for (Map<String, Object> row : dimRows) {
+            String label = str(row.get(labelField));
+            if (!label.isBlank() && !label.equalsIgnoreCase(fallback)) {
+                return label;
+            }
+        }
+        return fallback;
+    }
+
+    /** Seznam ne-prázdných textů z konfigurace; cokoliv jiného než kolekce je prázdný seznam. */
+    private static List<String> strList(Object raw) {
+        if (!(raw instanceof Iterable<?> items)) {
+            return List.of();
+        }
+        List<String> out = new ArrayList<>();
+        for (Object item : items) {
+            String value = str(item);
+            if (!value.isBlank()) {
+                out.add(value);
+            }
         }
         return out;
     }

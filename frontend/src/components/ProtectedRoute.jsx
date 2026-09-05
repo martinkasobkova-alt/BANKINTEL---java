@@ -2,6 +2,7 @@ import React from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
+import { useFeatureAccess } from "@/hooks/useFeatureAccess";
 
 function LoadingGate() {
   const { t } = useTranslation();
@@ -54,6 +55,18 @@ export function AuthRoute({ children }) {
   const { ready, user } = useAuth();
   if (!ready) return <LoadingGate />;
   if (!user || user === false) return <Navigate to="/" replace />;
+  return children;
+}
+
+/**
+ * Obecný guard podle pravidla v feature_access_rules — na rozdíl od AuthRoute/SubscriberRoute
+ * se neptá na roli, ale na úroveň nastavenou v adminu. Díky tomu jde stejná stránka pustit
+ * všem nebo zavřít za registraci bez zásahu do kódu.
+ */
+export function FeatureRoute({ children, feature, fallbackTo = "/" }) {
+  const { ready: featureReady, allowed } = useFeatureAccess(feature);
+  if (!featureReady) return <LoadingGate />;
+  if (!allowed) return <Navigate to={fallbackTo} replace />;
   return children;
 }
 

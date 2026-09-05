@@ -1,8 +1,12 @@
 package cz.bankintel.search;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -15,14 +19,17 @@ public class CatalogClassicSearchService {
 
     public Map<String, Object> search(Map<String, Object> payload) {
         String src = firstNonBlank(payload, "source", "catalog_id");
-        String query = firstNonBlank(payload, "query", "q");
+        String rawQuery = firstNonBlank(payload, "query", "q");
         int limit = parseLimit(payload.get("limit"), 50);
         String normalized = CatalogSourceRegistry.normalizeSearchSource(src);
+        String query = normalizeQuery(rawQuery);
 
         if (query.length() < 2) {
             return baseResponse(src, query, List.of(), "Zadejte alespoň 2 znaky.", false, properties.fredApiKeyConfigured());
         }
-        if (normalized.isBlank()) {
+        // normalizeSearchSource() neznámý zdroj nevyprázdní — bez téhle kontroly se
+        // hláška „Neznámý zdroj…" nikdy nezobrazila a uživatel dostal tiše 0 výsledků.
+        if (normalized.isBlank() || !CatalogSourceRegistry.isKnownSearchSource(normalized)) {
             return baseResponse(
                     src, query, List.of(), "Neznámý zdroj pro katalogové vyhledávání.", false, properties.fredApiKeyConfigured());
         }
@@ -77,6 +84,41 @@ public class CatalogClassicSearchService {
             }
         }
         return "";
+    }
+
+    /** Nejdelší dotaz, který ještě pouštíme do FTS — viz {@link #normalizeQuery(String)}. */
+    private static final int MAX_QUERY_CHARS = 200;
+
+    private static final int MAX_QUERY_TERMS = 24;
+
+    /**
+     * Sjednotí bílé znaky, zahodí opakované termy a ořízne délku.
+     *
+     * <p>Backend délku dotazu nijak neomezoval: 30× zopakované „míra inflace" (390 znaků)
+     * trvalo nad ČSÚ 15,4 s proti 10–530 ms u běžných dotazů. Každý opakovaný term prošel
+     * expanzí synonym a rozšířil FTS výraz, i když nepřidal žádnou informaci. Běžný dotaz
+     * (bez duplicit, do 200 znaků) projde beze změny.
+     */
+    static String normalizeQuery(String raw) {
+        String text = raw == null ? "" : raw.trim();
+        if (text.isEmpty()) {
+            return "";
+        }
+        List<String> terms = new ArrayList<>();
+        Set<String> seen = new LinkedHashSet<>();
+        for (String token : text.split("\\s+")) {
+            if (token.isBlank()) {
+                continue;
+            }
+            if (seen.add(token.toLowerCase(Locale.ROOT)) && terms.size() < MAX_QUERY_TERMS) {
+                terms.add(token);
+            }
+        }
+        String joined = String.join(" ", terms);
+        if (joined.length() > MAX_QUERY_CHARS) {
+            joined = joined.substring(0, MAX_QUERY_CHARS).trim();
+        }
+        return joined;
     }
 
     private static int parseLimit(Object raw, int defaultValue) {

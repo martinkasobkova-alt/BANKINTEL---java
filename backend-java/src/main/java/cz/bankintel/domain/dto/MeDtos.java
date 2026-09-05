@@ -117,6 +117,9 @@ public final class MeDtos {
         }
     }
 
+    /** KPI dlaždice osobní stránky — stejný tvar payloadu jako u /homepage/kpis. */
+    public record DashboardPageKpisRequest(List<Map<String, Object>> kpis) {}
+
     public record ReorderPagesRequest(@NotEmpty @JsonProperty("page_ids") List<String> pageIds) {}
 
     public record ReorderWidgetsRequest(

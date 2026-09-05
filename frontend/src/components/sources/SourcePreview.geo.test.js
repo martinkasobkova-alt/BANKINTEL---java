@@ -78,6 +78,16 @@ vi.mock("@/lib/rechartsTooltipShared", async (importOriginal) => ({
   mergeRechartsTooltipProps: (x) => x,
 }));
 
+// Živě zjištěno: rychlé ODVĚTVÍ menu teď na Eurostat datasetech samo dotahuje živou dostupnost
+// (viz applyLiveAvailabilityToDimensionOptions v SourcePreview.jsx) - beze mocku by šel skutečný
+// síťový POST. Výchozí prázdná odpověď nic neoznačí (žádný test kromě toho níže se na to nedívá);
+// konkrétní test si chování přepíše sám.
+const apiMocks = vi.hoisted(() => ({ post: vi.fn() }));
+vi.mock("@/lib/api", () => ({
+  __esModule: true,
+  default: { post: apiMocks.post },
+}));
+
 function flushMicrotasks() {
   return new Promise((resolve) => setTimeout(resolve, 0));
 }
@@ -280,6 +290,8 @@ describe("SourcePreview Eurostat filter UX", () => {
   beforeEach(() => {
     globalThis.IS_REACT_ACT_ENVIRONMENT = true;
     mounted = [];
+    apiMocks.post.mockReset();
+    apiMocks.post.mockResolvedValue({ data: {} });
   });
 
   afterEach(() => {
@@ -457,6 +469,64 @@ describe("SourcePreview Eurostat filter UX", () => {
     const filters = onDimensionFiltersApply.mock.calls[0][0];
     expect(filters.coicop).toBe("CP01");
     expect(filters.geo).toEqual(["AT", "NO"]);
+  });
+
+  test("marks a live-verified no-data value as disabled instead of letting the user pick it", async () => {
+    // Živě zjištěno na naio_10_pyp1620/CZ: ind_use=T (spárované s tehdejším cpa2_1) nemělo žádná
+    // data, ale rychlé ODVĚTVÍ menu to nijak neoznačilo - appka dovolila kombinaci vybrat naslepo.
+    apiMocks.post.mockImplementation((url, body) => {
+      if (String(url).includes("/dimension-availability") && body?.target_dimension === "ind_use") {
+        return Promise.resolve({
+          data: {
+            options: [{ code: "T" }, { code: "G45" }],
+            invalid_removed: ["T"],
+            complete: true,
+          },
+        });
+      }
+      return Promise.resolve({ data: {} });
+    });
+
+    const { container } = await mount({
+      dataset_id: "naio_10_pyp1620",
+      source: { source_type: "eurostat", name: "Obchodní a dopravní marže" },
+      rows: [{ TIME_PERIOD: "2023", GEO: "CZ", value: 1157.8 }],
+      fields: ["TIME_PERIOD", "GEO", "value"],
+      requested_filters: { geo: ["CZ"], ind_use: "G45" },
+      selectable_dimensions: [
+        {
+          field: "ind_use",
+          options: [
+            { value: "T", label: "Households as employers" },
+            { value: "G45", label: "Wholesale and retail trade" },
+          ],
+        },
+      ],
+      available_dimensions: {
+        geo: { values: [{ code: "CZ", label: "Czechia" }] },
+        ind_use: {
+          values: [
+            { code: "T", label: "Households as employers" },
+            { code: "G45", label: "Wholesale and retail trade" },
+          ],
+        },
+      },
+    }, { liveCatalogPreview: true, onDimensionFiltersApply: vi.fn() });
+
+    await act(async () => {
+      await flushMicrotasks();
+    });
+
+    const select = Array.from(container.querySelectorAll("select")).find((el) =>
+      Array.from(el.options || []).some((opt) => opt.value === "T"),
+    );
+    expect(select).toBeTruthy();
+    const optionT = Array.from(select.options).find((opt) => opt.value === "T");
+    const optionG45 = Array.from(select.options).find((opt) => opt.value === "G45");
+    expect(optionT.disabled).toBe(true);
+    expect(optionT.text).toContain("(bez dat)");
+    expect(optionG45.disabled).toBe(false);
+    expect(optionG45.text).not.toContain("(bez dat)");
   });
 
   test("uses dimension labels instead of technical indicator codes", async () => {

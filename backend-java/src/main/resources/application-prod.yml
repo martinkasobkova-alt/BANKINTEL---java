@@ -6,3 +6,8 @@ spring:
 server:
   error:
     include-message: never
+    # Bez tohohle záviselo, jestli se do runtime nedostane spring-boot-devtools — ten
+    # stacktrace do chybových JSONů zapíná. V produkci ho nechceme za žádných okolností.
+    include-stacktrace: never
+    include-binding-errors: never
+    include-exception: false

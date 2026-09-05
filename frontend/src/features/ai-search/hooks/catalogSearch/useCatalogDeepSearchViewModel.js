@@ -12,6 +12,7 @@ import {
   deepCandidateForDisplay,
   deepAiHasIndexProblemStatusRaw,
   deepCandidateHasUsablePreview,
+  withDistinctResultTitles,
 } from "@/lib/catalogGlobalSearchHelpers";
 import { normalizeCatalogSourceId } from "@/lib/catalogDefinitions";
 
@@ -171,7 +172,10 @@ export function useCatalogDeepSearchViewModel({
       else m.set(k, [c]);
     }
     return [...m.entries()]
-      .map(([k, rows]) => [k, sortDeepCandidatesByFinalRank(rows).slice(0, DEEP_DISPLAY_MAX_PER_SOURCE)])
+      .map(([k, rows]) => [
+        k,
+        withDistinctResultTitles(sortDeepCandidatesByFinalRank(rows).slice(0, DEEP_DISPLAY_MAX_PER_SOURCE)),
+      ])
       .sort((a, b) => {
         const ar = Number(a[1]?.[0]?.final_rank);
         const br = Number(b[1]?.[0]?.final_rank);
@@ -191,7 +195,10 @@ export function useCatalogDeepSearchViewModel({
       else m.set(k, [c]);
     }
     return [...m.entries()]
-      .map(([k, rows]) => [k, sortDeepCandidatesByFinalRank(rows).slice(0, DEEP_DISPLAY_MAX_PER_SOURCE)])
+      .map(([k, rows]) => [
+        k,
+        withDistinctResultTitles(sortDeepCandidatesByFinalRank(rows).slice(0, DEEP_DISPLAY_MAX_PER_SOURCE)),
+      ])
       .sort((a, b) => {
         const ar = Number(a[1]?.[0]?.final_rank);
         const br = Number(b[1]?.[0]?.final_rank);

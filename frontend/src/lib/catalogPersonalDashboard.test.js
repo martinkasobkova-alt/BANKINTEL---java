@@ -112,3 +112,79 @@ describe("buildExternalCatalogChartConfig", () => {
     expect(built.config.query_params?.geo).toBe("CZ");
   });
 });
+
+/**
+ * Co si uživatel nastavil v náhledu, to musí widget na dashboardu zopakovat.
+ *
+ * Kontext: v katalogovém náhledu šlo naklikat „sloupec za každou zemi", jenže při ukládání
+ * se posílala jen dimenze a hodnoty — a `chart_series_dim_values` navíc nikdo nečetl.
+ * Widget se proto vrátil k časové řadě přes všechny hodnoty a sloupce zmizely.
+ */
+describe("buildExternalCatalogChartConfig — přenos nastavení z náhledu", () => {
+  const def = { id: "eurostat", sourceType: "eurostat", label: "Eurostat" };
+  const row = { set_id: "tipsbd40", name: "Return on equity of banks" };
+  const preview = {
+    rows: [
+      { geo: "CZ", geo_label: "Česko", time: "2025", value: 15.3 },
+      { geo: "DE", geo_label: "Německo", time: "2025", value: 5.9 },
+    ],
+  };
+
+  test("srovnání hodnot se uloží jako sloupcový graf s posledním údajem", () => {
+    const built = buildExternalCatalogChartConfig(def, preview, row, null, {
+      displayMode: "bars_latest",
+      crossSectionDim: "geo",
+      crossSectionValues: ["CZ", "DE"],
+    });
+
+    expect(built.config.chart_data_mode).toBe("latest");
+    expect(built.config.chart_type).toBe("bar");
+    expect(built.config.chart_series_dim).toBe("geo");
+    expect(built.config.chart_series_dim_values).toEqual(["CZ", "DE"]);
+    // Jedna řada o N bodech, ne N řad — jinak legenda se všemi zeměmi sebere výšku grafu
+    // a na sloupce nezbude místo.
+    expect(built.config.chart_series_mode).toBeUndefined();
+    expect(built.config.chart_compare_with).toBeUndefined();
+  });
+
+  test("časová řada si nese vybranou dimenzi i vybrané hodnoty", () => {
+    const built = buildExternalCatalogChartConfig(def, preview, row, null, {
+      displayMode: "time_series",
+      seriesGroupDim: "geo",
+      seriesSelection: ["CZ", "DE"],
+    });
+
+    expect(built.config.chart_series_dim).toBe("geo");
+    expect(built.config.chart_series_dim_values).toEqual(["CZ", "DE"]);
+    expect(built.config.chart_data_mode).toBe("history");
+    expect(built.config.chart_type).toBe("line");
+  });
+
+  test("bez výběru hodnot se uloží jen dimenze — graf pak ukáže všechno", () => {
+    const built = buildExternalCatalogChartConfig(def, preview, row, null, {
+      displayMode: "time_series",
+      seriesGroupDim: "geo",
+      seriesSelection: [],
+    });
+
+    expect(built.config.chart_series_dim).toBe("geo");
+    expect(built.config.chart_series_dim_values).toBeUndefined();
+  });
+
+  test("výběr zemí přežije i když ho náhled v odpovědi nezopakuje", () => {
+    const built = buildExternalCatalogChartConfig(def, preview, row, null, {
+      displayMode: "time_series",
+      selectedGeo: ["CZ", "DE", "AT"],
+    });
+
+    expect(built.config.query_params.geo).toEqual(["CZ", "DE", "AT"]);
+  });
+
+  test("bez nastavení z náhledu zůstane konfigurace jako dřív", () => {
+    const built = buildExternalCatalogChartConfig(def, preview, row, null, null);
+
+    expect(built.config.chart_series_dim).toBeUndefined();
+    expect(built.config.chart_series_dim_values).toBeUndefined();
+    expect(built.config.chart_data_mode).toBe("history");
+  });
+});

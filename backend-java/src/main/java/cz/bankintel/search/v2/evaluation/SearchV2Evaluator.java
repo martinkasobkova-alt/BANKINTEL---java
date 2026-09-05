@@ -640,14 +640,14 @@ public class SearchV2Evaluator {
             Files.createDirectories(root.resolve("docs"));
             objectMapper.writerWithDefaultPrettyPrinter().writeValue(root.resolve("outputs/search_eval_v1_vs_v2.json").toFile(), report);
             Files.writeString(root.resolve("outputs/search_eval_v1_vs_v2.csv"), csv(report), StandardCharsets.UTF_8);
-            Files.writeString(root.resolve("docs/search_v2_evaluation_report.md"), markdown(report), StandardCharsets.UTF_8);
+            Files.writeString(root.resolve("docs/archive/search_v2_evaluation_report.md"), markdown(report), StandardCharsets.UTF_8);
             if (Boolean.TRUE.equals(report.get("diagnose_retrieval"))) {
                 Files.writeString(
                         root.resolve("outputs/search_v2_retrieval_diagnosis.csv"),
                         retrievalDiagnosisCsv(report),
                         StandardCharsets.UTF_8);
                 Files.writeString(
-                        root.resolve("docs/search_v2_retrieval_diagnosis.md"),
+                        root.resolve("docs/archive/search_v2_retrieval_diagnosis.md"),
                         retrievalDiagnosisMarkdown(report),
                         StandardCharsets.UTF_8);
             }
@@ -660,9 +660,9 @@ public class SearchV2Evaluator {
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("json", "outputs/search_eval_v1_vs_v2.json");
         out.put("csv", "outputs/search_eval_v1_vs_v2.csv");
-        out.put("markdown", "docs/search_v2_evaluation_report.md");
+        out.put("markdown", "docs/archive/search_v2_evaluation_report.md");
         out.put("retrieval_diagnosis_csv", "outputs/search_v2_retrieval_diagnosis.csv");
-        out.put("retrieval_diagnosis_markdown", "docs/search_v2_retrieval_diagnosis.md");
+        out.put("retrieval_diagnosis_markdown", "docs/archive/search_v2_retrieval_diagnosis.md");
         return out;
     }
 

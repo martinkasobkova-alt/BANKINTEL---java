@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Area,
   AreaChart,
@@ -69,6 +69,8 @@ function ChartTooltipBody(props) {
 }
 
 const BAR_CATEGORY_COLORS = DASHBOARD_SERIES_COLORS;
+/** Výška plochy grafu (px), pod kterou se popisky kategorií musí uskromnit. */
+const TIGHT_PLOT_HEIGHT = 150;
 
 export default function ChartRenderer({
   contract,
@@ -154,7 +156,11 @@ export default function ChartRenderer({
       }));
   }, [coloredLines, showTrendLine, useSingleSeriesRows]);
 
-  const showLegend = showLegendProp ?? (dataLines.length > 1 && sizeSpec.showLegendDefault);
+  // V režimu srovnání hodnot je každý sloupec kategorie, ne řada — a všechny kategorie
+  // jsou popsané na ose X. Legenda je tam jen opis té osy: u 27 zemí zabrala tolik místa,
+  // že na plochu grafu zbylo 77 pixelů a sloupce se neměly kam vykreslit.
+  const showLegend =
+    showLegendProp ?? (dataLines.length > 1 && sizeSpec.showLegendDefault && !useSingleSeriesRows);
   const legendLabels = useMemo(() => dataLines.map((line) => line.name), [dataLines]);
   const legendHeight = useMemo(
     () => estimateLegendHeight(legendLabels, { compact }),
@@ -193,14 +199,35 @@ export default function ChartRenderer({
     ? chartScrollMinWidth(nPoints, { compact, isBar: useBarChart, latestBarMode })
     : null;
 
+  /**
+   * Skutečná výška plochy grafu. Rozvržení osy si jinak bere pevný počet pixelů na
+   * nakloněné popisky bez ohledu na to, kolik místa graf má — ve widgetu na dashboardu
+   * pak 27 zemí spotřebovalo celou výšku a nevykreslil se ani jeden sloupec.
+   */
+  const plotBoxRef = useRef(null);
+  const [plotBoxHeight, setPlotBoxHeight] = useState(null);
+  useEffect(() => {
+    const node = plotBoxRef.current;
+    if (!node || typeof ResizeObserver === "undefined") return undefined;
+    const observer = new ResizeObserver((entries) => {
+      const h = entries[0]?.contentRect?.height;
+      if (Number.isFinite(h)) setPlotBoxHeight(h);
+    });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+  // Pod touhle hranicí už se nakloněné popisky a sloupce do plochy nevejdou zároveň.
+  const tightPlot = plotBoxHeight != null && plotBoxHeight < TIGHT_PLOT_HEIGHT;
+
   const plotMargins = useMemo(
     () =>
       computeChartPlotMargins({
         latestBarMode,
         compact,
         n: nPoints,
+        tight: tightPlot,
       }),
-    [latestBarMode, compact, nPoints]
+    [latestBarMode, compact, nPoints, tightPlot]
   );
 
   const barYAxisSpec = useMemo(() => {
@@ -287,8 +314,10 @@ export default function ChartRenderer({
     ? (singleSeriesRows?.length || 0) > 0
     : (dataWithTrends?.length || 0) > 0 && dataLines.length > 0;
 
-  const latestXProps = latestBarXTickProps({ n: nPoints, compact, latestBarMode });
-  const categoryLabelMax = categoryAxisLabelMax({ compact, n: nPoints, latestBarMode });
+  const latestXProps = latestBarXTickProps({ n: nPoints, compact, latestBarMode, tight: tightPlot });
+  const categoryLabelMax = tightPlot
+    ? Math.min(8, categoryAxisLabelMax({ compact, n: nPoints, latestBarMode }))
+    : categoryAxisLabelMax({ compact, n: nPoints, latestBarMode });
   const formatCategoryTick = (v) =>
     latestBarMode ? ellipsizeLabel(v, categoryLabelMax) : formatTimeAxisTick(v);
   const timeSeriesXTickProps = lineTimeSeriesTilt
@@ -548,6 +577,7 @@ export default function ChartRenderer({
 
   return (
     <div
+      ref={plotBoxRef}
       className={CHART_PLOT_CLASS}
       style={{ height: plotHeight === "100%" ? "100%" : plotHeight, minHeight: sizeSpec.plotMinHeight }}
     >

@@ -4,6 +4,7 @@
  */
 
 import { readOptionsFromDimensionMeta } from "@/lib/sourcePreviewDimensionMeta";
+import { pickAggregateOrFirst } from "@/lib/dimensionAggregateValue";
 
 const GEO_KEYS = new Set(["geo", "ref_area", "REF_AREA", "country", "territory", "refarea"]);
 const FREQ_KEYS = new Set(["freq", "frequency", "FREQ", "time_freq"]);
@@ -36,22 +37,18 @@ function normalizeDimensionValues(raw, meta) {
   return [];
 }
 
-/**
- * @param {string} field
- * @param {*} meta
- * @param {*} selected
- * @returns {import('./catalogDimensions').CatalogDimension}
- */
 export function buildCatalogDimension(field, meta = {}, selected = null) {
   const id = String(field || "").trim();
   const type = inferDimensionType(id);
   const values = normalizeDimensionValues(meta?.values, meta);
   const label =
     String(meta?.label || meta?.name || id).trim() || id;
+  // Souhrn misto prvniho v abecede - viz dimensionAggregateValue.js.
+  const fallbackId = pickAggregateOrFirst(values, (v) => [v?.id, v?.label])?.id ?? null;
   const selectedId =
     selected != null && String(selected).trim() !== ""
       ? String(selected).trim()
-      : values[0]?.id ?? null;
+      : fallbackId;
   return {
     id,
     label,
@@ -59,7 +56,7 @@ export function buildCatalogDimension(field, meta = {}, selected = null) {
     required: Boolean(meta?.required),
     selected: selectedId,
     values,
-    default_value: values[0]?.id ?? null,
+    default_value: fallbackId,
     source: String(meta?.source || "").trim() || null,
     is_geo: type === "geo",
     is_time: type === "time",

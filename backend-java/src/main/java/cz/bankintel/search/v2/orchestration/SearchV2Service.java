@@ -60,7 +60,12 @@ import org.springframework.stereotype.Service;
 public class SearchV2Service {
 
     private static final Logger log = LoggerFactory.getLogger(SearchV2Service.class);
-    private static final Duration PLAN_TTL = Duration.ofHours(1);
+    // Plan skladá jazykový model (SearchV2QueryPlanner); i s pevným seedem a teplotou 0 OpenAI
+    // nezaručuje bitově identický výstup napříč voláními, takže po vypršení cache mohl stejný
+    // dotaz vrátit jinou sadu výsledků - v praxi kdykoli po hodině neaktivity. Klíč teď nese i
+    // catalogVersion (viz plan(...)), takže reindex plán zneplatní sám; čas je jen záložní limit,
+    // proto může být dlouhý.
+    private static final Duration PLAN_TTL = Duration.ofDays(7);
     private static final Duration RETRIEVAL_TTL = Duration.ofMinutes(30);
     private static final Duration FINAL_TTL = Duration.ofMinutes(10);
     private static final String RETRIEVAL_CACHE_SCHEMA = "source-routing-v2";
@@ -307,7 +312,7 @@ public class SearchV2Service {
         boolean useAiPlanner = resolveUseAiPlanner(payload);
         boolean useAiReranker = resolveUseAiReranker(payload);
         boolean useAiStory = useAiPlanner && parseBoolean(payload.get("use_ai_story"), true);
-        SearchQueryPlan plan = plan(payload, query, useAiPlanner, noCache, trace);
+        SearchQueryPlan plan = plan(payload, query, useAiPlanner, noCache, trace, catalogVersion);
         trace.timing("planner_ms", System.currentTimeMillis() - planStart);
         trace.put("query_plan", plan.toMap());
         trace.put("llm_planner", plan.llmPlannerTrace());
@@ -378,6 +383,10 @@ public class SearchV2Service {
         trace.timing("select_rerank_pool_ms", System.currentTimeMillis() - selectRerankPoolStart);
         trace.put("select_rerank_pool_in_count", retrieval.candidates().size());
         trace.put("select_rerank_pool_out_count", rerankPool.size());
+        trace.put(
+                "rerank_pool_geo_conflicts_deprioritized",
+                retrieval.candidates().size()
+                        - prioritizeGeoEligible(retrieval.candidates(), plan, maxRerankCandidates()).size());
         int effectiveRerankPoolSize = rerankPool.size();
         SearchV2SemanticValidator.ValidationResult validation = rerank(plan, rerankPool, useAiReranker);
         List<SemanticDecision> semanticDecisions = validation.decisions();
@@ -991,6 +1000,7 @@ public class SearchV2Service {
         if (candidates == null || candidates.isEmpty() || limit <= 0) {
             return List.of();
         }
+        candidates = prioritizeGeoEligible(candidates, plan, limit);
         LinkedHashMap<String, SearchCandidate> selected = new LinkedHashMap<>();
         boolean ambiguousPlan = plan != null
                 && plan.clarification() != null
@@ -1028,6 +1038,59 @@ public class SearchV2Service {
             }
         }
         return selected.values().stream().limit(limit).toList();
+    }
+
+    /**
+     * Podíl rerank poolu, který smí obsadit kandidáti s prokazatelně nesedící geografií.
+     * Zbytek patří kandidátům, kteří geo dotazu neodporují.
+     */
+    private static final int GEO_CONFLICT_POOL_FRACTION = 5;
+
+    /**
+     * Seřadí kandidáty tak, aby ti, kdo geo dotazu neodporují, šli do rerank poolu první,
+     * a omezí, kolik z poolu smí zabrat prokazatelně nesedící geografie.
+     *
+     * <p>Naměřeno na „Ziskovost bank a objem úvěrů v ČR" (geo = CZ): do rerankeru šlo 240
+     * kandidátů a 231 jich zahodil s odůvodněním typu „Geography mismatch: Belgium vs
+     * requested Czech Republic" nebo „Explicitly Eurozóna (EA20), not Česká republika".
+     * Pool byl tedy z 96 % zaplněný řadami, které nemohly projít — a české řady, které projít
+     * měly, se do něj vůbec nevešly. Platilo se za ně promptem a měnilo se mezi běhy, které
+     * z nich reranker zahodí, což byl zdroj rozptylu ve výsledcích Manager Exploreru.
+     *
+     * <p><b>Záměrně to není tvrdý předfiltr.</b> {@code
+     * SearchV2ServiceRuntimeTest#geoEvidenceReachesSemanticDecisionWithoutPreLlmCandidateRemoval}
+     * drží dřívější rozhodnutí, že deterministická geo evidence je pro LLM POradní, ne
+     * rozhodující — aby špatný odhad země tiše nezabil dobrého kandidáta a aby funnel
+     * v {@code candidate_counts} zůstal poctivý. Strop se proto uplatní až tam, kde je
+     * kandidátů víc než {@link #GEO_CONFLICT_POOL_FRACTION}-krát strop poolu; malé pooly
+     * projdou beze změny a LLM u nich pořád vidí i nesedící kandidáty.
+     */
+    static List<SearchCandidate> prioritizeGeoEligible(
+            List<SearchCandidate> candidates, SearchQueryPlan plan, int limit) {
+        if (candidates == null || candidates.isEmpty() || plan == null || limit <= 0) {
+            return candidates == null ? List.of() : candidates;
+        }
+        List<String> geographies = plan.geographies();
+        if (geographies == null || geographies.isEmpty()) {
+            return candidates;
+        }
+        List<SearchCandidate> eligible = new ArrayList<>();
+        List<SearchCandidate> conflicting = new ArrayList<>();
+        for (SearchCandidate candidate : candidates) {
+            if (SearchV2GeoCompatibility.assessCandidateGeo(candidate, geographies, plan).hardConflict()) {
+                conflicting.add(candidate);
+            } else {
+                eligible.add(candidate);
+            }
+        }
+        // Nic k přeuspořádání, nebo by po omezení nezbylo nic — nechat tak, jak přišlo.
+        if (conflicting.isEmpty() || eligible.isEmpty()) {
+            return candidates;
+        }
+        int conflictBudget = Math.max(1, limit / GEO_CONFLICT_POOL_FRACTION);
+        List<SearchCandidate> ordered = new ArrayList<>(eligible);
+        ordered.addAll(conflicting.subList(0, Math.min(conflicting.size(), conflictBudget)));
+        return ordered;
     }
 
     private static void reserveAmbiguousBranchCoverage(
@@ -1106,10 +1169,13 @@ public class SearchV2Service {
     }
 
     private SearchQueryPlan plan(
-            Map<String, Object> payload, String query, boolean useAi, boolean noCache, SearchV2Trace trace) {
-        String key = "plan:" + cacheScope(payload) + ":ai=" + useAi + ":geo="
-                + normalized(CatalogMapSupport.firstNonBlank(payload.get("selected_geo"), payload.get("geo"), payload.get("country"), ""))
-                + ":" + normalized(query);
+            Map<String, Object> payload,
+            String query,
+            boolean useAi,
+            boolean noCache,
+            SearchV2Trace trace,
+            String catalogVersion) {
+        String key = planCacheKey(payload, query, useAi, catalogVersion);
         if (noCache) {
             trace.put("plan_cache_status", "bypassed");
             return planner.plan(payload);
@@ -1125,6 +1191,17 @@ public class SearchV2Service {
         }
         trace.put("plan_cache_status", "miss");
         return planned;
+    }
+
+    /**
+     * catalogVersion je v klici stejne jako u retrieval/final cache (viz {@code finalCacheKey},
+     * {@code retrievalCacheKey}) - kdyz se katalog prereindexuje, stary plan pro stejny dotaz uz
+     * nedostane cache hit sam od sebe, misto aby az hodinu (drivejsi PLAN_TTL) cekal na vyprseni.
+     */
+    static String planCacheKey(Map<String, Object> payload, String query, boolean useAi, String catalogVersion) {
+        return "plan:" + cacheScope(payload) + ":cv=" + catalogVersion + ":ai=" + useAi + ":geo="
+                + normalized(CatalogMapSupport.firstNonBlank(payload.get("selected_geo"), payload.get("geo"), payload.get("country"), ""))
+                + ":" + normalized(query);
     }
 
     private Map<String, Object> baseResponse(

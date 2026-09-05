@@ -53,15 +53,11 @@ export function industryMaxOptionCount() {
   return INDUSTRY_MAX_OPTIONS;
 }
 
-export function isIndustryDimensionSelectable(key, { datasetId = "", optionCount = 0 } = {}) {
+export function isIndustryDimensionSelectable(key, { optionCount = 0 } = {}) {
   const lk = dimKey(key);
   if (!INDUSTRY_DIMENSION_KEYS.includes(lk)) return false;
   if (optionCount < 2 || optionCount > INDUSTRY_MAX_OPTIONS) return false;
-  const ds = String(datasetId || "").toLowerCase();
-  if (lk === "ind_use") return true;
-  if (lk === "nace_r2" && /sbs_env|env_|_env|cepa/.test(ds)) return true;
-  if (lk === "nace_r1" && ds.startsWith("sbs_env")) return true;
-  return false;
+  return true;
 }
 
 /** V datasetu max. jedna dimenze odvětví (priorita NACE rev.2 > rev.1 > ind_use). */
@@ -123,7 +119,7 @@ export function applyIndustryLinkedFilters(queryParams, availableDimensions, dat
     if (cepa) out.ceparema = cepa;
   }
 
-  if (ds.startsWith("naio_10_cp") && !indUse) {
+  if ((ds.startsWith("naio_10_cp") || ds.startsWith("naio_10_pyp")) && !indUse) {
     out.ind_use = out.ind_use || "G45";
     const paired = pairedCpaFromIndUse(out.ind_use, availableDimensions);
     if (paired) out.cpa2_1 = paired;

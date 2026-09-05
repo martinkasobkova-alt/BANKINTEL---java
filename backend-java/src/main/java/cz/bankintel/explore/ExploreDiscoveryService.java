@@ -1,9 +1,13 @@
 package cz.bankintel.explore;
 
 import cz.bankintel.search.CatalogDeepSearchService;
+import cz.bankintel.search.CatalogSearchVariantDedup;
 import cz.bankintel.search.CatalogSourceRegistry;
+import cz.bankintel.search.model.CatalogMapSupport;
 import cz.bankintel.search.model.GeoIntentSnapshot;
 import cz.bankintel.search.v2.normalization.SearchResultCanonicalMetadataService;
+import cz.bankintel.search.v2.orchestration.SearchV2FeatureFlags;
+import cz.bankintel.search.v2.orchestration.SearchV2Service;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -33,6 +37,59 @@ public class ExploreDiscoveryService {
     private final CatalogDeepSearchService catalogDeepSearchService;
     private final ExploreDiscoveryCache discoveryCache;
     private final SearchResultCanonicalMetadataService canonicalMetadataService;
+    private final SearchV2FeatureFlags searchV2FeatureFlags;
+    private final SearchV2Service searchV2Service;
+
+    /**
+     * Manager Explorer hledal pořád přes V1 engine, i když je zapnuté {@code SEARCH_ENGINE_VERSION=v2}.
+     *
+     * <p>{@code CatalogController#deepSearch} volbu engine řeší přes {@link SearchV2FeatureFlags},
+     * ale discovery Exploreru volalo {@link CatalogDeepSearchService#deepSearch} natvrdo — takže
+     * uživatel viděl v katalogovém hledání jiné (a výrazně lepší) výsledky než v Exploreru pro
+     * úplně stejný dotaz. Naměřeno na „Ziskovost bank a objem úvěrů v ČR": stejný payload dal přes
+     * V2 osm ověřených řad (Bank's ROE/ROA for Czech Republic, ARAD rentabilita aktiv, čisté
+     * úrokové výnosy, úvěry), zatímco přes V1 skončil Explorer u dvou řad o objemu osobní
+     * a nákladní dopravy k HDP. Rozhoduje se tu stejně jako v controlleru, aby obě cesty
+     * nemohly znovu utéct od sebe.
+     */
+    private Map<String, Object> runDeepSearch(Map<String, Object> payload) {
+        return searchV2FeatureFlags.useV2(payload)
+                ? searchV2Service.search(withV2DiscoveryTuning(payload))
+                : catalogDeepSearchService.deepSearch(payload);
+    }
+
+    /**
+     * Doplní klíče, které dávají smysl jen pro Search V2. Záměrně se nepřidávají do
+     * {@link #buildPayload}: V1 si zdroje zužuje sám ({@code narrowSourcesForGeo}) a předat mu
+     * celý výchozí seznam by se tvářilo jako uživatelský filtr - viz {@code
+     * ExploreDiscoveryServiceTest#discoverRequestsNoAiStoryFromDeepSearch}.
+     *
+     * <p><b>limit + preview_mode:</b> V2 ověřuje živým náhledem nejvýš {@code MAX_PREVIEW_VERIFY = 8}
+     * kandidátů a ve výchozím režimu {@code full} zbytek ranku zahodí, takže {@code verified} byl
+     * zároveň celý výsledek. V {@code top_preview} zůstane ověřování stejné, ale zbytek se vrátí
+     * jako {@code possible} - naměřeno results 6 -> 24 (verified 6, possible 18), 11,4 s -> 8,0 s.
+     *
+     * <p><b>sources:</b> router V2 si pro tenhle dotaz sám zúžil výběr na čtyři zdroje
+     * ({@code ecb2, bis, imf, eurostat}), takže ARAD a ČSÚ - přesně ty s českými bankovními
+     * řadami - se vůbec nedotazovaly. Naměřeno na "Ziskovost bank a objem úvěrů v ČR":
+     * bez toho {@code lanes = ecb2:231, bis:0, imf:0, eurostat:0} (results 9),
+     * s tím {@code lanes = ecb2:227, arad:5, data360:24, …} (results 18).
+     */
+    private static Map<String, Object> withV2DiscoveryTuning(Map<String, Object> payload) {
+        Map<String, Object> tuned = new LinkedHashMap<>(payload);
+        boolean broader = Boolean.TRUE.equals(payload.get("broader_search"))
+                || CatalogMapSupport.toInt(payload.get("limit_per_source"), 6) > 6;
+        tuned.putIfAbsent("limit", broader ? 30 : 24);
+        tuned.putIfAbsent("preview_mode", "top_preview");
+        tuned.putIfAbsent("preview_top_n", 8);
+        tuned.putIfAbsent(
+                "sources",
+                CatalogSourceRegistry.EXPLORE_DISCOVERY_DEFAULT_SOURCES.stream()
+                        .map(CatalogSourceRegistry::normalizeSearchSource)
+                        .distinct()
+                        .toList());
+        return tuned;
+    }
 
     public IndicatorBundle discover(String question, String sector, boolean broaderSearch) {
         return discover(question, sector, broaderSearch, List.of());
@@ -59,7 +116,7 @@ public class ExploreDiscoveryService {
                     entry.sectorIndicators(), entry.macroIndicators(), entry.totalCandidates(), true,
                     System.currentTimeMillis() - t0, entry.computeTimeMs());
         }
-        Map<String, Object> result = catalogDeepSearchService.deepSearch(buildPayload(query, broaderSearch));
+        Map<String, Object> result = runDeepSearch(buildPayload(query, broaderSearch));
         IndicatorBundle bundle = buildIndicatorBundle(result, sector, query, resolvedCountryCodes);
         long computeTimeMs = System.currentTimeMillis() - t0;
         discoveryCache.put(
@@ -87,7 +144,7 @@ public class ExploreDiscoveryService {
             return IndicatorBundle.empty();
         }
         long t0 = System.currentTimeMillis();
-        Map<String, Object> result = catalogDeepSearchService.deepSearch(buildPayload(query, broaderSearch));
+        Map<String, Object> result = runDeepSearch(buildPayload(query, broaderSearch));
         IndicatorBundle bundle = buildIndicatorBundle(result, sector, query, resolvedCountryCodes);
         long computeTimeMs = System.currentTimeMillis() - t0;
         return bundle.withTiming(false, computeTimeMs, computeTimeMs);
@@ -226,14 +283,27 @@ public class ExploreDiscoveryService {
                     System.currentTimeMillis() - t0, entry.computeTimeMs());
         }
         Map<String, Integer> sourceCandidateCounts = new LinkedHashMap<>();
-        Map<String, Object> result = catalogDeepSearchService.deepSearchWithLanes(buildPayload(query, broaderSearch), lane -> {
-            String source = CatalogSourceRegistry.normalizeSearchSource(String.valueOf(lane.get("source")));
-            String phase = String.valueOf(lane.getOrDefault("phase", ""));
-            if ("catalog_index".equals(phase) || "catalog_sidecar_timeout_fallback".equals(phase)) {
-                sourceCandidateCounts.put(source, ((Number) lane.getOrDefault("count", 0)).intValue());
-            }
-            consumer.onLane(source, lane);
-        });
+        Map<String, Object> payload = buildPayload(query, broaderSearch);
+        Map<String, Object> result;
+        if (searchV2FeatureFlags.useV2(payload)) {
+            // V2 nemá per-lane callback (viz runDeepSearch). Postup zdrojů proto odvodíme
+            // z hotového výsledku — stejný tvar události, jaký už umí emitCachedLaneEvents.
+            // UI tím ztrácí průběžné odškrtávání zdrojů, ale dostane správná data; lane
+            // události stejně nikdy nenesly výsledky, jen postup.
+            result = searchV2Service.search(withV2DiscoveryTuning(payload));
+            sourceCandidateCounts.putAll(candidateCountsBySource(resultRows(result)));
+            sourceCandidateCounts.forEach((source, count) -> consumer.onLane(
+                    source, Map.of("source", source, "count", count, "phase", "catalog_index")));
+        } else {
+            result = catalogDeepSearchService.deepSearchWithLanes(payload, lane -> {
+                String source = CatalogSourceRegistry.normalizeSearchSource(String.valueOf(lane.get("source")));
+                String phase = String.valueOf(lane.getOrDefault("phase", ""));
+                if ("catalog_index".equals(phase) || "catalog_sidecar_timeout_fallback".equals(phase)) {
+                    sourceCandidateCounts.put(source, ((Number) lane.getOrDefault("count", 0)).intValue());
+                }
+                consumer.onLane(source, lane);
+            });
+        }
         IndicatorBundle bundle = buildIndicatorBundle(result, sector, query, resolvedCountryCodes);
         long computeTimeMs = System.currentTimeMillis() - t0;
         discoveryCache.put(
@@ -303,19 +373,38 @@ public class ExploreDiscoveryService {
         // Compatibility for entries created by callers that do not stream lane metadata.
         List<Map<String, Object>> all = new ArrayList<>(entry.sectorIndicators());
         all.addAll(entry.macroIndicators());
-        Map<String, Integer> countsBySource = new LinkedHashMap<>();
-        for (String source : DEFAULT_SOURCES.stream().map(CatalogSourceRegistry::normalizeSearchSource).distinct().toList()) {
-            countsBySource.put(source, 0);
-        }
-        for (Map<String, Object> row : all) {
-            String source = CatalogSourceRegistry.normalizeSearchSource(String.valueOf(row.get("source")));
-            countsBySource.merge(source, 1, Integer::sum);
-        }
-        for (Map.Entry<String, Integer> sourceCount : countsBySource.entrySet()) {
+        for (Map.Entry<String, Integer> sourceCount : candidateCountsBySource(all).entrySet()) {
             consumer.onLane(
                     sourceCount.getKey(),
                     Map.of("source", sourceCount.getKey(), "count", sourceCount.getValue(), "phase", "catalog_index"));
         }
+    }
+
+    /** Rows of a deep-search result, whichever engine produced it. */
+    @SuppressWarnings("unchecked")
+    private static List<Map<String, Object>> resultRows(Map<String, Object> result) {
+        List<Map<String, Object>> rows = new ArrayList<>();
+        rows.addAll((List<Map<String, Object>>) result.getOrDefault("verified", List.of()));
+        rows.addAll((List<Map<String, Object>>) result.getOrDefault("possible", List.of()));
+        return rows;
+    }
+
+    /**
+     * Per-source hit counts, seeded with 0 for every source Explorer asks about — a source with no
+     * event at all is reported as a timeout by {@code ExploreStreamService}, so "searched, found
+     * nothing" must still produce an event.
+     */
+    private static Map<String, Integer> candidateCountsBySource(List<Map<String, Object>> rows) {
+        Map<String, Integer> countsBySource = new LinkedHashMap<>();
+        for (String source : DEFAULT_SOURCES.stream().map(CatalogSourceRegistry::normalizeSearchSource).distinct().toList()) {
+            countsBySource.put(source, 0);
+        }
+        for (Map<String, Object> row : rows) {
+            String source = CatalogSourceRegistry.normalizeSearchSource(
+                    String.valueOf(row.getOrDefault("source", row.get("source_type"))));
+            countsBySource.merge(source, 1, Integer::sum);
+        }
+        return countsBySource;
     }
 
     private static Map<String, Object> buildPayload(String query, boolean broaderSearch) {
@@ -333,6 +422,15 @@ public class ExploreDiscoveryService {
         // phrases (e.g. "CAPEX výroby počítačů") cannot empty those lanes.
         payload.put("manager_discovery", true);
         payload.put("extra_index_probe_terms", ExploreManagerDiscoveryTerms.probeTermsFor(query));
+        // Bez tohohle vracel Explorer 1-7 ukazatelů podle formulace dotazu. Search V2 ověřuje
+        // živým náhledem nejvýš MAX_PREVIEW_VERIFY = 8 kandidátů a ve výchozím režimu "full"
+        // zahodí všechno ostatní, takže `verified` byl zároveň celý výsledek. V režimu
+        // "top_preview" zůstane ověřování stejné (těch 8 nejlepších), ale zbytek ranku se
+        // vrátí jako `possible` - buildIndicatorBundle je použije až po ověřených.
+        //
+        // Naměřeno na "Jak si vede bankovní sektor v Česku…": results 6 -> 24
+        // (verified 6, possible 18), a to o něco rychleji (11,4 s -> 8,0 s).
+        // V1 tyhle klíče ignoruje (reaguje jen na preview_mode=metadata_only).
         return payload;
     }
 
@@ -358,11 +456,34 @@ public class ExploreDiscoveryService {
         List<Map<String, Object>> verified = (List<Map<String, Object>>) result.getOrDefault("verified", List.of());
         @SuppressWarnings("unchecked")
         List<Map<String, Object>> possible = (List<Map<String, Object>>) result.getOrDefault("possible", List.of());
-        List<Map<String, Object>> merged = new ArrayList<>();
-        merged.addAll(verified);
-        for (Map<String, Object> row : possible) {
+        // Blízké duplikáty se konsolidují PŘED rozpočtem 12 míst, ne až po něm.
+        // Naměřeno na "Ziskovost bank a objem úvěrů v ČR": tři řádky se shodným názvem
+        // "měnové finanční instituce (banky)" (různé dataset_id) a dva "Banky - Výkaz zisku
+        // a ztráty" zabraly pět z dvanácti slotů, takže se do finálního setu nevešly úvěrové
+        // řady vůbec. Uživatel navíc viděl v seznamu dvakrát tentýž ukazatel.
+        //
+        // Konsoliduje se zvlášť ve `verified` a `possible`, aby si ověřené řady udržely
+        // přednost - consolidateDisplayRows uvnitř řadí podle skóre, takže jedno společné
+        // volání by nechalo vysoko skórující "possible" předběhnout "verified".
+        List<Map<String, Object>> merged =
+                new ArrayList<>(CatalogSearchVariantDedup.consolidateDisplayRows(verified));
+        if (merged.size() > 12) {
+            merged = new ArrayList<>(merged.subList(0, 12));
+        }
+        Set<String> mergedSignatures = new LinkedHashSet<>();
+        for (Map<String, Object> row : merged) {
+            String signature = CatalogSearchVariantDedup.displaySignature(row);
+            if (!signature.isBlank()) {
+                mergedSignatures.add(signature);
+            }
+        }
+        for (Map<String, Object> row : CatalogSearchVariantDedup.consolidateDisplayRows(possible)) {
             if (merged.size() >= 12) {
                 break;
+            }
+            String signature = CatalogSearchVariantDedup.displaySignature(row);
+            if (!signature.isBlank() && !mergedSignatures.add(signature)) {
+                continue;
             }
             merged.add(row);
         }
@@ -612,7 +733,10 @@ public class ExploreDiscoveryService {
         row.put("title", hit.getOrDefault("title", hit.get("name")));
         row.put("full_path", hit.get("full_path"));
         row.put("why_relevant", hit.get("why_relevant"));
-        row.put("manager_category", isSector ? "sector_indicators" : "macro_indicators");
+        // Makro řádek zůstává vlastní, samostatnou kategorií (nikdy se nepřeřazuje do jemné
+        // sekce); ne-makro řádek dostane jemnější zařazení (Leading/Náklady/Finance/Externí
+        // trhy/Rizika), kam podle obsahu patří - jinak zůstává obecný "sector_indicators".
+        row.put("manager_category", isSector ? ExploreManagerDiscoveryTerms.reportSectionFor(hit) : "macro_indicators");
         row.put("confidence_score", hit.getOrDefault("_search_score", 0.7));
         row.put("from_preset", false);
         row.put("sector_hint", sector);
@@ -623,7 +747,13 @@ public class ExploreDiscoveryService {
                 "canonical_metric_intents",
                 "geo_scope",
                 "sector_scope",
-                "canonical_metadata_provenance")) {
+                "canonical_metadata_provenance",
+                // Bez tohohle klíče mnohorozměrné zdroje (oecd4, data360, eurostat, imf, ecb) v
+                // Exploreru ztratily přesně ty parametry (measure/REF_AREA/DATABASE_ID/dimenze),
+                // které jejich konektor potřebuje k načtení KONKRÉTNÍ řady - stejný reálný
+                // katalogový hit, který normální hledání→graf používá už teď správně, tady
+                // dál posílal jen holé dataset_id/set_id.
+                "query_params")) {
             if (hit.containsKey(key)) {
                 row.put(key, hit.get(key));
             }

@@ -15,6 +15,12 @@ public final class ExploreDtos {
             String sector,
             String question,
             String country,
+            /**
+             * Alternativní tvar payloadu, který posílá část klientů. Dřív se tiše zahazoval
+             * (record ho neměl a {@code @JsonIgnoreProperties} ho spolkl), takže analýza
+             * na otázku „…v Česku?" proběhla pro celý svět a tvářila se správně.
+             */
+            @JsonProperty("countries") List<String> countries,
             @JsonProperty("geo_mode") String geoMode,
             String continent,
             @JsonProperty("related_segments") String relatedSegments,
@@ -36,6 +42,20 @@ public final class ExploreDtos {
             if (uploadIds == null) {
                 uploadIds = List.of();
             }
+            if (countries == null) {
+                countries = List.of();
+            }
+        }
+
+        /** {@code countries: ["CZ","SK"]} → {@code "CZ,SK"}, tedy tvar, kterému rozumí geo resolver. */
+        public String countriesAsCsv() {
+            return countries == null
+                    ? ""
+                    : countries.stream()
+                            .filter(c -> c != null && !c.isBlank())
+                            .map(String::trim)
+                            .reduce((a, b) -> a + "," + b)
+                            .orElse("");
         }
     }
 
@@ -77,6 +97,14 @@ public final class ExploreDtos {
             @JsonProperty("selected_series") List<ExploreSummarizeSeriesItem> selectedSeries,
             @JsonProperty("include_user_data") boolean includeUserData,
             @JsonProperty("upload_ids") List<String> uploadIds,
+            /**
+             * Chybělo úplně - frontend (`ExplorePage.jsx`) tenhle klíč posílal už dřív, ale bez
+             * odpovídajícího pole na recordu ho {@code @JsonIgnoreProperties(ignoreUnknown=true)}
+             * tiše zahodil. Přepínač „Strict private"/„Anonymní souhrny" tak pro skutečnou
+             * analýzu (na rozdíl od {@link ExploreSectorRequest}, který totéž pole má) neexistoval
+             * ani na papíře.
+             */
+            @JsonProperty("user_data_privacy_mode") String userDataPrivacyMode,
             @JsonProperty("fast_mode") boolean fastMode,
             @JsonProperty("summarize_mode") String summarizeMode) {
         public ExploreSummarizeRequest {
@@ -104,10 +132,22 @@ public final class ExploreDtos {
         private volatile String error;
         private volatile String errorCode;
         private final ExploreSummarizeRequest request;
+        private final String ownerUserId;
 
         public ExploreSummarizeJob(String jobId, ExploreSummarizeRequest request) {
+            this(jobId, request, null);
+        }
+
+        /**
+         * {@code ownerUserId} chybělo úplně - request.uploadIds()/includeUserData() appka sice
+         * přijala, ale bez vlastníka je neměla jak dohledat (SavedSeriesResolverService.
+         * resolvePoints vyžaduje userId), takže nahraná data se do detailní analýzy nikdy
+         * nedostala. Nový přebírá i asynchronní {@code runDetailJob}/{@code runJob}.
+         */
+        public ExploreSummarizeJob(String jobId, ExploreSummarizeRequest request, String ownerUserId) {
             this.jobId = jobId;
             this.request = request;
+            this.ownerUserId = ownerUserId;
         }
 
         public String getJobId() {
@@ -212,6 +252,10 @@ public final class ExploreDtos {
 
         public ExploreSummarizeRequest getRequest() {
             return request;
+        }
+
+        public String getOwnerUserId() {
+            return ownerUserId;
         }
     }
 

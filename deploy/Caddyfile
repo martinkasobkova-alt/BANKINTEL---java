@@ -1,0 +1,55 @@
+# Caddy stojí před vším: servíruje statický frontend a /api posílá na backend.
+#
+# Proč jeden origin: frontend se buildí s REACT_APP_PROD_SAME_ORIGIN_API=true, takže klient volá
+# /api na téže doméně (frontend/src/lib/api.js). Odpadá CORS i natvrdo zadaná adresa backendu
+# v bundlu — kdyby se doména změnila, nemusí se frontend znovu buildit.
+#
+# {$SITE_ADDRESS} nastavuje deploy/.env:
+#   SITE_ADDRESS=bankintel.cz     -> Caddy si sám vyřídí Let's Encrypt certifikát (HTTPS)
+#   SITE_ADDRESS=:80              -> jen HTTP, dokud doména nemíří na server
+# Bez domény nechte :80 a COOKIE_SECURE=false, jinak se přihlášení neuloží (secure cookie po HTTP
+# prohlížeč zahodí). Po nasměrování domény přepněte OBOJE najednou.
+
+{$SITE_ADDRESS} {
+	encode zstd gzip
+
+	# API musí být první — jinak by ho pohltil file_server níž.
+	handle /api/* {
+		reverse_proxy backend:8080 {
+			# Deep search a Manager Explorer běží v řádu desítek sekund; výchozí timeouty Caddy
+			# by je utnuly uprostřed odpovědi.
+			transport http {
+				response_header_timeout 300s
+				read_timeout 300s
+			}
+		}
+	}
+
+	# SSE stream (ExploreStreamService) — nesmí se bufferovat ani ukončit timeoutem.
+	handle /api/*/stream {
+		reverse_proxy backend:8080 {
+			flush_interval -1
+			transport http {
+				read_timeout 0
+			}
+		}
+	}
+
+	handle /actuator/health {
+		reverse_proxy backend:8080
+	}
+
+	# Statický frontend; SPA fallback na index.html, ať fungují přímé odkazy do aplikace.
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+
+	log {
+		output file /var/log/caddy/access.log {
+			roll_size 50MiB
+			roll_keep 5
+		}
+	}
+}

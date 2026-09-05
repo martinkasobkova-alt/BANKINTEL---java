@@ -19,6 +19,23 @@ import org.mockito.ArgumentCaptor;
 
 class EcbConnectorTest {
 
+    /**
+     * Uložený ECB zdroj (dashboard) žádné časové rozpětí neukládá, takže se uplatní default
+     * konektoru. S původními 120 pozorováními ukazoval graf u denní řady poslední ~4 měsíce,
+     * přestože náhled téže řady zobrazil celou historii (náhled si posílá 20 000 sám).
+     * Naměřeno na EXR/D.USD.EUR.SP00.A: 120 -> 120 řádků, 20 000 -> 7 144 řádků.
+     */
+    @Test
+    void savedSourceWithoutTimeRangeAsksForTheWholeHistory() throws Exception {
+        java.lang.reflect.Field field = EcbConnector.class.getDeclaredField("FULL_HISTORY_OBSERVATIONS");
+        field.setAccessible(true);
+        int observations = Integer.parseInt(String.valueOf(field.get(null)));
+
+        assertTrue(
+                observations >= 20_000,
+                "uložený zdroj musí dostat celou historii, ne posledních " + observations + " pozorování");
+    }
+
     @Test
     void fetchDoesNotSendInternalRoutingParamsToEcbApi() throws Exception {
         ConnectorHttpSupport http = mock(ConnectorHttpSupport.class);

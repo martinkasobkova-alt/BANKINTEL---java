@@ -1,0 +1,1075 @@
+{
+  "countries": {
+    "U2": {
+      "name": "Eurozóna (EA20)",
+      "eu": true,
+      "euro": true,
+      "cur": "EUR"
+    },
+    "U6": {
+      "name": "Evropská unie (EU27)",
+      "eu": true,
+      "euro": false,
+      "cur": "EUR"
+    },
+    "AT": {
+      "name": "Rakousko",
+      "eu": true,
+      "euro": true,
+      "cur": "EUR"
+    },
+    "BE": {
+      "name": "Belgie",
+      "eu": true,
+      "euro": true,
+      "cur": "EUR"
+    },
+    "BG": {
+      "name": "Bulharsko",
+      "eu": true,
+      "euro": false,
+      "cur": "BGN"
+    },
+    "CY": {
+      "name": "Kypr",
+      "eu": true,
+      "euro": true,
+      "cur": "EUR"
+    },
+    "CZ": {
+      "name": "Česká republika",
+      "eu": true,
+      "euro": false,
+      "cur": "CZK"
+    },
+    "DE": {
+      "name": "Německo",
+      "eu": true,
+      "euro": true,
+      "cur": "EUR"
+    },
+    "DK": {
+      "name": "Dánsko",
+      "eu": true,
+      "euro": false,
+      "cur": "DKK"
+    },
+    "EE": {
+      "name": "Estonsko",
+      "eu": true,
+      "euro": true,
+      "cur": "EUR"
+    },
+    "ES": {
+      "name": "Španělsko",
+      "eu": true,
+      "euro": true,
+      "cur": "EUR"
+    },
+    "FI": {
+      "name": "Finsko",
+      "eu": true,
+      "euro": true,
+      "cur": "EUR"
+    },
+    "FR": {
+      "name": "Francie",
+      "eu": true,
+      "euro": true,
+      "cur": "EUR"
+    },
+    "GR": {
+      "name": "Řecko",
+      "eu": true,
+      "euro": true,
+      "cur": "EUR"
+    },
+    "HR": {
+      "name": "Chorvatsko",
+      "eu": true,
+      "euro": true,
+      "cur": "EUR"
+    },
+    "HU": {
+      "name": "Maďarsko",
+      "eu": true,
+      "euro": false,
+      "cur": "HUF"
+    },
+    "IE": {
+      "name": "Irsko",
+      "eu": true,
+      "euro": true,
+      "cur": "EUR"
+    },
+    "IT": {
+      "name": "Itálie",
+      "eu": true,
+      "euro": true,
+      "cur": "EUR"
+    },
+    "LT": {
+      "name": "Litva",
+      "eu": true,
+      "euro": true,
+      "cur": "EUR"
+    },
+    "LU": {
+      "name": "Lucembursko",
+      "eu": true,
+      "euro": true,
+      "cur": "EUR"
+    },
+    "LV": {
+      "name": "Lotyšsko",
+      "eu": true,
+      "euro": true,
+      "cur": "EUR"
+    },
+    "MT": {
+      "name": "Malta",
+      "eu": true,
+      "euro": true,
+      "cur": "EUR"
+    },
+    "NL": {
+      "name": "Nizozemsko",
+      "eu": true,
+      "euro": true,
+      "cur": "EUR"
+    },
+    "PL": {
+      "name": "Polsko",
+      "eu": true,
+      "euro": false,
+      "cur": "PLN"
+    },
+    "PT": {
+      "name": "Portugalsko",
+      "eu": true,
+      "euro": true,
+      "cur": "EUR"
+    },
+    "RO": {
+      "name": "Rumunsko",
+      "eu": true,
+      "euro": false,
+      "cur": "RON"
+    },
+    "SE": {
+      "name": "Švédsko",
+      "eu": true,
+      "euro": false,
+      "cur": "SEK"
+    },
+    "SI": {
+      "name": "Slovinsko",
+      "eu": true,
+      "euro": true,
+      "cur": "EUR"
+    },
+    "SK": {
+      "name": "Slovensko",
+      "eu": true,
+      "euro": true,
+      "cur": "EUR"
+    },
+    "GB": {
+      "name": "Velká Británie",
+      "eu": false,
+      "euro": false,
+      "cur": "GBP"
+    },
+    "US": {
+      "name": "Spojené státy",
+      "eu": false,
+      "euro": false,
+      "cur": "USD"
+    },
+    "JP": {
+      "name": "Japonsko",
+      "eu": false,
+      "euro": false,
+      "cur": "JPY"
+    },
+    "CH": {
+      "name": "Švýcarsko",
+      "eu": false,
+      "euro": false,
+      "cur": "CHF"
+    },
+    "NO": {
+      "name": "Norsko",
+      "eu": false,
+      "euro": false,
+      "cur": "NOK"
+    }
+  },
+  "categories": {
+    "inflace": "Inflace a ceny",
+    "hdp": "HDP a ekonomický výkon",
+    "verejne_finance": "Veřejné finance",
+    "trh_prace": "Trh práce a mzdy",
+    "platebni_bilance": "Platební bilance a zahraniční obchod",
+    "uvery_vklady": "Úvěry, vklady a úrokové sazby",
+    "nemovitosti": "Trh nemovitostí",
+    "financni_trhy": "Finanční trhy a dluhopisy",
+    "penezni_zasoby": "Peněžní zásoby",
+    "podnikani": "Průmysl, obchod a podnikání",
+    "sentiment": "Průzkumy a sentiment"
+  },
+  "indicator_aliases": {
+    "mir_sazba_uvery_podniky": "sazba_uvery_podniky",
+    "corporate_loan_rate_new_business": "sazba_uvery_podniky",
+    "mir_corporate_loan_rate_new_business": "sazba_uvery_podniky",
+    "mortgage_rate_new_business": "sazba_hypoteky",
+    "mir_mortgage_rate_new_business": "sazba_hypoteky",
+    "household_deposit_rate_term": "sazba_vklady_domacnosti",
+    "mir_household_deposit_rate_term": "sazba_vklady_domacnosti",
+    "nfc_deposit_rate_term": "sazba_vklady_podniky",
+    "mir_nfc_deposit_rate_term": "sazba_vklady_podniky"
+  },
+  "indicators": {
+    "inflace_celkova": {
+      "name": "Inflace – celková (meziroční %)",
+      "unit": "% ročně",
+      "freq": "měsíčně",
+      "flow": "ICP",
+      "key": "M.{C}.N.000000.4.ANR",
+      "cat": "inflace",
+      "countries": null,
+      "note": "Harmonizovaný index spotřebitelských cen, roční změna"
+    },
+    "inflace_index": {
+      "name": "Inflace – index spotřebitelských cen",
+      "unit": "Index (2015 = 100)",
+      "freq": "měsíčně",
+      "flow": "ICP",
+      "key": "M.{C}.N.000000.4.INX",
+      "cat": "inflace",
+      "countries": null
+    },
+    "inflace_jadrova": {
+      "name": "Jádrová inflace – bez energie a potravin (meziroční %)",
+      "unit": "% ročně",
+      "freq": "měsíčně",
+      "flow": "ICP",
+      "key": "M.{C}.N.XEF000.4.ANR",
+      "cat": "inflace",
+      "countries": null,
+      "note": "HICP bez energie a potravin (COICOP XEF000)"
+    },
+    "inflace_energie": {
+      "name": "Inflace – energie (meziroční %)",
+      "unit": "% ročně",
+      "freq": "měsíčně",
+      "flow": "ICP",
+      "key": "M.{C}.N.045000.4.ANR",
+      "cat": "inflace",
+      "countries": null
+    },
+    "inflace_potraviny": {
+      "name": "Inflace – potraviny (meziroční %)",
+      "unit": "% ročně",
+      "freq": "měsíčně",
+      "flow": "ICP",
+      "key": "M.{C}.N.011000.4.ANR",
+      "cat": "inflace",
+      "countries": null
+    },
+    "inflace_sluzby": {
+      "hidden": true,
+      "name": "Inflace – služby (meziroční %)",
+      "unit": "% ročně",
+      "freq": "měsíčně",
+      "flow": "ICP",
+      "key": "M.{C}.N.SERVICES.4.ANR",
+      "cat": "inflace",
+      "countries": null
+    },
+    "inflace_zbozi": {
+      "name": "Inflace – průmyslové zboží bez energie (meziroční %)",
+      "unit": "% ročně",
+      "freq": "měsíčně",
+      "flow": "ICP",
+      "key": "M.{C}.N.IGXE00.4.ANR",
+      "cat": "inflace",
+      "countries": null
+    },
+    "ceny_vyrobcu": {
+      "name": "Ceny výrobců – průmysl (index)",
+      "unit": "Index",
+      "freq": "měsíčně",
+      "flow": "STBS",
+      "key": "M.{G}.N.PROD.NS0010.4D0.N.IX",
+      "cat": "inflace",
+      "countries": [
+        "U2",
+        "U6",
+        "LV",
+        "LT",
+        "ES",
+        "BG",
+        "RO",
+        "IT",
+        "HU",
+        "PT",
+        "PL",
+        "LU",
+        "SI",
+        "DK",
+        "AT",
+        "SE",
+        "GR",
+        "BE",
+        "FR",
+        "FI",
+        "IE",
+        "DE",
+        "CZ",
+        "NL",
+        "SK",
+        "CY",
+        "HR",
+        "EE",
+        "MT"
+      ],
+      "note": "ECB STBS: index průmyslu pro agregát eurozóny/EU (bez národní řady)"
+    },
+    "hdp_rust_mezirocni": {
+      "name": "HDP – reálný růst (meziroční %)",
+      "unit": "% ročně",
+      "freq": "čtvrtletně",
+      "flow": "MNA",
+      "key": "Q.Y.{C}.W2.S1.S1.B.B1GQ._Z._Z._Z.XDC.LR.G1",
+      "cat": "hdp",
+      "countries": null,
+      "note": "Meziroční růst reálného HDP (XDC.LR.G1, stejné čtvrtletí předchozího roku)"
+    },
+    "hdp_rust_ctvrtletni": {
+      "name": "HDP – reálný růst (čtvrtletní %, sezónně očištěno)",
+      "unit": "% k předchozímu čtvrtletí",
+      "freq": "čtvrtletně",
+      "flow": "MNA",
+      "key": "Q.Y.{C}.W2.S1.S1.B.B1GQ._Z._Z._Z.XDC.LR.GY",
+      "cat": "hdp",
+      "countries": null
+    },
+    "hdp_nominalni": {
+      "name": "HDP – nominální (miliony EUR)",
+      "unit": "Miliony EUR",
+      "freq": "čtvrtletně",
+      "flow": "MNA",
+      "key": "Q.N.{C}.W2.S1.S1.B.B1GQ._Z._Z._Z.EUR.V.N",
+      "cat": "hdp",
+      "countries": null
+    },
+    "hdp_deflator": {
+      "name": "HDP – deflátor (index)",
+      "unit": "Index",
+      "freq": "čtvrtletně",
+      "flow": "MNA",
+      "key": "Q.Y.{C}.W2.S1.S1.B.B1GQ._Z._Z._Z.IX.D.N",
+      "cat": "hdp",
+      "countries": null,
+      "note": "Implicitní cenový deflátor HDP"
+    },
+    "hdp_na_obyvatele": {
+      "hidden": true,
+      "name": "HDP na obyvatele – reálný (roční)",
+      "unit": "EUR (řetězené ceny)",
+      "freq": "ročně",
+      "flow": "AME",
+      "key": "1.1.0.0.RVGDP.{C}",
+      "cat": "hdp",
+      "countries": null
+    },
+    "spotreba_domacnosti": {
+      "name": "Spotřeba domácností – reálná (meziroční %)",
+      "unit": "% ročně",
+      "freq": "čtvrtletně",
+      "flow": "MNA",
+      "key": "Q.Y.{C}.W0.S1M.S1.D.P31._Z._Z._T.XDC.LR.G1",
+      "cat": "hdp",
+      "countries": null
+    },
+    "investice": {
+      "name": "Hrubé fixní investice – reálné (meziroční %)",
+      "unit": "% ročně",
+      "freq": "čtvrtletně",
+      "flow": "MNA",
+      "key": "Q.Y.{C}.W0.S1.S1.D.P51G.N11G._T._Z.XDC.LR.G1",
+      "cat": "hdp",
+      "countries": null
+    },
+    "vyvoz": {
+      "name": "Vývoz zboží a služeb – reálný (meziroční %)",
+      "unit": "% ročně",
+      "freq": "čtvrtletně",
+      "flow": "MNA",
+      "key": "Q.Y.{C}.W1.S1.S1.D.P6._Z._Z._Z.XDC.LR.G1",
+      "cat": "hdp",
+      "countries": null
+    },
+    "dovoz": {
+      "name": "Dovoz zboží a služeb – reálný (meziroční %)",
+      "unit": "% ročně",
+      "freq": "čtvrtletně",
+      "flow": "MNA",
+      "key": "Q.Y.{C}.W1.S1.S1.C.P7._Z._Z._Z.XDC.LR.G1",
+      "cat": "hdp",
+      "countries": null
+    },
+    "produktivita_prace": {
+      "name": "Produktivita práce (meziroční %)",
+      "unit": "% ročně",
+      "freq": "čtvrtletně",
+      "flow": "MNA",
+      "key": "Q.Y.{C}.W0.S1.S1._Z.LPR_PS._Z._T._Z.XDC.LR.G1",
+      "cat": "hdp",
+      "countries": null,
+      "note": "Produktivita práce na zaměstnance (reálná)"
+    },
+    "_jednotkove_naklady_ulc_index": {
+      "name": "Jednotkové náklady práce – index (interní)",
+      "unit": "Index",
+      "freq": "čtvrtletně",
+      "flow": "MNA",
+      "key": "Q.N.{C}.W2.S1.S1._Z.ULC_HW._Z._T._Z.XDC.D.N",
+      "cat": "hdp",
+      "countries": null,
+      "hidden": true
+    },
+    "jednotkove_naklady_prace": {
+      "hidden": true,
+      "name": "Jednotkové náklady práce (meziroční %)",
+      "unit": "% ročně",
+      "freq": "čtvrtletně",
+      "flow": "MNA",
+      "derive_yoy_from": "_jednotkove_naklady_ulc_index",
+      "cat": "hdp",
+      "countries": null,
+      "note": "Vypočteno z indexu jednotkových nákladů práce (ULC)"
+    },
+    "schodek_hdp": {
+      "name": "Schodek/přebytek státního rozpočtu (% HDP)",
+      "unit": "% HDP",
+      "freq": "čtvrtletně",
+      "flow": "GFS",
+      "key": "Q.N.{C}.W0.S13.S1._Z.B.B9._Z._Z._Z.XDC_R_B1GQ_CY._Z.S.V.CY._T",
+      "cat": "verejne_finance",
+      "countries": null,
+      "note": "Čisté půjčky/výpůjčky vládního sektoru (ESA2010)"
+    },
+    "dluh_hdp": {
+      "name": "Státní dluh (% HDP)",
+      "unit": "% HDP",
+      "freq": "čtvrtletně",
+      "flow": "GFS",
+      "key": "Q.N.{C}.W0.S13.S1.C.L.LE.F._Z._Z.XDC_R_B1GQ_CY._T.S.V.N._T",
+      "cat": "verejne_finance",
+      "countries": null,
+      "note": "Konsolidovaný hrubý dluh vládního sektoru"
+    },
+    "schodek_rocni": {
+      "hidden": true,
+      "name": "Schodek státního rozpočtu – roční (% HDP, EDP)",
+      "unit": "% HDP",
+      "freq": "ročně",
+      "flow": "EDP",
+      "key": "A.{C}.GD3",
+      "cat": "verejne_finance",
+      "countries": null,
+      "note": "Data z Excessive Deficit Procedure (Eurostat)"
+    },
+    "dluh_rocni": {
+      "hidden": true,
+      "name": "Státní dluh – roční (% HDP, EDP)",
+      "unit": "% HDP",
+      "freq": "ročně",
+      "flow": "EDP",
+      "key": "A.{C}.GD1",
+      "cat": "verejne_finance",
+      "countries": null
+    },
+    "vladni_vydaje": {
+      "hidden": true,
+      "name": "Vládní výdaje (% HDP)",
+      "unit": "% HDP",
+      "freq": "čtvrtletně",
+      "flow": "GFS",
+      "key": "Q.N.{C}.W0.S13.S1._Z.N.D.TE._Z._Z._Z.XDC_R_B1GQ._Z.S.V.N._T",
+      "cat": "verejne_finance",
+      "countries": null
+    },
+    "vladni_prijmy": {
+      "hidden": true,
+      "name": "Vládní příjmy (% HDP)",
+      "unit": "% HDP",
+      "freq": "čtvrtletně",
+      "flow": "GFS",
+      "key": "Q.N.{C}.W0.S13.S1._Z.N.C.TR._Z._Z._Z.XDC_R_B1GQ._Z.S.V.N._T",
+      "cat": "verejne_finance",
+      "countries": null
+    },
+    "vladni_prijmy_dane": {
+      "hidden": true,
+      "name": "Daňové příjmy vlády (% HDP)",
+      "unit": "% HDP",
+      "freq": "ročně",
+      "flow": "GFS",
+      "key": "A.N.{C}.W0.S13.S1._Z.N.C.D2._Z._Z._Z.XDC_R_B1GQ._Z.S.V.N._T",
+      "cat": "verejne_finance",
+      "countries": null
+    },
+    "vladni_vydaje_socialni": {
+      "hidden": true,
+      "name": "Výdaje na sociální ochranu (% HDP)",
+      "unit": "% HDP",
+      "freq": "ročně",
+      "flow": "E11",
+      "key": "A.{C}.S13._Z.TE.GF10._Z.XDC_R_B1GQ",
+      "cat": "verejne_finance",
+      "countries": null,
+      "note": "COFOG kategorie 10 – sociální ochrana"
+    },
+    "vladni_vydaje_zdravotnictvi": {
+      "hidden": true,
+      "name": "Výdaje na zdravotnictví (% HDP)",
+      "unit": "% HDP",
+      "freq": "ročně",
+      "flow": "E11",
+      "key": "A.{C}.S13._Z.TE.GF07._Z.XDC_R_B1GQ",
+      "cat": "verejne_finance",
+      "countries": null,
+      "note": "COFOG kategorie 7 – zdraví"
+    },
+    "vladni_vydaje_skolstvi": {
+      "hidden": true,
+      "name": "Výdaje na školství (% HDP)",
+      "unit": "% HDP",
+      "freq": "ročně",
+      "flow": "E11",
+      "key": "A.{C}.S13._Z.TE.GF09._Z.XDC_R_B1GQ",
+      "cat": "verejne_finance",
+      "countries": null,
+      "note": "COFOG kategorie 9 – vzdělávání"
+    },
+    "nezamestnanost": {
+      "name": "Míra nezaměstnanosti (%, 15–74 let)",
+      "unit": "% pracovní síly",
+      "freq": "měsíčně",
+      "flow": "LFSI",
+      "key": "M.{C}.S.UNEHRT.TOTAL0.15_74.T",
+      "cat": "trh_prace",
+      "countries": null,
+      "note": "Harmonizovaná míra, metodika ILO (Eurostat)"
+    },
+    "nezamestnanost_mladezi": {
+      "name": "Míra nezaměstnanosti mladých (%, 15–24 let)",
+      "unit": "% pracovní síly (15–24)",
+      "freq": "měsíčně",
+      "flow": "LFSI",
+      "key": "M.{C}.S.UNEHRT.TOTAL0.15_24.T",
+      "cat": "trh_prace",
+      "countries": null
+    },
+    "zamestnanost_rust": {
+      "name": "Zaměstnanost – meziroční růst (%)",
+      "unit": "% ročně",
+      "freq": "čtvrtletně",
+      "flow": "MNA",
+      "key": "Q.Y.{C}.W2.S1.S1._Z.EMP._Z._T._Z.PS._Z.GY",
+      "cat": "trh_prace",
+      "countries": null
+    },
+    "naklady_prace": {
+      "hidden": true,
+      "name": "Náklady práce na odpracovanou hodinu (index)",
+      "unit": "Index",
+      "freq": "čtvrtletně",
+      "flow": "LCI",
+      "key": "Q.{C}.X.B-S.T.TOTN.INX",
+      "cat": "trh_prace",
+      "countries": null,
+      "note": "Zahrnuje mzdy + ostatní náklady (sociální odvody)"
+    },
+    "volna_mista": {
+      "hidden": true,
+      "name": "Míra volných pracovních míst (%)",
+      "unit": "%",
+      "freq": "čtvrtletně",
+      "flow": "JVS",
+      "key": "Q.{C}.B-S_X_O.JOBRATE",
+      "cat": "trh_prace",
+      "countries": null
+    },
+    "sjednane_mzdy": {
+      "hidden": true,
+      "name": "Sjednané mzdy z kolektivních smluv (index)",
+      "unit": "Index",
+      "freq": "čtvrtletně",
+      "flow": "INW",
+      "key": "Q.{C}.W.D.NWG",
+      "cat": "trh_prace",
+      "countries": null,
+      "note": "Kolektivní vyjednávání — u zemí mimo eurozónu může ECB řadu nevrátit"
+    },
+    "nahrady_zamestnancum": {
+      "name": "Odměny zaměstnancům – celkem (miliony EUR)",
+      "unit": "Miliony EUR",
+      "freq": "ročně",
+      "flow": "MNA",
+      "key": "A.N.{C}.W2.S1.S1.D.D1._Z._T._Z.EUR.V.N",
+      "cat": "trh_prace",
+      "countries": null,
+      "note": "Kompenzace zaměstnancům: mzdy + sociální příspěvky zaměstnavatelů"
+    },
+    "bezny_ucet_hdp": {
+      "hidden": true,
+      "name": "Běžný účet platební bilance (% HDP)",
+      "unit": "% HDP",
+      "freq": "čtvrtletně",
+      "flow": "BPS",
+      "key": "Q.{C}.6.FA.S.1.CA.B6.B.EUR._T.Q.N",
+      "cat": "platebni_bilance",
+      "countries": null
+    },
+    "bezny_ucet_eur": {
+      "hidden": true,
+      "name": "Běžný účet platební bilance (miliony EUR)",
+      "unit": "Miliony EUR",
+      "freq": "měsíčně",
+      "flow": "BPS",
+      "key": "M.{C}.6.FA.S.1.CA.B6.B.EUR._T.M.N",
+      "cat": "platebni_bilance",
+      "countries": null
+    },
+    "obchodni_bilance_zbozi": {
+      "hidden": true,
+      "name": "Obchodní bilance – zboží (miliony EUR)",
+      "unit": "Miliony EUR",
+      "freq": "měsíčně",
+      "flow": "BPS",
+      "key": "M.{C}.6.FA.S.1.CA.G.B.EUR._T.M.N",
+      "cat": "platebni_bilance",
+      "countries": null
+    },
+    "obchodni_bilance_sluzby": {
+      "hidden": true,
+      "name": "Obchodní bilance – služby (miliony EUR)",
+      "unit": "Miliony EUR",
+      "freq": "měsíčně",
+      "flow": "BPS",
+      "key": "M.{C}.6.FA.S.1.CA.S.B.EUR._T.M.N",
+      "cat": "platebni_bilance",
+      "countries": null
+    },
+    "prime_zahranicni_investice": {
+      "hidden": true,
+      "name": "Přímé zahraniční investice – čisté přílivy (miliony EUR)",
+      "unit": "Miliony EUR",
+      "freq": "čtvrtletně",
+      "flow": "BPS",
+      "key": "Q.{C}.6.FA.S.1.KA.F.L.EUR.DI.M.N",
+      "cat": "platebni_bilance",
+      "countries": null
+    },
+    "devizove_rezervy": {
+      "hidden": true,
+      "name": "Devizové rezervy (miliony EUR)",
+      "unit": "Miliony EUR",
+      "freq": "měsíčně",
+      "flow": "RAS",
+      "key": "M.{C}.1RTOTR.T.A.I8.A.1.000",
+      "cat": "platebni_bilance",
+      "countries": null
+    },
+    "uvery_podniky": {
+      "name": "Úvěry podnikům od bank (miliony EUR)",
+      "unit": "Miliony EUR",
+      "freq": "měsíčně",
+      "flow": "BSI",
+      "key": "M.{C}.N.A.A20.A.1.{BSI_CP}.2240.Z01.E",
+      "cat": "uvery_vklady",
+      "countries": null,
+      "note": "Úvěry nefinančním podnikům od monetárních finančních institucí"
+    },
+    "uvery_domacnosti": {
+      "name": "Úvěry domácnostem od bank (miliony EUR)",
+      "unit": "Miliony EUR",
+      "freq": "měsíčně",
+      "flow": "BSI",
+      "key": "M.{C}.N.A.A20.A.1.{BSI_CP}.2250.Z01.E",
+      "cat": "uvery_vklady",
+      "countries": null
+    },
+    "hypoteky": {
+      "name": "Hypoteční úvěry domácnostem (miliony EUR)",
+      "unit": "Miliony EUR",
+      "freq": "měsíčně",
+      "flow": "BSI",
+      "key": "M.{C}.N.A.A22.A.1.{BSI_CP}.2250.Z01.E",
+      "cat": "uvery_vklady",
+      "countries": null,
+      "note": "Úvěry na bydlení (BSI: adjustment A22 = house purchase, item 2250)"
+    },
+    "spotrebitelske_uvery": {
+      "hidden": true,
+      "name": "Spotřebitelské úvěry domácnostem (miliony EUR)",
+      "unit": "Miliony EUR",
+      "freq": "měsíčně",
+      "flow": "BSI",
+      "key": "M.{C}.N.A.A20.A.1.{BSI_CP}.2251.Z01.E",
+      "cat": "uvery_vklady",
+      "countries": null
+    },
+    "vklady_domacnosti": {
+      "name": "Vklady domácností v bankách (miliony EUR)",
+      "unit": "Miliony EUR",
+      "freq": "měsíčně",
+      "flow": "BSI",
+      "key": "M.{C}.N.A.L20.A.1.{BSI_CP}.2250.Z01.E",
+      "cat": "uvery_vklady",
+      "countries": null
+    },
+    "vklady_podniky": {
+      "name": "Vklady podniků v bankách (miliony EUR)",
+      "unit": "Miliony EUR",
+      "freq": "měsíčně",
+      "flow": "BSI",
+      "key": "M.{C}.N.A.L20.A.1.{BSI_CP}.2240.Z01.E",
+      "cat": "uvery_vklady",
+      "countries": null
+    },
+    "sazba_uvery_podniky": {
+      "name": "Úroková sazba – nové úvěry podnikům (%)",
+      "unit": "% ročně",
+      "freq": "měsíčně",
+      "flow": "MIR",
+      "key": "M.{C}.B.A2A.A.R.A.2240.{CUR}.N",
+      "cat": "uvery_vklady",
+      "countries": null,
+      "note": "Průměrná sazba na nové úvěry nefinančním podnikům"
+    },
+    "sazba_hypoteky": {
+      "name": "Úroková sazba – nové hypotéky domácnostem (%)",
+      "unit": "% ročně",
+      "freq": "měsíčně",
+      "flow": "MIR",
+      "key": "M.{C}.B.A2C.A.R.A.2250.{CUR}.N",
+      "cat": "uvery_vklady",
+      "countries": null,
+      "note": "MIR: roční sjednaná sazba na nové úvěry domácnostem na bydlení"
+    },
+    "sazba_hypoteky_var": {
+      "name": "Úroková sazba – hypotéky variabilní / fixace do 1 roku (%)",
+      "unit": "% ročně",
+      "freq": "měsíčně",
+      "flow": "MIR",
+      "key": "M.{C}.B.A2C.F.R.A.2250.{CUR}.N",
+      "cat": "uvery_vklady",
+      "countries": [
+        "U2",
+        "AT",
+        "BE",
+        "BG",
+        "CY",
+        "DE",
+        "EE",
+        "ES",
+        "FI",
+        "FR",
+        "GR",
+        "HR",
+        "IE",
+        "IT",
+        "LT",
+        "LU",
+        "LV",
+        "MT",
+        "NL",
+        "PT",
+        "SI",
+        "SK"
+      ],
+      "note": "MIR: variabilní sazba u úvěrů na bydlení (2250); neeuro CZ/PL/HU/RO/SE/DK typicky nedostupné"
+    },
+    "sazba_spotrebitelske": {
+      "hidden": true,
+      "name": "Úroková sazba – nové spotřebitelské úvěry (%)",
+      "unit": "% ročně",
+      "freq": "měsíčně",
+      "flow": "MIR",
+      "key": "M.{C}.B.A2B.A.R.A.2250.{CUR}.N",
+      "cat": "uvery_vklady",
+      "countries": null
+    },
+    "sazba_vklady_domacnosti": {
+      "name": "Úroková sazba – vklady domácností (%)",
+      "unit": "% ročně",
+      "freq": "měsíčně",
+      "flow": "MIR",
+      "key": "M.{C}.B.L22.F.R.A.2250.{CUR}.N",
+      "cat": "uvery_vklady",
+      "countries": null
+    },
+    "sazba_vklady_podniky": {
+      "name": "Urokova sazba - vklady nefinancnich podniku (%)",
+      "unit": "% rocne",
+      "freq": "mesicne",
+      "flow": "MIR",
+      "key": "M.{C}.B.L22.F.R.A.2240.{CUR}.N",
+      "cat": "uvery_vklady",
+      "countries": null,
+      "note": "MIR: sazby terminovanych vkladu nefinancnich podniku"
+    },
+    "penezni_zasoba_m1": {
+      "hidden": true,
+      "name": "Peněžní zásoba M1 – oběživo a jednodenní vklady (miliony EUR)",
+      "unit": "Miliony EUR",
+      "freq": "měsíčně",
+      "flow": "BSI",
+      "key": "M.{C}.N.A.L21.A.1.{BSI_CP}.1000.Z01.E",
+      "cat": "penezni_zasoby",
+      "countries": null,
+      "note": "Nejlikvidnější část peněžní zásoby"
+    },
+    "penezni_zasoba_m2": {
+      "hidden": true,
+      "name": "Peněžní zásoba M2 (miliony EUR)",
+      "unit": "Miliony EUR",
+      "freq": "měsíčně",
+      "flow": "BSI",
+      "key": "M.{C}.N.A.L22.A.1.{BSI_CP}.1000.Z01.E",
+      "cat": "penezni_zasoby",
+      "countries": null
+    },
+    "penezni_zasoba_m3": {
+      "hidden": true,
+      "name": "Peněžní zásoba M3 (miliony EUR)",
+      "unit": "Miliony EUR",
+      "freq": "měsíčně",
+      "flow": "BSI",
+      "key": "M.{C}.N.A.L23.A.1.{BSI_CP}.1000.Z01.E",
+      "cat": "penezni_zasoby",
+      "countries": null,
+      "note": "Nejširší měnový agregát sledovaný ECB"
+    },
+    "penezni_zasoba_m3_rust": {
+      "hidden": true,
+      "name": "Peněžní zásoba M3 – meziroční růst (%)",
+      "unit": "% ročně",
+      "freq": "měsíčně",
+      "flow": "BSI",
+      "key": "M.{C}.N.A.L23.A.1.{BSI_CP}.1000.Z01.A",
+      "cat": "penezni_zasoby",
+      "countries": null
+    },
+    "ceny_bydleni": {
+      "name": "Ceny bytů a domů (index)",
+      "unit": "Index",
+      "freq": "čtvrtletně",
+      "flow": "RESR",
+      "key": "Q.{C}._T.N._TR.TVAL.4D0.TB.N.IX",
+      "cat": "nemovitosti",
+      "countries": null,
+      "note": "Nominální index, nové i existující nemovitosti (RESR, transaction value)"
+    },
+    "ceny_bydleni_rust": {
+      "name": "Ceny bytů a domů – meziroční změna (%)",
+      "unit": "% ročně",
+      "freq": "čtvrtletně",
+      "flow": "RESR",
+      "derive_yoy_from": "ceny_bydleni",
+      "cat": "nemovitosti",
+      "countries": null,
+      "note": "Vypočteno z indexu cen nemovitostí (ECB neposkytuje přímou RESR řadu RCH)"
+    },
+    "nadhodnoceni_nemovitosti": {
+      "name": "Nadhodnocení / podhodnocení nemovitostí (%)",
+      "unit": "%",
+      "freq": "pololetně",
+      "flow": "RESV",
+      "key": "Q.{C}._T.N._TR.RVMA.4F0._Z._Z.PT",
+      "cat": "nemovitosti",
+      "countries": null,
+      "note": "Průměr 4 metod; u některých zemí může chybět historie"
+    },
+    "zahajeni_vystavby": {
+      "name": "Zahájená výstavba bytů (počet, roční)",
+      "unit": "Počet jednotek",
+      "freq": "ročně",
+      "flow": "RESH",
+      "key": "A.{C}._T.N.NTR.HSTA.{C2}._Z.N._Z",
+      "cat": "nemovitosti",
+      "countries": null
+    },
+    "dokonceni_vystavby": {
+      "name": "Dokončená výstavba bytů (počet, roční)",
+      "unit": "Počet jednotek",
+      "freq": "ročně",
+      "flow": "RESH",
+      "key": "A.{C}._T.N.NTR.HCOM.{C2}._Z.N._Z",
+      "cat": "nemovitosti",
+      "countries": null
+    },
+    "vynosy_10let": {
+      "name": "Výnos státních dluhopisů – 10 let (%)",
+      "unit": "% ročně",
+      "freq": "měsíčně",
+      "flow": "IRS",
+      "key": "M.{C}.L.L40.CI.0000.{CUR}.N.Z",
+      "cat": "financni_trhy",
+      "countries": null,
+      "note": "Maastrichtská dlouhodobá sazba (IRS), měna dle země; mimo EU/G7 viz strukturální filtr"
+    },
+    "financni_stres": {
+      "name": "Index finančního stresu v zemi (0–1)",
+      "unit": "Index (0 = žádný stres, 1 = maximální stres)",
+      "freq": "měsíčně",
+      "flow": "CLIFS",
+      "key": "M.{C}._Z.4F.EC.CLIFS_CI.IDX",
+      "cat": "financni_trhy",
+      "countries": [
+        "AT",
+        "BE",
+        "BG",
+        "CY",
+        "CZ",
+        "DE",
+        "DK",
+        "EE",
+        "ES",
+        "FI",
+        "FR",
+        "GR",
+        "HR",
+        "HU",
+        "IE",
+        "IT",
+        "LT",
+        "LU",
+        "LV",
+        "MT",
+        "NL",
+        "PL",
+        "PT",
+        "RO",
+        "SE",
+        "SI",
+        "SK"
+      ],
+      "note": "CLIFS: composite index z akciového, dluhopisového a FX trhu"
+    },
+    "prumyslova_vyroba": {
+      "hidden": true,
+      "name": "Průmysl – přidaná hodnota (meziroční růst %)",
+      "unit": "% ročně",
+      "freq": "čtvrtletně",
+      "flow": "MNA",
+      "key": "Q.Y.{C}.W2.S1.S1.B.B1GQ._Z.BTE._Z.XDC.LR.G1",
+      "cat": "podnikani",
+      "countries": null,
+      "note": "Reálný růst hrubé přidané hodnoty průmyslu (B1GQ, XDC.LR.G1)"
+    },
+    "maloobchod": {
+      "name": "Spotřeba domácností – reálný růst (%)",
+      "unit": "% ročně",
+      "freq": "čtvrtletně",
+      "flow": "MNA",
+      "key": "Q.Y.{C}.W0.S1M.S1.D.P31._Z._Z._T.XDC.LR.G1",
+      "cat": "podnikani",
+      "countries": null,
+      "note": "Proxy: reálná spotřeba domácností (ECB nemá samostatnou řadu maloobchodu)"
+    },
+    "stavebni_vyroba": {
+      "hidden": true,
+      "name": "Stavebnictví – přidaná hodnota (meziroční růst %)",
+      "unit": "% ročně",
+      "freq": "čtvrtletně",
+      "flow": "MNA",
+      "key": "Q.Y.{C}.W2.S1.S1.B.B1G._Z.F._Z.XDC.LR.G1",
+      "cat": "podnikani",
+      "countries": null,
+      "note": "Reálný růst hrubé přidané hodnoty ve stavebnictví"
+    },
+    "registrace_aut": {
+      "name": "Registrace nových osobních aut (počet)",
+      "unit": "Počet vozidel",
+      "freq": "měsíčně",
+      "flow": "STS",
+      "key": "M.{C}.Y.CREG.PC0000.3.ABS",
+      "cat": "podnikani",
+      "countries": null,
+      "note": "Zdroj: ACEA / národní registrace (STS)"
+    },
+    "ekonomicka_nalada": {
+      "name": "Index ekonomické nálady (ESI)",
+      "unit": "Index (dlouhodobý průměr = 100)",
+      "freq": "měsíčně",
+      "flow": "RTD",
+      "key": "M.S0.S.Y_ESIND.F",
+      "cat": "sentiment",
+      "countries": [
+        "U2"
+      ],
+      "note": "Eurozóna – Real Time Database (národní řady v ECS již nejsou v API)"
+    }
+  },
+  "snapshot_keys": [
+    "inflace_celkova",
+    "hdp_rust_mezirocni",
+    "nezamestnanost",
+    "schodek_hdp",
+    "dluh_hdp",
+    "vynosy_10let",
+    "bezny_ucet_hdp",
+    "ceny_bydleni_rust",
+    "sazba_hypoteky",
+    "sazba_hypoteky_var"
+  ],
+  "stbs_geo_for_country": {
+    "U2": "I10",
+    "U6": "I9",
+    "LV": "I10",
+    "LT": "I10",
+    "ES": "I10",
+    "BG": "I10",
+    "RO": "I10",
+    "IT": "I10",
+    "HU": "I10",
+    "PT": "I10",
+    "PL": "I10",
+    "LU": "I10",
+    "SI": "I10",
+    "DK": "I10",
+    "AT": "I10",
+    "SE": "I10",
+    "GR": "I10",
+    "BE": "I10",
+    "FR": "I10",
+    "FI": "I10",
+    "IE": "I10",
+    "DE": "I10",
+    "CZ": "I10",
+    "NL": "I10",
+    "SK": "I10",
+    "CY": "I10",
+    "HR": "I10",
+    "EE": "I10",
+    "MT": "I10"
+  },
+  "sdmx_ref_area": {
+    "U6": "I9"
+  },
+  "bsi_counterpart_area": {
+    "DK": "U6"
+  },
+  "non_hicp_ref_areas": [
+    "CH",
+    "JP",
+    "NO",
+    "US"
+  ]
+}

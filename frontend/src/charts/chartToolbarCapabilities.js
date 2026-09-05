@@ -4,6 +4,7 @@
 
 import { CHART_TRANSFORM_TYPES, CHART_TYPES, TRANSFORM_MIN_PERIODS } from "./chartTypes";
 import { distinctSeriesUnits } from "./chartDataContract";
+import { parseChartPeriod } from "@/lib/chartPeriodParse";
 
 export const TOOLBAR_GROUPS = Object.freeze({
   VIEW: "view",
@@ -52,11 +53,23 @@ function countNumericSeries(contract) {
   return (contract.series || []).length;
 }
 
+/**
+ * Časová řada = většina období jde přeložit na datum.
+ *
+ * Dřív se testoval jen tvar `^\d{4}` / `Q\d`, což vyřadilo česká období z ČSÚ
+ * („prosinec 2024“) — řada se pak nevyhodnotila jako časová a v liště zůstalo
+ * jen `raw`, takže se celá skryla. `parseChartPeriod` česká období umí.
+ *
+ * Práh je potřeba proto, že `parseChartPeriod` vrátí datum pro cokoli se čtyřmi
+ * číslicemi; bez něj by se jako časová řada tvářily i kategorie („Praha 2020“).
+ */
 function isTimeSeries(contract) {
   const mode = contract.metadata?.data_mode;
   if (mode === "latest") return false;
-  const periods = (contract.data || []).map((pt) => pt.period);
-  return periods.some((p) => /^\d{4}|Q\d/i.test(String(p)));
+  const periods = [...new Set((contract.data || []).map((pt) => String(pt.period ?? "").trim()))].filter(Boolean);
+  if (periods.length < 2) return false;
+  const parsed = periods.filter((p) => parseChartPeriod(p) instanceof Date).length;
+  return parsed >= Math.ceil(periods.length * 0.8);
 }
 
 export function resolveToolbarCapabilities(contract, { chartType = CHART_TYPES.LINE } = {}) {

@@ -2,6 +2,7 @@ package cz.bankintel.sources.ecb;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import cz.bankintel.search.CatalogIndexStore;
 import jakarta.annotation.PostConstruct;
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -34,6 +35,10 @@ public class EcbSeriesAvailabilityService {
             "EXR", "ICP", "MIR", "BSI", "MNA", "BPS", "LFSI", "STBS", "GFS", "EDP", "FM", "BOP", "RESH", "RAS", "RTD",
             "E11", "LCI", "AME", "CBD2", "SEC");
 
+    // Dodatek pro 11 ICP polozkovych kodu bez specifickeho lidskeho nazvu presunut do sdilene
+    // EcbItemCodeHints (pouziva i CatalogIndexStore pro katalogove hledani, ne jen tenhle browse
+    // strom) - viz jeji javadoc pro puvod/historii tehle konstanty.
+
     private static final Map<String, String> FLOW_LABELS = Map.ofEntries(
             Map.entry("EXR", "Směnné kurzy"),
             Map.entry("ICP", "Inflace (HICP)"),
@@ -62,6 +67,7 @@ public class EcbSeriesAvailabilityService {
             Map.entry("E11", "Vládní výdaje"));
 
     private final ObjectMapper objectMapper;
+    private final CatalogIndexStore catalogIndexStore;
 
     @Getter
     private Map<String, Object> meta = Map.of();
@@ -222,19 +228,36 @@ public class EcbSeriesAvailabilityService {
         String letterKey = letter != null && !letter.isBlank() ? normalizeLetterBucket(letter) : "";
         List<Map<String, Object>> rows = new ArrayList<>();
         String pathSuffix = letterKey.isBlank() ? "" : " > " + letterKey;
+
+        List<EcbReference.Parsed> parsedRefs = new ArrayList<>();
         for (String setId : setIds) {
             EcbReference.Parsed ref = EcbReference.parseSetId(setId);
-            if (ref == null || !ref.validPreviewTarget()) {
-                continue;
+            if (ref != null && ref.validPreviewTarget()) {
+                parsedRefs.add(ref);
             }
+        }
+        // Appka uz davno ma pro tyhle rady lidsky nazev indexovany v catalog_rows_lookup (stejna
+        // data, co pouziva klasicke hledani) - jeden davkovy dotaz na cely seznam, ne per-radek.
+        Map<String, Map<String, Object>> enrichedBySetId =
+                lookupEnrichedRows(parsedRefs.stream().map(EcbReference.Parsed::setIdCompat).distinct().toList());
+
+        for (EcbReference.Parsed ref : parsedRefs) {
             Map<String, Object> qp = new LinkedHashMap<>();
             qp.put("ecb_flow", ref.flowRef());
             qp.put("ecb_series_key", ref.seriesKey());
             qp.put("flowRef", ref.flowRef());
             qp.put("seriesKey", ref.seriesKey());
+            Map<String, Object> enriched = enrichedBySetId.get(ref.setIdCompat());
+            String enrichedName = enriched != null ? stringOrBlank(enriched.get("name")) : "";
             Map<String, Object> row = new LinkedHashMap<>();
             row.put("set_id", ref.setIdCompat());
-            row.put("name", ref.seriesKey());
+            // Beze shody v obohacenem indexu (melo by byt vzacne) zustava dnesni fallback na
+            // syrovy SDMX klic - nikdy prazdne/null.
+            row.put(
+                    "name",
+                    enrichedName.isBlank()
+                            ? ref.seriesKey()
+                            : EcbItemCodeHints.withUnresolvedItemHint(enrichedName, ref.flowRef(), ref.seriesKey()));
             row.put("kind", "selection");
             row.put("item_kind", "selection");
             row.put("ecb_flow", ref.flowRef());
@@ -244,6 +267,12 @@ public class EcbSeriesAvailabilityService {
             if (!letterKey.isBlank()) {
                 row.put("ecb_letter", letterKey);
             }
+            if (enriched != null) {
+                String subtitle = stringOrBlank(enriched.get("ecb_subtitle"));
+                if (!subtitle.isBlank()) {
+                    row.put("ecb_subtitle", subtitle);
+                }
+            }
             row.put("query_params", qp);
             row.put("path", ECB2_BROWSE_ROOT + " > " + code + " > " + flow + pathSuffix);
             row.put("ecb_browse_source", "discovery_availability");
@@ -251,6 +280,22 @@ public class EcbSeriesAvailabilityService {
         }
         rows.sort(Comparator.comparing(r -> stringOrBlank(r.get("name")).toLowerCase(Locale.ROOT)));
         return rows;
+    }
+
+
+    private Map<String, Map<String, Object>> lookupEnrichedRows(List<String> setIds) {
+        if (setIds.isEmpty()) {
+            return Map.of();
+        }
+        List<Map<String, Object>> enriched = catalogIndexStore.lookupRowsBySetIds("ecb2", setIds, setIds.size());
+        Map<String, Map<String, Object>> bySetId = new HashMap<>();
+        for (Map<String, Object> row : enriched) {
+            String sid = stringOrBlank(row.get("set_id"));
+            if (!sid.isBlank()) {
+                bySetId.put(sid, row);
+            }
+        }
+        return bySetId;
     }
 
     public List<Map<String, Object>> rowsToSets(List<Map<String, Object>> rows) {
@@ -291,14 +336,13 @@ public class EcbSeriesAvailabilityService {
 
     private Map<String, List<String>> buildFlowLetterIndex(String countryCode, String flowRef) {
         List<String> ids = countryFlowIndex(countryCode).getOrDefault(flowRef, List.of());
-        Map<String, List<String>> buckets = new HashMap<>();
-        for (String sid : ids) {
-            String[] group = browseGroupForSeries(sid, countryCode);
-            buckets.computeIfAbsent(group[0], ignored -> new ArrayList<>()).add(sid);
-            groupLabelIndex.put(countryCode + "|" + flowRef + "|" + group[0], group[1]);
+        Map<String, String> descriptors = lookupValueDescriptors(ids);
+        Grouping grouping = resolveGrouping(ids, countryCode, descriptors);
+        for (Map.Entry<String, String> entry : grouping.labels().entrySet()) {
+            groupLabelIndex.put(countryCode + "|" + flowRef + "|" + entry.getKey(), entry.getValue());
         }
         Map<String, List<String>> ordered = new LinkedHashMap<>();
-        buckets.entrySet().stream()
+        grouping.buckets().entrySet().stream()
                 .sorted(Comparator.comparing(e -> sortGroupKey(e.getKey(), countryCode, flowRef)))
                 .forEach(e -> {
                     List<String> sorted = new ArrayList<>(e.getValue());
@@ -308,12 +352,104 @@ public class EcbSeriesAvailabilityService {
         return ordered;
     }
 
+    record Grouping(Map<String, List<String>> buckets, Map<String, String> labels) {}
+
+    /** Group by the enriched descriptor when it actually discriminates within this country+flow
+     * group; otherwise keep today's letter-bucket behaviour untouched. A descriptor segment that
+     * is a great bucket key for one flow (e.g. ICP) can be near-constant for another (e.g. MIR) -
+     * verified per flow against real data (see AUDIT_2026-09-03.md, osmnacta vlna) rather than
+     * assumed, so this is measured from the actual resulting distribution, not a flow allowlist. */
+    Grouping resolveGrouping(List<String> ids, String countryCode, Map<String, String> descriptors) {
+        Grouping grouping = groupSeries(ids, countryCode, descriptors);
+        if (!descriptors.isEmpty() && !wellDiscriminated(grouping.buckets(), ids.size())) {
+            grouping = groupSeries(ids, countryCode, Map.of());
+        }
+        return grouping;
+    }
+
+    private Grouping groupSeries(List<String> ids, String countryCode, Map<String, String> descriptors) {
+        Map<String, List<String>> buckets = new HashMap<>();
+        Map<String, String> labels = new HashMap<>();
+        for (String sid : ids) {
+            String[] group = browseGroupForSeries(sid, countryCode, descriptors.get(sid));
+            buckets.computeIfAbsent(group[0], ignored -> new ArrayList<>()).add(sid);
+            labels.put(group[0], group[1]);
+        }
+        return new Grouping(buckets, labels);
+    }
+
+    /** At least 2 buckets, and no single bucket swallowing (almost) everything - thresholds are
+     * empirical, tuned against real per-flow distributions (see AUDIT_2026-09-03.md / the
+     * accompanying analysis), not a guess. */
+    static boolean wellDiscriminated(Map<String, List<String>> buckets, int totalCount) {
+        if (buckets.size() < 2 || totalCount <= 0) {
+            return false;
+        }
+        int largest = buckets.values().stream().mapToInt(List::size).max().orElse(0);
+        return largest <= totalCount * 0.9;
+    }
+
+    private Map<String, String> lookupValueDescriptors(List<String> ids) {
+        Map<String, Map<String, Object>> enriched = lookupEnrichedRows(ids.stream().distinct().toList());
+        Map<String, String> descriptors = new HashMap<>();
+        for (Map.Entry<String, Map<String, Object>> entry : enriched.entrySet()) {
+            String descriptor = stringOrBlank(entry.getValue().get("ecb_value_descriptor"));
+            if (!descriptor.isBlank()) {
+                descriptors.put(entry.getKey(), descriptor);
+            }
+        }
+        return descriptors;
+    }
+
+    private String[] browseGroupForSeries(String setId, String countryCode, String valueDescriptor) {
+        String candidate = descriptorCandidateLabel(valueDescriptor);
+        if (candidate != null) {
+            String slug = slugify(candidate);
+            // Jednoznakovy slug by se v normalizeLetterBucket choval jako legacy pismenkovy
+            // kbelik (vraci se uppercase) - necham tenhle pripad na legacy vetvi, aby se klice
+            // nerozjely (kbelik ulozeny jako "a", ale po kliknuti hledany jako "A").
+            if (!slug.isBlank() && slug.length() > 1) {
+                return new String[] {slug, candidate};
+            }
+        }
+        return browseGroupForSeries(setId, countryCode);
+    }
+
     private String[] browseGroupForSeries(String setId, String countryCode) {
         EcbReference.Parsed ref = EcbReference.parseSetId(setId);
         String seriesKey = ref != null ? ref.seriesKey() : setId.contains("/") ? setId.substring(setId.indexOf('/') + 1) : setId;
         String label = firstMeaningfulPart(seriesKey);
         String bucket = letterBucketFromLabel(label);
         return new String[] {bucket, displayGroupLabel(label, bucket)};
+    }
+
+    static String descriptorCandidateLabel(String valueDescriptor) {
+        if (valueDescriptor == null || valueDescriptor.isBlank()) {
+            return null;
+        }
+        int sep = valueDescriptor.indexOf(" · ");
+        String first = (sep >= 0 ? valueDescriptor.substring(0, sep) : valueDescriptor).trim();
+        return !first.isBlank() && !looksLikeRawCode(first) ? first : null;
+    }
+
+    /** ECB's enriched descriptor falls back to raw SDMX dimension codes (e.g. "S1", "W0", or the
+     * series key itself) when no human label mapping exists for that dimension - real per-flow
+     * sampling (BPS/CBD2/MNA/RAS) showed these are always a single space-free token, unlike any
+     * genuine human phrase observed (including ones with an embedded "." like MIR's "...
+     * (S.122)", which is why this doesn't key off punctuation). Checking for a lowercase letter
+     * alone isn't enough either - some real COICOP category labels are shouted in full caps
+     * (e.g. ICP's "HICP - FOOD AND NON-ALCOHOLIC BEVERAGES") but are still genuine multi-word
+     * text, not a code, so only reject when NEITHER signal is present. */
+    static boolean looksLikeRawCode(String text) {
+        return text.chars().noneMatch(Character::isLowerCase) && !text.contains(" ");
+    }
+
+    static String slugify(String text) {
+        String slug = text.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]+", "-").replaceAll("^-+|-+$", "");
+        if (slug.length() > 64) {
+            slug = slug.substring(0, 64).replaceAll("-+$", "");
+        }
+        return slug;
     }
 
     private static String firstMeaningfulPart(String seriesKey) {

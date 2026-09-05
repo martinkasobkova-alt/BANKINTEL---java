@@ -10,6 +10,7 @@ import {
   X,
 } from "lucide-react";
 import { formatPreviewMessage } from "@/lib/previewNormalizer";
+import { buildCatalogPathSegments } from "@/lib/catalogSearchPathNav";
 
 /**
  * Fullscreen detail řady — podobný režimu grafu na dashboardu.
@@ -19,6 +20,8 @@ export default function CatalogSeriesFullscreenDetail({
   onBack,
   onClose,
   breadcrumbItems = [],
+  catalogPath = "",
+  onOpenCatalogPath,
   title,
   code,
   catalogLabel,
@@ -102,7 +105,38 @@ export default function CatalogSeriesFullscreenDetail({
               <span className="hidden sm:inline">Zpět</span>
             </button>
 
-            {breadcrumbItems.length > 0 ? (
+            {catalogPath ? (
+              <nav
+                className="flex-1 min-w-0 flex items-center gap-1 text-[11px] text-muted-foreground overflow-hidden"
+                aria-label="Cesta v katalogu"
+              >
+                {buildCatalogPathSegments(catalogPath).map((seg, index) => (
+                  <React.Fragment key={`${seg.prefix}-${index}`}>
+                    {index > 0 ? <ChevronRight className="h-3 w-3 shrink-0 opacity-50" /> : null}
+                    {seg.clickable && onOpenCatalogPath ? (
+                      <button
+                        type="button"
+                        className={`truncate underline-offset-2 hover:underline hover:text-foreground ${
+                          seg.isLast ? "text-foreground font-medium" : ""
+                        }`}
+                        title={seg.label}
+                        onClick={() => onOpenCatalogPath(seg.prefix)}
+                        data-testid={`catalog-detail-breadcrumb-segment-${index}`}
+                      >
+                        {seg.label}
+                      </button>
+                    ) : (
+                      <span
+                        className={`truncate ${seg.isLast ? "text-foreground font-medium" : ""}`}
+                        title={seg.label}
+                      >
+                        {seg.label}
+                      </span>
+                    )}
+                  </React.Fragment>
+                ))}
+              </nav>
+            ) : breadcrumbItems.length > 0 ? (
               <nav
                 className="flex-1 min-w-0 flex items-center gap-1 text-[11px] text-muted-foreground overflow-hidden"
                 aria-label="Cesta v katalogu"

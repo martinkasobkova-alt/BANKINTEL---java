@@ -1,4 +1,7 @@
 import { defineConfig, loadEnv } from "vite";
+import type { ProxyOptions } from "vite";
+import type { ServerResponse } from "node:http";
+import type { Socket } from "node:net";
 import react from "@vitejs/plugin-react";
 import path from "node:path";
 
@@ -7,6 +10,7 @@ const REACT_APP_DEFAULTS = [
   "REACT_APP_BACKEND_URL",
   "REACT_APP_PROD_SAME_ORIGIN_API",
   "REACT_APP_API_TIMEOUT_MS",
+  "REACT_APP_AUTH_TIMEOUT_MS",
   "REACT_APP_EXPLORE_TIMEOUT_MS",
   "REACT_APP_EXPLORE_POLL_MAX_MS",
   "REACT_APP_SENTRY_DSN",
@@ -82,6 +86,66 @@ function stripBrowserOriginForDevProxy(proxy: {
   });
 }
 
+function proxyTarget(mode: string): string {
+  return (
+    process.env.REACT_APP_PROXY_TARGET
+    || loadEnv(mode, process.cwd(), "").REACT_APP_PROXY_TARGET
+    || "http://127.0.0.1:8080"
+  );
+}
+
+/**
+ * Bez tohoto byl proxy nastavený na `timeout: 0, proxyTimeout: 0` — když se spojení na
+ * backend jednou zaseklo (typicky když Vite naběhl dřív než backend), požadavky nikdy
+ * neselhaly ani nevypršely a stránka se nikdy nedonačetla. Teď dostane klient po
+ * uplynutí limitu (nebo při chybě spojení) regulérní 504/502 s JSON tělem.
+ *
+ * Jde o záchrannou brzdu proti zaseknutému socketu, ne o UX limit — ten patří klientovi
+ * (viz API_TIMEOUT_MS / AUTH_TIMEOUT_MS v `src/lib/api.js`). Proto je strop velkoryse nad
+ * nejpomalejším naměřeným synchronním voláním (/api/explore/sector ~44 s).
+ */
+const DEV_PROXY_TIMEOUT_DEFAULT_MS = 180_000;
+
+function devProxyTimeoutMs(mode: string): number {
+  const raw = Number(
+    process.env.REACT_APP_PROXY_TIMEOUT_MS
+    || loadEnv(mode, process.cwd(), "").REACT_APP_PROXY_TIMEOUT_MS
+    || DEV_PROXY_TIMEOUT_DEFAULT_MS,
+  );
+  return Number.isFinite(raw) && raw > 0 ? raw : DEV_PROXY_TIMEOUT_DEFAULT_MS;
+}
+
+type DevProxyServer = Parameters<NonNullable<ProxyOptions["configure"]>>[0];
+
+function failFastOnProxyError(proxy: DevProxyServer) {
+  proxy.on("error", (err, _req, res) => {
+    const code = String((err as NodeJS.ErrnoException)?.code || "");
+    const status = code === "ECONNREFUSED" || code === "ENOTFOUND" ? 502 : 504;
+    if (!res) return;
+    // U websocket upgrade je `res` holý Socket — nemá writeHead/end, jen ho zavřeme.
+    const httpRes = res as ServerResponse;
+    if (typeof httpRes.writeHead !== "function" || typeof httpRes.end !== "function") {
+      (res as Socket).destroy?.();
+      return;
+    }
+    if (httpRes.writableEnded) return;
+    try {
+      if (!httpRes.headersSent) {
+        httpRes.writeHead(status, { "content-type": "application/json; charset=utf-8" });
+      }
+      httpRes.end(
+        JSON.stringify({
+          detail: "Dev proxy nedosáhl na backend. Zkontrolujte, že backend běží na správném portu.",
+          error: "dev_proxy_upstream_unreachable",
+          code: code || "PROXY_ERROR",
+        }),
+      );
+    } catch {
+      // socket už je pryč — nic víc s tím neuděláme
+    }
+  });
+}
+
 export default defineConfig(({ mode }) => ({
   plugins: [
     react({
@@ -139,17 +203,37 @@ export default defineConfig(({ mode }) => ({
     host: true,
     compress: false,
     proxy: {
-      "/api": {
-        target:
-          process.env.REACT_APP_PROXY_TARGET
-          || loadEnv(mode, process.cwd(), "").REACT_APP_PROXY_TARGET
-          || "http://127.0.0.1:8080",
+      // SSE (deep-search / explore stream) musí zůstat bez časového limitu — dlouhá
+      // odmlka mezi eventy je normální. Klíč začíná "^", takže ho Vite bere jako regex
+      // a vyhodnocuje se dřív než obecné "/api".
+      "^/api/.*/stream": {
+        target: proxyTarget(mode),
         changeOrigin: true,
         secure: false,
         timeout: 0,
         proxyTimeout: 0,
         configure: (proxy) => {
           stripBrowserOriginForDevProxy(proxy);
+          failFastOnProxyError(proxy);
+          proxy.on("proxyRes", (proxyRes) => {
+            const ct = String(proxyRes.headers["content-type"] || "");
+            if (ct.includes("text/event-stream")) {
+              proxyRes.headers["cache-control"] = "no-cache, no-transform";
+              proxyRes.headers["x-accel-buffering"] = "no";
+              delete proxyRes.headers["content-encoding"];
+            }
+          });
+        },
+      },
+      "/api": {
+        target: proxyTarget(mode),
+        changeOrigin: true,
+        secure: false,
+        timeout: devProxyTimeoutMs(mode),
+        proxyTimeout: devProxyTimeoutMs(mode),
+        configure: (proxy) => {
+          stripBrowserOriginForDevProxy(proxy);
+          failFastOnProxyError(proxy);
           proxy.on("proxyRes", (proxyRes) => {
             const ct = String(proxyRes.headers["content-type"] || "");
             if (ct.includes("text/event-stream")) {
@@ -161,12 +245,14 @@ export default defineConfig(({ mode }) => ({
         },
       },
       "/health": {
-        target:
-          process.env.REACT_APP_PROXY_TARGET
-          || loadEnv(mode, process.cwd(), "").REACT_APP_PROXY_TARGET
-          || "http://127.0.0.1:8080",
+        target: proxyTarget(mode),
         changeOrigin: true,
-        configure: stripBrowserOriginForDevProxy,
+        timeout: 10_000,
+        proxyTimeout: 10_000,
+        configure: (proxy) => {
+          stripBrowserOriginForDevProxy(proxy);
+          failFastOnProxyError(proxy);
+        },
       },
     },
   },

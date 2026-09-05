@@ -57,7 +57,10 @@ public class AuthController {
     public Object me() {
         var user = currentUser.optionalUser();
         if (user == null) {
-            return null;
+            // Dřív se vracelo 200 s prázdným tělem — každý klient, který se dívá jen na
+            // stavový kód, si myslel, že je přihlášený, a klientský refresh access tokenu
+            // se vůbec nespustil (uživatel s platným refresh cookie vypadal odhlášeně).
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Nejste přihlášeni.");
         }
         return authService.me(user.id());
     }

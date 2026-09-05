@@ -51,7 +51,23 @@ public class Data360Connector implements BaseConnector {
         mergeHeaders(headers, source.get("headers"));
 
         try {
-            Map<String, Object> merged = fetchAllPages(url, headers, params);
+            int maxPages = maxPages(source);
+            Map<String, Object> merged = fetchAllPages(url, headers, params, maxPages, pageTimeout(source));
+            if (Boolean.TRUE.equals(merged.get("data360_relaxed_params_used"))) {
+                // Prázdná odpověď na původní filtry -> fetchAllPages je uvolní a zkusí to znovu.
+                // Uživatel pak vidí širší data, než o která si řekl, a nemá jak to poznat.
+                source.put(
+                        "_preview_note_cs",
+                        "Na zadané filtry Data360 nic nevrátilo, náhled proto ukazuje data "
+                                + "s uvolněnými filtry — nemusí odpovídat přesně tomu, co jste vybrali.");
+            } else if (Boolean.TRUE.equals(merged.get("data360_more_pages_available"))) {
+                // Náhled bere jen prvních pár stránek (viz maxPages) - ať je vidět, že to není
+                // celý indikátor, jinak uživatel čte zkrácenou řadu jako úplnou.
+                source.put(
+                        "_preview_note_cs",
+                        "Náhled Data360 je zkrácený na prvních " + (maxPages * PAGE_SIZE)
+                                + " řádků; celý indikátor se stáhne až při přidání zdroje.");
+            }
             return ConnectorFetchResult.ok(merged, source);
         } catch (Data360HttpStatusException ex) {
             Data360ErrorClassifier.Classification classification =
@@ -112,7 +128,59 @@ public class Data360Connector implements BaseConnector {
         return ConnectorParseSupport.parseData360Rows(ConnectorHttpSupport.stringMap(map));
     }
 
-    private Map<String, Object> fetchAllPages(String url, Map<String, String> headers, Map<String, String> params)
+    /**
+     * Kolik stránek po {@link #PAGE_SIZE} řádcích se stáhne, než se výsledek uzavře.
+     *
+     * <p>Náhled potřebuje pár set řádků na graf, ne celý globální indikátor přes všechny země
+     * a roky. Plošný test náhledů přes všechny katalogy: data360 bylo jediné, kde náhled běžně
+     * trval desítky sekund a 3 z 10 vzorků nedoběhly ani do 120 s — {@link #MAX_PAGES} je 50,
+     * tedy až 50 000 řádků a 50 HTTP dotazů po 60 s. Náhled si proto přes
+     * {@code data360_max_pages} říká o nižší strop ({@code InMemorySourceBuilder#buildData360});
+     * synchronizace nad uloženým zdrojem klíč neposílá a stahuje dál celý indikátor.
+     */
+    private static int maxPages(Map<String, Object> source) {
+        String raw = string(source, "data360_max_pages");
+        if (!raw.isBlank()) {
+            try {
+                int pages = Integer.parseInt(raw.trim());
+                if (pages > 0) {
+                    return Math.min(pages, MAX_PAGES);
+                }
+            } catch (NumberFormatException ignored) {
+                // nečitelná hodnota - použije se výchozí strop
+            }
+        }
+        return MAX_PAGES;
+    }
+
+    /**
+     * Kolik se čeká na JEDNU stránku Data360.
+     *
+     * <p>Data360 API umí odpovídat velmi pomalu nebo vůbec — {@code WB_IDS_DT_CUR_USDL} neodpoví
+     * ani za 20 s při přímém dotazu mimo aplikaci. Výchozích 60 s je pro synchronizaci v pořádku,
+     * pro náhled to znamená minutu zaseknutého panelu; náhled si proto říká o kratší strop.
+     */
+    private static Duration pageTimeout(Map<String, Object> source) {
+        String raw = string(source, "data360_timeout_sec");
+        if (!raw.isBlank()) {
+            try {
+                int seconds = Integer.parseInt(raw.trim());
+                if (seconds > 0) {
+                    return Duration.ofSeconds(seconds);
+                }
+            } catch (NumberFormatException ignored) {
+                // nečitelná hodnota - použije se výchozí strop
+            }
+        }
+        return Duration.ofSeconds(60);
+    }
+
+    private Map<String, Object> fetchAllPages(
+            String url,
+            Map<String, String> headers,
+            Map<String, String> params,
+            int maxPages,
+            Duration pageTimeout)
             throws Exception {
         List<Object> mergedRows = new ArrayList<>();
         Map<String, Object> meta = new LinkedHashMap<>();
@@ -120,10 +188,10 @@ public class Data360Connector implements BaseConnector {
         boolean relaxedUsed = false;
         Map<String, String> activeParams = new LinkedHashMap<>(params);
 
-        for (int page = 0; page < MAX_PAGES; page++) {
+        for (int page = 0; page < maxPages; page++) {
             Map<String, String> pageParams = new LinkedHashMap<>(activeParams);
             pageParams.put("skip", String.valueOf(skip));
-            HttpResponse<String> response = http.get(url, headers, toObjectQuery(pageParams), Duration.ofSeconds(60));
+            HttpResponse<String> response = http.get(url, headers, toObjectQuery(pageParams), pageTimeout);
             if (response.statusCode() != 200) {
                 if (!mergedRows.isEmpty()) {
                     meta.put("value", mergedRows);
@@ -157,6 +225,9 @@ public class Data360Connector implements BaseConnector {
                 break;
             }
             skip += PAGE_SIZE;
+            if (page == maxPages - 1) {
+                meta.put("data360_more_pages_available", true);
+            }
         }
 
         Map<String, Object> out = new LinkedHashMap<>(meta);

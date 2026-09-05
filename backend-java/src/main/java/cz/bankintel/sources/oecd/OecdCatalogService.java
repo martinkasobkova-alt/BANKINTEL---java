@@ -177,9 +177,10 @@ public class OecdCatalogService {
 
         Map<String, Object> queryParams = new LinkedHashMap<>();
         queryParams.put("format", "csvfilewithlabels");
-        queryParams.put("startTime", "2010");
+        // Uložený zdroj si dřív nesl startTime=2010 a strop 800 bodů, takže graf na dashboardu
+        // ukazoval jen výsek. Celou historii chce uživatel i tady.
         queryParams.put("dimensionAtObservation", "AllDimensions");
-        queryParams.put("lastNObservations", 800);
+        queryParams.put("lastNObservations", 20_000);
         Object extra = payload.get("query_params");
         if (extra instanceof Map<?, ?> map) {
             for (Map.Entry<?, ?> entry : map.entrySet()) {

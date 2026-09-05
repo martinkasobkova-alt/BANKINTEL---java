@@ -9,6 +9,7 @@ import jakarta.persistence.Table;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.JdbcTypeCode;
@@ -56,6 +57,11 @@ public class DashboardPageEntity {
 
     @Column(name = "allow_embed", nullable = false)
     private boolean allowEmbed;
+
+    /** KPI dlaždice nad widgety stránky — stejný tvar jako HomepageConfigEntity.headlineKpis. */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "headline_kpis", nullable = false)
+    private List<Map<String, Object>> headlineKpis = new ArrayList<>();
 
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;

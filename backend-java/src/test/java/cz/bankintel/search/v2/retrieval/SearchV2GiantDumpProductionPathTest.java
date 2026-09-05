@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import cz.bankintel.search.CatalogIndexStore;
 import cz.bankintel.search.openai.OpenAiClient;
 import cz.bankintel.search.v2.entity.ExactEntityResolver;
 import cz.bankintel.search.v2.entity.SearchV2SourceCapabilityRegistry;
@@ -49,11 +50,13 @@ class SearchV2GiantDumpProductionPathTest {
         SearchV2SourceCapabilityRegistry sourceCapabilityRegistry =
                 new SearchV2SourceCapabilityRegistry(objectMapper);
         ExactEntityResolver exactEntityResolver =
-                new ExactEntityResolver(objectMapper, sourceCapabilityRegistry);
+                new ExactEntityResolver(objectMapper, sourceCapabilityRegistry, mock(CatalogIndexStore.class));
         SearchV2ConceptRegistry conceptRegistry = new SearchV2ConceptRegistry(objectMapper);
         SearchV2InstitutionalSectorRegistry institutionalSectorRegistry =
                 new SearchV2InstitutionalSectorRegistry(objectMapper);
         SearchV2MetricIntentRegistry metricIntentRegistry = new SearchV2MetricIntentRegistry(objectMapper);
+        cz.bankintel.search.v2.ontology.SearchV2IndustrySectorRegistry industrySectorRegistry =
+                new cz.bankintel.search.v2.ontology.SearchV2IndustrySectorRegistry(objectMapper);
         OpenAiClient unconfiguredOpenAiClient = mock(OpenAiClient.class);
 
         SearchV2QueryPlanner planner = new SearchV2QueryPlanner(
@@ -62,7 +65,8 @@ class SearchV2GiantDumpProductionPathTest {
                 conceptRegistry,
                 sourceCapabilityRegistry,
                 institutionalSectorRegistry,
-                metricIntentRegistry);
+                metricIntentRegistry,
+                industrySectorRegistry);
 
         SearchQueryPlan plan = planner.plan(Map.of(
                 "q", "bank profit Czech Republic",
